@@ -6,10 +6,11 @@
 #include <set>
 #include <vector>
 #include <deque>
+#include <iostream>
 
 class gizmo_hdf5_reader {
     public:
-        gizmo_hdf5_reader(char *inName);
+        gizmo_hdf5_reader(char const *inName);
 
         void    readGas();
         
@@ -18,7 +19,8 @@ class gizmo_hdf5_reader {
     private:
         void    readDims();
 		hid_t	gizFile;
-		double* readDoubleArray(char *data_name);
+		double* readDoubleArray(char const *data_name);
+        //double* readDoubleArray(std::string *data_name_in);
 		//double* readDoubleArray3D(char *data_name);
         
         gizData_t myData;
@@ -86,25 +88,6 @@ class depthrays {
 };
 
 
-class rebeamrays {
-    public:
-        rebeamrays();
-        
-        std::vector< double > SPH_fluxes_thin(gizData_t *d, std::vector< double >* lums);
-        std::vector< double > SPH_fluxes_naive(gizData_t *d, std::vector< double >* lums);
-        std::vector< double > SPH_fluxes_grid(gizData_t *d, std::vector< double >* lums);
-        std::vector< double > SPH_fluxes_tree(gizData_t *d, std::vector< double >* lums);
-        
-    private:
-        Kernel* kernel;
-        
-        bool between_particles(gasP_t *p1,gasP_t *p2,gasP_t *p3);
-        double intersect_d2_nonorm(gasP_t *p1,gasP_t *p2,gasP_t *p3);
-        double get_d12_norm(gasP_t *p1,gasP_t *p2);
-};
-
-
-
 class gridList {
     public:
         gridList(int L);
@@ -125,10 +108,14 @@ class octtreelist {
         void head_addP(int ip, double r_p[3], double h);
         
         
-        SET_TYPE<int >* beam(double r1[3], double r2[3]);
+        //SET_TYPE<int >* beam(double r1[3], double r2[3]);
+        //SET_TYPE<int >* beam_level(int ilevel, double r1[3], double r2[3]);
+        void beam_level(int ilevel, double r1[3], double r2[3],std::vector<PLIST_TYPE<int>*> *list_of_lists);
+        std::vector<PLIST_TYPE<int>*>* beam(double r1[3], double r2[3]);
 
-        SET_TYPE<int >* beam_level(int ilevel, double r1[3], double r2[3]);
+        
         octtreelist* getCellAt(int ilevel,int ix,int iy,int iz);
+        octtreelist* getCellAt(int ilevel,int ixyz[3]);
         PLIST_TYPE<int>* getPList();
         
         void dump();
@@ -138,14 +125,60 @@ class octtreelist {
     private:
         int itreer(double r, int idim, int ilevel);
         double rtreei(int ii, int idim, int ilevel);
+        PLIST_TYPE<int> myP;
         double r_left[3];
         int ixyz[3];
         double size;
         int level;
         octtreelist **nodes;
-        PLIST_TYPE<int> *myP;
+        //PLIST_TYPE<int> *myP;
         int maxlevel;
 };
+
+class mintemptree {
+    public:
+        mintemptree(double r_cent[3], double size);
+        void addp(double r_p[3], int ip, double temp);
+        
+        void dump(int ilevel);
+        void dump();
+    private:
+        void placeInChildNode(double r_p[3], int ip, double temp);
+        
+        double r_cent[3];
+        double size;
+        
+        mintemptree **nodes;
+        
+        double r_p[3];
+        int ip;
+        double minTemp;
+        
+};
+
+
+
+
+class rebeamrays {
+    public:
+        rebeamrays();
+        
+        std::vector< double > SPH_fluxes_thin(gizData_t *d, std::vector< double >* lums);
+        std::vector< double > SPH_fluxes_naive(gizData_t *d, std::vector< double >* lums);
+        std::vector< double > SPH_fluxes_grid(gizData_t *d, std::vector< double >* lums);
+        std::vector< double > SPH_fluxes_tree(gizData_t *d, std::vector< double >* lums);
+        
+    private:
+        Kernel* kernel;
+
+        double one_sph_tree_ray(octtreelist *tree, gasP_t *p1, gasP_t *p2,bool alreadyDone[],gizData_t *d, int ig, int jg);
+
+        
+        //bool between_particles(gasP_t *p1,gasP_t *p2,gasP_t *p3);
+        //double intersect_d2_nonorm(gasP_t *p1,gasP_t *p2,gasP_t *p3);
+        //double get_d12_norm(gasP_t *p1,gasP_t *p2);
+};
+
 
 //static inline double square(double x);
 
@@ -168,4 +201,75 @@ static inline int igridr(double x, double gridR, int L) {
 // "left" side of cell
 static inline double rgridi(int ix, double gridR, int L) {
     return ix*((gridR*2.)/L)-gridR;
+}
+
+static inline double intersect_d2_nonorm(gasP_t *p1,gasP_t *p2,gasP_t *p3) {
+    double dr31[3],dr32[3];
+    double crossp;
+    for ( int ii=0 ; ii<3 ; ii++ ) {
+        dr31[ii] = p3->r[ii]-p1->r[ii];
+        dr32[ii] = p3->r[ii]-p2->r[ii];
+    }
+    
+    crossp = square( dr31[1]*dr32[2]-dr31[2]*dr32[1]);
+    crossp+= square(-dr31[0]*dr32[2]+dr31[2]*dr32[0]);
+    crossp+= square( dr31[0]*dr32[1]-dr31[1]*dr32[0]);
+    
+    return crossp;
+}
+
+
+
+
+static inline bool between_particles(gasP_t *p1,gasP_t *p2,gasP_t *p3) {
+    //bool between = false;    
+    double z1=0.,z2=0.,z3=0.;
+    // try to avoid cache misses
+    /*double dd[3];
+    for ( int jj=0 ; jj<3 ; jj++ ) {
+        dd[jj] = p1->r[jj]-p2->r[jj];
+    }
+    for ( int jj=0 ; jj<3 ; jj++ ) {
+        z1+=p1->r[jj]*dd[jj];
+    }
+    for ( int jj=0 ; jj<3 ; jj++ ) {
+        z2+=p2->r[jj]*dd[jj];
+    }
+    for ( int jj=0 ; jj<3 ; jj++ ) {
+        z3+=p3->r[jj]*dd[jj];
+    }*/
+    for ( int jj=0 ; jj<3 ; jj++ ) {
+        double dd = p1->r[jj]-p2->r[jj];
+        z1+=p1->r[jj]*dd;
+        z2+=p2->r[jj]*dd;
+        z3+=p3->r[jj]*dd;
+    }
+    if ( z1>z2 ) {
+        if ( z1>z3 && z3>z2 ) {
+            //between = true;
+            return true;
+        }
+    } else if ( z1<z2 ) {
+        if ( z1<z3 && z3<z2 ) {
+            //between = true;
+            return true;
+        }
+    } else {
+        // ?? should not happen
+        std::cout << "z1=z2 ???" << std::endl;
+        exit(0);
+    }
+    //if ( (z1<z2 && z2<z3) || (z1>z2 && z2>z3 ) ) return true;
+    //return between;
+    return false;
+}
+
+
+static inline double get_d12_norm(gasP_t *p1,gasP_t *p2) {
+    double norm=0.;
+    for ( int ii=0 ; ii<3 ; ii++ ) {
+        norm+=square(p1->r[ii]-p2->r[ii]);
+    }
+    
+    return norm;
 }

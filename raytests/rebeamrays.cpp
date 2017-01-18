@@ -4,12 +4,14 @@
 #include <list>    
 //#include <math.h>
 #include <cmath>
+#include <cstring>
 #include <stdlib.h>
 #include <ctime>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
 #include <deque>
+#include <array>
 
 rebeamrays::rebeamrays() {
     kernel = new Kernel();
@@ -31,63 +33,6 @@ std::vector< double > rebeamrays::SPH_fluxes_thin(gizData_t *d, std::vector< dou
     }
     return fluxes;
 }
-
-
-bool rebeamrays::between_particles(gasP_t *p1,gasP_t *p2,gasP_t *p3) {
-    //bool between = false;    
-    double z1=0.,z2=0.,z3=0.;
-    for ( int jj=0 ; jj<3 ; jj++ ) {
-        double dd = p1->r[jj]-p2->r[jj];
-        z1+=p1->r[jj]*dd;
-        z2+=p2->r[jj]*dd;
-        z3+=p3->r[jj]*dd;
-    }
-    if ( z1>z2 ) {
-        if ( z1>z3 && z3>z2 ) {
-            //between = true;
-            return true;
-        }
-    } else if ( z1<z2 ) {
-        if ( z1<z3 && z3<z2 ) {
-            //between = true;
-            return true;
-        }
-    } else {
-        // ?? should not happen
-        std::cout << "z1=z2 ???" << std::endl;
-        exit(0);
-    }
-    //if ( (z1<z2 && z2<z3) || (z1>z2 && z2>z3 ) ) return true;
-    //return between;
-    return false;
-}
-
-
-double rebeamrays::intersect_d2_nonorm(gasP_t *p1,gasP_t *p2,gasP_t *p3) {
-    double dr31[3],dr32[3];
-    double crossp;
-    for ( int ii=0 ; ii<3 ; ii++ ) {
-        dr31[ii] = p3->r[ii]-p1->r[ii];
-        dr32[ii] = p3->r[ii]-p2->r[ii];
-    }
-    
-    crossp = square( dr31[1]*dr32[2]-dr31[2]*dr32[1]);
-    crossp+= square(-dr31[0]*dr32[2]+dr31[2]*dr32[0]);
-    crossp+= square( dr31[0]*dr32[1]-dr31[1]*dr32[0]);
-    
-    return crossp;
-}
-
-
-double rebeamrays::get_d12_norm(gasP_t *p1,gasP_t *p2) {
-    double norm=0.;
-    for ( int ii=0 ; ii<3 ; ii++ ) {
-        norm+=square(p1->r[ii]-p2->r[ii]);
-    }
-    
-    return norm;
-}
-
 
 std::vector< double > rebeamrays::SPH_fluxes_naive(gizData_t *d, std::vector< double >* lums) {
     std::vector< double > fluxes ( d->ng,0.);
@@ -235,11 +180,16 @@ std::vector< double > rebeamrays::SPH_fluxes_grid(gizData_t *d, std::vector< dou
     // ray from ig to jg passing through kg
     //for ( int ig = 0 ; ig<d->ng ; ig++ ) {
     //for ( int ig = 0 ; ig<d->ng ; ig+=10 ) {
-    for ( int ig = 20000 ; ig<22000 ; ig+=1000 ) {
-    //{ int ig = 20000;
+    //for ( int ig = 20000 ; ig<22000 ; ig+=1000 ) {
+    { int ig = 20000;
         /*if ( ig%100==0 ) {
             std::cout << ig << std::endl;
         }*/
+        gasP_t p_cent;
+        
+        for ( int ii=0 ; ii<3 ; ii++ ) {
+            p_cent.r[ii] = 0.;
+        }
         gasP_t *p1 = &d->gasP[ig];
         //for ( int jg = 0 ; jg<d->ng ; jg++ ) {
         //for ( int jg = 0 ; jg<d->ng ; jg+=100 ) {
@@ -363,9 +313,9 @@ std::vector< double > rebeamrays::SPH_fluxes_grid(gizData_t *d, std::vector< dou
 std::vector< double > rebeamrays::SPH_fluxes_tree(gizData_t *d, std::vector< double >* lums) {
     std::vector< double > fluxes ( d->ng,0.);
     octtreelist *tree;
+    mintemptree *temptree;
     std::clock_t start;
     double duration;
-
 
     start = omp_get_wtime();
     double rmin[3],rmax[3];
@@ -402,7 +352,8 @@ std::vector< double > rebeamrays::SPH_fluxes_tree(gizData_t *d, std::vector< dou
     // so must increase size by a small amount so that the "rightmost"
     // particle actually fits strictly inside
     size*=(1.+1.e-6);
-
+    
+    // build tree of lists of particles for hitting smoothing lengths
     tree = new octtreelist(rmin,size);
     
     for ( int ip = 0; ip<d->ng ; ip++ ) {
@@ -410,6 +361,27 @@ std::vector< double > rebeamrays::SPH_fluxes_tree(gizData_t *d, std::vector< dou
     //for ( int ip = 0; ip<d->ng ; ip+=1000 ) {
         tree->head_addP(ip,d->gasP[ip].r,d->gasP[ip].h);
     }
+
+    std::cout << "mintemptree:" << std::endl;
+    
+    // build tree of minimum temperatures of particles for testing
+    // if we need to pass rays between them
+    double r_cent[3];
+    for ( int ii=0 ; ii<3 ; ii++ ) {
+        r_cent[ii] = (rmin[ii]+rmax[ii])/2.;
+    }
+    /*temptree = new mintemptree(r_cent,size);
+    //for ( int ip = 0; ip<d->ng ; ip++ ) {
+    for ( int ip = 0; ip<d->ng ; ip++ ) {
+        d->gasP[ip].uint=sin(ip*100.)*.1+.2;
+        temptree->addp(d->gasP[ip].r,ip,d->gasP[ip].uint);
+    }*/
+    //temptree->dump();
+    
+    //std::cout << "DONE!" << std::endl;
+    //exit(1);
+    
+    
     duration = ( omp_get_wtime() - start );
     std::cout << "treebuildtime:" << duration << std::endl;
 
@@ -424,75 +396,44 @@ std::vector< double > rebeamrays::SPH_fluxes_tree(gizData_t *d, std::vector< dou
 //     long ncomp = 0;
     //for ( int ig = 0 ; ig<d->ng ; ig++ ) {
     //for ( int ig = 0 ; ig<d->ng ; ig+=5000 ) {
-    { int ig = 20000;
-    //for ( int ig = 20000 ; ig<22000 ; ig+=1000 ) {
+    //std::array<bool, d->ng> alreadyDone; 
+    //{ int ig = 20000;
+
+    start = omp_get_wtime();
+
+#pragma omp parallel default(none) shared(tree,std::cout,d,lums,fluxes)
+{
+    int nthreads = omp_get_num_threads();
+    int ithread = omp_get_thread_num();
+    bool alreadyDone[d->ng];
+    std::vector< double > local_fluxes ( d->ng,0.);
+//#pragma omp for schedule(dynamic, 1)
+    //for ( int ig = 0 ; ig<128 ; ig++ ) {
+    //for ( int ig = 0 ; ig<64 ; ig++ ) {
+    //for ( int ig = 0 ; ig<d->ng ; ig+=100 ) {
+    //{ int ig = 6400;
+    { int ig = 0;
+        //std::cout << ithread << " " << ig << std::endl;
         /*if ( ig%100==0 ) {
             std::cout << ig << std::endl;
         }*/
         gasP_t *p1 = &d->gasP[ig];
-        //for ( int jg = 0 ; jg<d->ng ; jg+=100 ) {
-        for ( int jg = 0 ; jg<d->ng ; jg+=10 ) {
-        //{   int jg = 1000;
-        if ( jg%1000==0 ) {
-            std::cout << jg << std::endl;
+        // force into centre
+        for ( int ii=0 ; ii<3 ; ii++ ) {
+            p1->r[ii] = 0.;
         }
-           gasP_t *p2 = &d->gasP[jg];
-           double d12_norm = get_d12_norm(p1,p2);
+        //for ( int jg = 0 ; jg<d->ng ; jg+=100 ) {
+        //for ( int jg = 0 ; jg<d->ng ; jg+=5 ) {
+#pragma omp for schedule(dynamic, 1)
+        for ( int jg = 0 ; jg<d->ng ; jg++ ) {
+        //for ( int jg = 0 ; jg<10000 ; jg++ ) {
+        //{   int jg = 1;
+        /*if ( jg%1000==0 ) {
+            std::cout << jg << std::endl;
+        }*/
            if ( ig!=jg ) {
-                SET_TYPE<int >* hitp_set;
-                hitp_set = tree->beam(p1->r,p2->r); // maybe build list of pointers to cells instead of list of particle IDs?
-
-                /*SET_TYPE<int>::iterator it;
-                std::sort(hitp_set->begin(),hitp_set->end());
-                it = std::unique(hitp_set->begin(), hitp_set->end());
-                hitp_set->resize(std::distance(hitp_set->begin(),it) );*/
-                
-                
-                //std::cout << "n to check = " << hitp_set->size() << "/" << d->ng << std::endl;
-                std::vector< bool > alreadyDone ( d->ng,false );
-                //std::unordered_set< int > alreadyDone;
-                
-                double depth = 0.;
-
-                for ( SET_TYPE<int >::iterator it = hitp_set->begin() ; it != hitp_set->end(); it++ ) {
-                    int kg = *it;
-                    /*if ( kg<0 || kg>=d->ng ) {
-                        std::cout << "bad kg " << kg << std::endl;
-                        exit(1);
-                    }*/
-//                     ncomp++;
-                //for ( int ii=0 ; ii<hitp_set->size() ; ii++ ) {
-                //    int kg = (*hitp_set)[ii];
-                    //if ( !alreadyDone[kg] ) {
-                    if ( kg!=ig && kg!=jg ) {
-                        if ( !alreadyDone[kg] ) {
-                        //if ( alreadyDone.find(kg)==alreadyDone.end() ) {
-                            alreadyDone[kg] = true;
-                            //alreadyDone.insert(kg);
-                            gasP_t *p3 = &d->gasP[kg];
-                    
-                            if ( between_particles(p1,p2,p3) ) {
-                                double d2int = intersect_d2_nonorm(p1,p2,p3)/d12_norm;
-                       
-                                double h2 = square(p3->h);
-                       
-                                if ( d2int<=h2 ) {
-                                    //fluxes[kg] = 1.;
-                                    depth+=1.e-2;
-                                    //fluxes[kg] = ig;
-                                }
-                       
-                                //fluxes[kg] = d2int;
-                            }
-                        }
-                    }
-                    //fluxes[kg] = 3;
-                }
-                //std::cout << "size: " << alreadyDone.size() << std::endl;
-                fluxes[jg] += (*lums)[ig]/d12_norm*exp(-depth);
-                //fluxes[jg] += (*lums)[ig]*exp(-depth);
-                delete hitp_set;
-                //exit(1);
+               gasP_t *p2 = &d->gasP[jg];
+               local_fluxes[jg]+=(*lums)[ig]*exp(-this->one_sph_tree_ray(tree,p1,p2,alreadyDone,d,ig,jg));
            }
            //fluxes[ig] = 1;
            //fluxes[jg] = 1;
@@ -501,11 +442,105 @@ std::vector< double > rebeamrays::SPH_fluxes_tree(gizData_t *d, std::vector< dou
         }
     }    
 //     std::cout << "ncomp:" << ncomp << std::endl;
-    
+/*        for ( int iproc=0 ; iproc<nthreads ; iproc++ ) {
+            #pragma omp for
+            for ( int ii=(ithread+iproc)%nthreads ; ii<d->ng ; ii+=nthreads ) {
+                fluxes[ii] += local_fluxes[ii];
+            }
+            #pragma omp barrier
+        }*/
+        #pragma omp critical
+        for ( int ii=0 ; ii<d->ng ; ii++ ) {
+            fluxes[ii] += local_fluxes[ii];
+        }
+            
+    }
+    duration = ( omp_get_wtime() - start );
+    std::cout << "actual tree time:" << duration << std::endl;
     delete tree;
     
     return fluxes;
 }
 
+double rebeamrays::one_sph_tree_ray(octtreelist *tree, gasP_t *p1, gasP_t *p2,bool alreadyDone[],gizData_t *d, int ig, int jg) {
+    double d12_norm = get_d12_norm(p1,p2);
+    //SET_TYPE<int >* hitp_set;
+    //hitp_set = tree->beam(p1->r,p2->r); // maybe build list of pointers to cells instead of list of particle IDs?
+    std::vector<PLIST_TYPE<int>*> *list_of_lists = tree->beam(p1->r,p2->r); // list of pointers to cell particle lists
 
+    /*SET_TYPE<int>::iterator it;
+    std::sort(hitp_set->begin(),hitp_set->end());
+    it = std::unique(hitp_set->begin(), hitp_set->end());
+    hitp_set->resize(std::distance(hitp_set->begin(),it) );*/
+
+
+    //std::cout << "n to check = " << hitp_set->size() << "/" << d->ng << std::endl;
+    //std::vector< bool > alreadyDone ( d->ng,false );
+    //std::array< bool > alreadyDone ( d->ng,false );
+    //alreadyDone.fill(false);
+    //std::unordered_set< int > alreadyDone;
+
+    /*for ( int ig = 0 ; ig<d->ng ; ig++ ) {
+        alreadyDone[ig] = false;
+    }*/
+    memset(alreadyDone, 0, sizeof(bool)*d->ng );
+    
+    double depth = 0.;
+    
+    //for ( std::vector<PLIST_TYPE<int>*>::iterator it2 = list_of_lists->begin() ; it2!=list_of_lists->end() ; it2++ ) {
+    //    PLIST_TYPE<int > *hitp_set=*it2;
+    unsigned int lols = list_of_lists->size();
+    //                 std::cout << lols << std::endl;
+    for ( unsigned int ilist=0 ; ilist<lols ; ilist++ ) {
+        PLIST_TYPE<int > *hitp_set = (*list_of_lists)[ilist];
+        // std::cout << ilist << " " << hitp_set << std::endl;
+        //for ( SET_TYPE<int >::iterator it = hitp_set->begin() ; it != hitp_set->end(); it++ ) {
+        //for ( PLIST_TYPE<int >::iterator it = hitp_set->begin() ; it != hitp_set->end(); it++ ) {
+        //    int kg = *it;
+            /*if ( kg<0 || kg>=d->ng ) {
+                std::cout << "bad kg " << kg << std::endl;
+                exit(1);
+            }*/
+    //                     ncomp++;
+        unsigned int hs = hitp_set->size() ;
+        for ( unsigned int ii=0 ; ii<hs ; ii++ ) {
+            int kg = (*hitp_set)[ii];
+            //if ( !alreadyDone[kg] ) {
+            if ( kg!=ig && kg!=jg ) {
+                if ( !alreadyDone[kg] ) {
+                //if ( alreadyDone.find(kg)==alreadyDone.end() ) {
+                    alreadyDone[kg] = true;
+                    //alreadyDone.insert(kg);
+                    gasP_t *p3 = &d->gasP[kg];
+    
+                    if ( between_particles(p1,p2,p3) ) {
+                        double d2int = intersect_d2_nonorm(p1,p2,p3)/d12_norm;
+       
+                        double h2 = square(p3->h);
+       
+                        if ( d2int<=h2 ) {
+                            //fluxes[kg] = 1.;
+                            depth+=1.e-2;
+                            //fluxes[kg] = ig;
+                        }
+       
+                        //fluxes[kg] = d2int;
+                    }
+                }
+            }
+            //fluxes[kg] = 3;
+        }
+    }
+    //std::cout << "size: " << alreadyDone.size() << std::endl;
+    //fluxes[jg] += (*lums)[ig]/d12_norm*exp(-depth);
+    //local_fluxes[jg]+= (*lums)[ig]/d12_norm*exp(-depth);
+    //(*local_fluxes)[jg]+= (*lums)[ig]*exp(-depth);
+    //fluxes[jg] += (*lums)[ig]*exp(-depth);
+    //delete hitp_set;
+    delete list_of_lists;
+    //exit(1);
+    
+    //return (*lums)[ig]*exp(-depth);
+    return depth;
+}
 

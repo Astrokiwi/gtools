@@ -5,11 +5,12 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
+#include <string>
 
 #include "prototypes.h"
 
 
-gizmo_hdf5_reader::gizmo_hdf5_reader(char *inName) {
+gizmo_hdf5_reader::gizmo_hdf5_reader(char const *inName) {
 	gizFile = H5Fopen(inName,H5F_ACC_RDONLY,H5P_DEFAULT);
 	
 	if( (int) gizFile < 0)
@@ -28,10 +29,10 @@ gizmo_hdf5_reader::gizmo_hdf5_reader(char *inName) {
 }
 
 void gizmo_hdf5_reader::readGas() {
-    std::clock_t start;
-    double duration;
+    //std::clock_t start;
+//     double duration;
 
-    start = std::clock();
+    //start = std::clock();
     if ( false )
     {
         double* data;
@@ -82,11 +83,11 @@ void gizmo_hdf5_reader::readGas() {
     
     }
     
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout<<"one array  : "<< duration <<'\n';
     
     
-    start = std::clock();
+    //start = std::clock();
     {
         double *data[6];
     
@@ -109,24 +110,25 @@ void gizmo_hdf5_reader::readGas() {
         }
         
         for ( int jj=0 ; jj<6 ; jj++ ) {
+            //std::cout << sizeof(data[jj]) << " " <<sizeof(*(data[jj])) << std::endl;
             delete data[jj];
         }
     }
     
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    //duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
     //std::cout<<"many arrays: "<< duration <<'\n';
 }
 
 void gizmo_hdf5_reader::readDims() {
-    hid_t dataset,dataspace,status;
-	int rank;
+    hid_t dataset,dataspace;//,status;
+	//int rank;
 	hsize_t dims_out,max_dims;
 
 	dataset = H5Dopen(gizFile, "/PartType0/ParticleChildIDsNumber",H5P_DEFAULT);
 	dataspace = H5Dget_space(dataset);
-	rank = H5Sget_simple_extent_ndims(dataspace);
+	H5Sget_simple_extent_ndims(dataspace);
 	//printf("%d\n",rank);
-	status = H5Sget_simple_extent_dims(dataspace,&dims_out,&max_dims);
+	H5Sget_simple_extent_dims(dataspace,&dims_out,&max_dims);
     //printf("%d %d\n",dims_out,max_dims);
 	
 	myData.ng = dims_out;
@@ -137,11 +139,17 @@ void gizmo_hdf5_reader::readDims() {
 	myData.gasP.resize(myData.ng);
 }
 
-double* gizmo_hdf5_reader::readDoubleArray(char *data_name) {
+// double* gizmo_hdf5_reader::readDoubleArray(std::string *data_name) {
+//     return this->readDoubleArray(data_name->c_str());
+// }
+ 
+double* gizmo_hdf5_reader::readDoubleArray(char const *data_name) {
+//double* gizmo_hdf5_reader::readDoubleArray(std::string *data_name_in) {
     // copied from flash_reader
-	hid_t dataset,dataspace,memspace,status;
+	hid_t dataset,dataspace,memspace;//,status;
+	//char* data_name = data_name_in->c_str();
 	int rank;
-	hsize_t *dims_out,*max_dims;
+	//hsize_t *dims_out,*max_dims;
 
 	double* data;
 	
@@ -156,10 +164,12 @@ double* gizmo_hdf5_reader::readDoubleArray(char *data_name) {
 	dataset = H5Dopen(gizFile, data_name,H5P_DEFAULT); // Works on others
 	dataspace = H5Dget_space(dataset);
 	rank = H5Sget_simple_extent_ndims(dataspace);
-	dims_out = new hsize_t[rank];
-	max_dims = new hsize_t[rank];
+	//dims_out = new hsize_t[rank];
+	//max_dims = new hsize_t[rank];
 	
-	status = H5Sget_simple_extent_dims(dataspace,dims_out,max_dims);
+	hsize_t dims_out[rank], max_dims[rank];
+	
+	H5Sget_simple_extent_dims(dataspace,dims_out,max_dims);
 	
 	data_size = 1;
 	for ( int i=0; i<rank ; i++ )
@@ -171,13 +181,13 @@ double* gizmo_hdf5_reader::readDoubleArray(char *data_name) {
 	data = new double[data_size];
 	
 	memspace = H5Screate_simple(rank,dims_out,NULL);
-	status = H5Dread(dataset,H5T_NATIVE_DOUBLE,memspace,dataspace,H5P_DEFAULT,data);
+	H5Dread(dataset,H5T_NATIVE_DOUBLE,memspace,dataspace,H5P_DEFAULT,data);
 	H5Sclose(memspace);
 	H5Sclose(dataspace);
 	H5Dclose(dataset);
 	
-	free(max_dims);
-	free(dims_out);
+	//delete max_dims;
+	//delete dims_out;
 	
 	return data;
 

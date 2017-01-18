@@ -3,7 +3,8 @@
 // "push_back" on lists is slow, so use deques and vectors 
 //#define SET_TYPE std::list
 #define SET_TYPE std::vector
-#define PLIST_TYPE std::deque
+//#define PLIST_TYPE std::deque
+#define PLIST_TYPE std::vector
 //#define PLIST_TYPE std::list
 
 struct gasP_t {

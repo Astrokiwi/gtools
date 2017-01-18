@@ -11,9 +11,11 @@ INCL = $(HDF5INCL)
 
 #OPTIONS =  -std=c++11 -fopenmp -O3 -ldl -Wall -mcmodel=medium
 #OPTIONS =  -std=c++11 -fopenmp -O0 -g3 -ldl -Wall -mcmodel=medium
-OPTIONS =  -pg -std=c++11 -fopenmp -ldl -Wall -mcmodel=medium
-#OPTIONS =  -g -std=c++11 -fopenmp -ldl -Wall -mcmodel=medium
+#OPTIONS =  -pg -std=c++11 -fopenmp -ldl -Wall -mcmodel=medium
+#OPTIONS =  -g -std=c++11 -fopenmp -O0 -ldl -Wall -mcmodel=medium
+OPTIONS =  -g -std=c++11 -fno-inline -fopenmp -ldl -Wall -mcmodel=medium
 #OPTIONS =  -std=c++11 -fopenmp -fprofile-arcs -ftest-coverage -g3 -ldl -Wall -mcmodel=medium
+#OPTIONS =  -std=c++11 -fopenmp -fprofile-arcs -ftest-coverage -g -ldl -Wall -mcmodel=medium
 
 # FFLAGS = $(LIBS) $(INCL) $(OPTIONS) 
 #CFLAGS = $(LIBS) $(OPTIONS) ${INCL}
@@ -24,7 +26,7 @@ OPTIONS =  -pg -std=c++11 -fopenmp -ldl -Wall -mcmodel=medium
 	${CXX} ${OPTIONS} ${INCL} -c  ${LIBS} $<
 
 
-REBEAMOBJS=gizmo_hdf5_reader.o octtreelist.o gridlist.o rebeamrays.o Kernel.o rebeamcomp.o
+REBEAMOBJS=gizmo_hdf5_reader.o mintemptree.o octtreelist.o gridlist.o rebeamrays.o Kernel.o rebeamcomp.o
 rebeam: ${REBEAMOBJS}
 	${CXX} ${OPTIONS} ${INCL} ${REBEAMOBJS} ${LIBS} -o rebeamcomp
 

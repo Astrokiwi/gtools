@@ -47,6 +47,28 @@ int main() {
             myData->gasP[ig].r[0]=.004;
             myData->gasP[ig].r[1]/=2.;
         }*/
+        //myData->gasP[ig].r[0]+=1.e-3*sin(myData->gasP[ig].r[0]*3.e2);
+        //myData->gasP[ig].r[1]+=1.e-3*sin(myData->gasP[ig].r[1]*3.e2);
+    }
+    
+    // make some artificial clumps
+    for ( int ig=0 ; ig<myData->ng ; ig+=(myData->ng/20) ) {
+        gasP_t *p1 = &myData->gasP[ig];
+        for ( int ii=0 ; ii<3 ; ii++ ) {
+            p1->r[ii]/=1.5;
+        }
+        for ( int jg=0 ; jg<myData->ng ; jg++ ) {
+            gasP_t *p2 = &myData->gasP[jg];
+            double r2=0;
+            for ( int ii=0 ; ii<3 ; ii++ ) {
+                r2+=square(p2->r[ii]-p1->r[ii]);
+            }
+            double weight = std::min(1.e-6/r2,.5);
+            for ( int ii=0 ; ii<3 ; ii++ ) {
+                p2->r[ii]+=(p1->r[ii]-p2->r[ii])*weight;
+            }
+            
+        }
     }
 
     

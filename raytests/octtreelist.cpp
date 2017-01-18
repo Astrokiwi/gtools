@@ -11,6 +11,24 @@
 #include <limits>
 #include <deque>
 
+/* Oct-tree for finding collisions between a ray and SPH particles.
+Particles added to the tree are propagated down the oct-tree nodes
+(creating new nodes along the way if possible) until they reach the 
+shallowest level of refinement where cells are larger than the diameter
+of the particle, i.e. 2*h. The particle is added to the particle-lists
+for all cells at that refinement level that it intersects with, which
+is up to eight cells.
+
+This means that particles can be placed in branch nodes as well as in
+leaf nodes. This stops particles with large softening lengths from being
+placed in a very large number of cells - the max is 8.
+
+A beam can be propagated through the tree. The beam is propagated through
+all cells at each level of refinement in tern, returning a list of pointers
+to particle-lists of cells intersected by the beam. This list will contain
+duplicates.
+*/
+
 // create head node
 octtreelist::octtreelist(double r_left[3], double size) {
     for ( int ii=0 ; ii<3 ; ii++ ) {
@@ -19,10 +37,15 @@ octtreelist::octtreelist(double r_left[3], double size) {
     }
     this->size = size;
     this->level = 0;
-    myP = new PLIST_TYPE<int>;
+    //myP = new PLIST_TYPE<int>;
+    //myP.reserve(100);
     //std::cout << "head size, coords=" << size << " " << r_left[0] << " " << r_left[1] << " " << r_left[2] << std::endl;
+    //myP.reserve(1e4);
 
     this->nodes = new octtreelist*[8];
+    for ( int ii=0 ; ii<8 ; ii++ ) {
+        this->nodes[ii] = NULL;
+    }
     
     this->maxlevel = 0;
 
@@ -34,9 +57,14 @@ octtreelist::octtreelist(int level, int ixyz[3]) {
         this->ixyz[ii] = ixyz[ii];
     }
     this->level = level;
-    myP = new PLIST_TYPE<int>;
+    //myP = new PLIST_TYPE<int>;
+    //myP.reserve(100);
+    //myP.reserve(1e4);
     
     this->nodes = new octtreelist*[8];
+    for ( int ii=0 ; ii<8 ; ii++ ) {
+        this->nodes[ii] = NULL;
+    }
 
 }
 
@@ -53,7 +81,8 @@ void octtreelist::dump() {
     for ( int ii=0; ii<this->level; ii++ ) {
         std::cout << ".";
     }
-    std::cout << myP->size() << std::endl;
+    //std::cout << myP->size() << std::endl;
+    std::cout << myP.size() << std::endl;
     for ( int ii=0; ii<8; ii++ ) {
         if ( nodes[ii] ) {
             nodes[ii]->dump();
@@ -76,7 +105,7 @@ void octtreelist::matrix_dump() {
                 int sizeTot = 0;
                 for ( int iz=0 ; iz<L ; iz++ ) { 
                     octtreelist* thisCell = this->getCellAt(ilevel,ix,iy,iz);
-                    if ( thisCell!=NULL ) {
+                    if ( !thisCell ) {
                         sizeTot+=thisCell->getPList()->size();
                     }
                 }
@@ -89,34 +118,46 @@ void octtreelist::matrix_dump() {
 }
 
 PLIST_TYPE<int>* octtreelist::getPList() {
-    return myP;
+    //return myP;
+    // std::cout << "myP:" << &myP << std::endl;
+//     std::cout << "this:" << this << std::endl;
+    return &(this->myP);
 }
 
-octtreelist* octtreelist::getCellAt(int ilevel,int ix,int iy,int iz) {
+octtreelist* octtreelist::getCellAt(int ilevel,int ix, int iy, int iz) {
+    int ixyz[3];
+    ixyz[0] = ix;
+    ixyz[1] = iy;
+    ixyz[2] = iz;
+    return this->getCellAt(ilevel,ixyz);
+}
+    
+octtreelist* octtreelist::getCellAt(int ilevel,int ixyz[3]) {
     if ( ilevel==this->level ) {
+//         std::cout << "cellat: " << ilevel << " " << this << std::endl;
         return this;
     } else {
         // determine which node
         int inode,dlevel;
-        int ixyz[3],ixyz_rel[3];
-        ixyz[0] = ix;
+        int ixyz_rel[3];
+        /*ixyz[0] = ix;
         ixyz[1] = iy;
-        ixyz[2] = iz;
+        ixyz[2] = iz;*/
         dlevel = ilevel-this->level-1;
         for ( int ii=0 ; ii<3 ; ii++ ) {
             ixyz_rel[ii] = (ixyz[ii]>>dlevel)-(this->ixyz[ii]<<1);
         }
         //std::cout << std::endl;
-        inode=ixyz_rel[0]+ixyz_rel[1]*2+ixyz_rel[2]*4;
+        inode=ixyz_rel[0]+(ixyz_rel[1]<<1)+(ixyz_rel[2]<<2);
 
         if ( inode>=8 || inode<0 ) {
             return NULL; // out of bounds
         }
         // check if node exists
-        if ( nodes[inode]==NULL ) {
+        if ( !nodes[inode] ) {
             return NULL; // no cell there
         }
-        return nodes[inode]->getCellAt(ilevel,ix,iy,iz);
+        return nodes[inode]->getCellAt(ilevel,ixyz);
     }
 }
 
@@ -124,12 +165,15 @@ void octtreelist::addPCoord(int ip,int ilevel,int ix,int iy,int iz) {
     /*if ( ip==1954 ) {
         std::cout << ip << " " << ilevel << " " << ix << " " << iy << " " << iz << std::endl;
     }*/
-    /*if ( this->level==0 ) {
-        std::cout << ip << " " << ilevel << " " << ix << " " << iy << " " << iz << std::endl;
-    }*/
+    //if ( this->level==0 ) {
+        //std::cout << ip << " " << this->level << " " << ilevel << " " << ix << " " << iy << " " << iz << std::endl;
+        //std::cout << ip << " " << ilevel << " " << this->level << " " << this->ixyz[0] << " " << this->ixyz[1] << " " << this->ixyz[2] << std::endl;
+    //}
     if ( ilevel==this->level ) {
         // add to myself on this level
-        myP->push_back(ip);
+        //myP->push_back(ip);
+        myP.push_back(ip);
+        //std::cout << "nodevector: " << myP.capacity() << " " << myP.size() << std::endl;
     } else {
         // add to subnode
         
@@ -180,8 +224,17 @@ void octtreelist::addPCoord(int ip,int ilevel,int ix,int iy,int iz) {
             exit(1);
             return;
         }
+
+        /*std::cout << "inode: " << inode << std::endl;
+        for ( int jnode=0 ; jnode<8 ; jnode++ ) {
+            //std::cout << (nodes[jnode]==NULL) << " ";
+            std::cout << nodes[jnode] << " ";
+        }
+        std::cout << std::endl;
+        std::cout << &myP << std::endl;*/
+
         // check if node exists
-        if ( nodes[inode]==NULL ) {
+        if ( !nodes[inode] ) {
             //std::cout << "addcoords:" << std::endl;
             int ixyz_node[3];
             for ( int ii=0 ; ii<3 ; ii++ ) {
@@ -189,8 +242,9 @@ void octtreelist::addPCoord(int ip,int ilevel,int ix,int iy,int iz) {
                 //std::cout << ixyz_node[ii] << " " << (this->ixyz[ii]<<1) << " " <<ixyz_rel[ii] <<std::endl;
             }
             nodes[inode] = new octtreelist(this->level+1,ixyz_node);
+            //std::cout << "NEW NODE " << inode << std::endl;
         }
-        
+        //std::cout << nodes[inode] << std::endl;
         nodes[inode]->addPCoord(ip,ilevel,ix,iy,iz);
     }
 }
@@ -217,7 +271,9 @@ void octtreelist::head_addP(int ip, double r_p[3], double h) {
     
     if ( p_level<=0 ) {
         // add to myself, the top level
-        myP->push_back(ip);
+        //myP->push_back(ip);
+        myP.push_back(ip);
+        //std::cout << "headvector: " << myP.capacity() << " " << myP.size() << std::endl;
     } else {
         // add to lower levels
         // find which cells and level this particle should go
@@ -278,11 +334,15 @@ void octtreelist::head_addP(int ip, double r_p[3], double h) {
 
 // return the set of all particles in cells that intersect the beam
 // only called on head
-SET_TYPE<int >* octtreelist::beam(double r1[3], double r2[3]) {
-    SET_TYPE<int > *phitset = new SET_TYPE<int >();
-    SET_TYPE<int > *phitset_in;
+std::vector<PLIST_TYPE<int>*>* octtreelist::beam(double r1[3], double r2[3]) {
+//SET_TYPE<int > octtreelist::beam(double r1[3], double r2[3]) {
+    //SET_TYPE<int > *phitset = new SET_TYPE<int >();
+    //SET_TYPE<int > *phitset_in;
+    std::vector<PLIST_TYPE<int>*> *list_of_lists = new std::vector<PLIST_TYPE<int>*>;
     for ( int il=0 ; il<=maxlevel ; il++ ) {
-        phitset_in = beam_level(il,r1,r2);
+        beam_level(il,r1,r2,list_of_lists);
+
+        //phitset_in = beam_level(il,r1,r2);
         // merge unique values
         //phitset->merge(phitset_in);
         /*for ( std::unordered_set<int >::iterator it = phitset_in->begin() ; it!=phitset_in->end(); it++ ) {
@@ -292,10 +352,12 @@ SET_TYPE<int >* octtreelist::beam(double r1[3], double r2[3]) {
         }*/
         //phitset->insert(phitset_in->begin(),phitset_in->end());
         //phitset->merge(*phitset_in);
-        phitset->insert(phitset->end(), phitset_in->begin(), phitset_in->end());
-        delete phitset_in;
+        //phitset->insert(phitset->end(), phitset_in->begin(), phitset_in->end());
+        //list_of_lists->insert(phitset->end(), phitset_in->begin(), phitset_in->end());
+        //delete phitset_in;
     }
-    return phitset;
+    //return phitset;
+    return list_of_lists;
 }
 
 
@@ -311,8 +373,9 @@ double octtreelist::rtreei(int ii, int idim, int ilevel) {
 
 // return the set of all particles in cells at this particular level of refinement that intersect the beam
 // only called on head
-SET_TYPE<int >* octtreelist::beam_level(int ilevel, double r1[3], double r2[3]) {
-    SET_TYPE<int > *phitset_out = new SET_TYPE<int >();
+//SET_TYPE<int >* octtreelist::beam_level(int ilevel, double r1[3], double r2[3]) {
+//    SET_TYPE<int > *phitset_out = new SET_TYPE<int >();
+void octtreelist::beam_level(int ilevel, double r1[3], double r2[3],std::vector<PLIST_TYPE<int>*> *list_of_lists) {
     
    //int ncells =0;
 
@@ -346,10 +409,12 @@ SET_TYPE<int >* octtreelist::beam_level(int ilevel, double r1[3], double r2[3]) 
     
     // add initial cell
     octtreelist *cell0 = this->getCellAt(ilevel,iline[0],iline[1],iline[2]);
-    if ( cell0!=NULL ) {
+    if ( cell0 ) {
         //phitset_out->insert(cell0->getPList()->begin(),cell0->getPList()->end());
         //phitset_out->merge(*(cell0->getPList()));
-        phitset_out->insert(phitset_out->end(), cell0->getPList()->begin(),cell0->getPList()->end());
+        //phitset_out->insert(phitset_out->end(), cell0->getPList()->begin(),cell0->getPList()->end());
+        // std::cout << ilevel << " " << cell0 << std::endl;
+        list_of_lists->push_back(cell0->getPList());
     }
     //ncells = 1;
     
@@ -365,7 +430,7 @@ SET_TYPE<int >* octtreelist::beam_level(int ilevel, double r1[3], double r2[3]) 
         // go in the direction with the lowest "dt"
         // this will currently fail if ddr[ii]=0. for any direction, so we'll have to fix that
         for ( int ii=0 ; ii<3 ; ii++ ) {
-            if ( idir[ii]==1 )          dt[ii] = (rtreei(iline[ii]+1,ii,ilevel)-liner[ii])/ddr[ii]; // "right" side of this cell is "left" cell of next cell
+            if ( idir[ii]==1 )         dt[ii] = (rtreei(iline[ii]+1,ii,ilevel)-liner[ii])/ddr[ii]; // "right" side of this cell is "left" cell of next cell
             else if ( idir[ii]==-1 )   dt[ii] = (rtreei(iline[ii],ii,ilevel)-liner[ii])/ddr[ii]; // "left" side of this cell
             else dt[ii] = std::numeric_limits<double>::max();//(rtreei(iline[ii]+idir[ii],ii,ilevel)-liner[ii])/ddr[ii];
             //std::cout << rtreei(iline[ii]+idir[ii],ii,ilevel);
@@ -400,16 +465,18 @@ SET_TYPE<int >* octtreelist::beam_level(int ilevel, double r1[3], double r2[3]) 
         if ( ingrid ) {
             //cellsHit.push_back(gL->listAt(iline[0],iline[1],iline[2]));
             octtreelist *hitCell = this->getCellAt(ilevel,iline[0],iline[1],iline[2]);
-            if ( hitCell!=NULL ) {
+            if ( hitCell ) {
                 //phitset_out->insert(hitCell->getPList()->begin(),hitCell->getPList()->end());
                 //phitset_out->merge(*(hitCell->getPList()));
-                phitset_out->insert(phitset_out->end(), hitCell->getPList()->begin(),hitCell->getPList()->end());
+                //phitset_out->insert(phitset_out->end(), hitCell->getPList()->begin(),hitCell->getPList()->end());
+                //std::cout << ilevel << " " << hitCell << std::endl;
+                list_of_lists->push_back(hitCell->getPList());
             }
             //ncells++;
         }
     }
     //std::cout << "level:" << ilevel << " ncells:" << ncells << std::endl;
-    return phitset_out;
+    //return phitset_out;
 }
 
 
