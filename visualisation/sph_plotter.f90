@@ -63,7 +63,10 @@ module sph_plotter
         ! for extinction
         zlos = x*ray(1)+y*ray(2)+z*ray(3)
         
-!         zarg = rargsort(zlos) ! SLOW! presort maybe? store values?
+        print *,"sorting"
+        
+        zarg = rargsort(zlos) ! SLOW! presort maybe? store values?
+        print *,"sorted"
 
         prof = 0.d0
         cum_depth = 0.d0
@@ -278,7 +281,7 @@ module sph_plotter
     !   value of v of the particle the caused tau to cross 1.0,
     !   and don't continue to add optical depth to that particle any more.
     !   (typically v is something like sigma*T_d**4)
-    function sph_optical_depth_los(x,y,m,h,v,op,L,c,w,z,f,n) result(g)
+    function sph_optical_depth_los(x,y,m,h,v,op,L,c,w,z,inzarg,f,n) result(g)
         implicit none
 
         integer :: n,L
@@ -291,7 +294,7 @@ module sph_plotter
         real(kind=8) :: w ! width
         real(kind=8), dimension(L,L) :: g ! output grid
         
-        integer, dimension(n) :: zarg ! sorted positions of particles along line of sight
+        integer, dimension(n) :: inzarg,zarg ! sorted positions of particles along line of sight
         real(kind=8), dimension(L,L) :: opg ! grid of optical depths
 
         integer :: i,ip ! loop variable, particle index
@@ -315,7 +318,11 @@ module sph_plotter
         r_cell = w/L
         area_cell = r_cell**2
 
-        zarg = rargsort(z)
+        !print *,"sorting"
+        !zarg = rargsort(z)
+        !print *,"sorted"
+        zarg = inzarg+1 ! python to fortran numbering
+
         do i=1,n
             ip = zarg(i)
             if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then

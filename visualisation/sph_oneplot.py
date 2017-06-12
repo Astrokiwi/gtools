@@ -23,7 +23,7 @@ infile = fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5"
 outfile = "../pics/sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',L=512,flat=True,ring=True,nrows=1)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['vels','dens'],L=400,subsample=10,pixsize=1)
-sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['dens'],L=400)
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['dens'],L=400)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['tdust','temp'],L=400,scale=10.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=800,scale=5.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=400)
@@ -36,4 +36,7 @@ sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,p
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='Greys',flat=True,ring=True,plot=['emit','temp','dens'],L=400)
 
-#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['view'],L=400)
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['view'],scale=40.,L=600,cols=1,rot=[0.,np.pi/2.])
+sph_frame.makesph_trhoz_frame(infile,outfile,cmap='coolwarm',flat=False,ring=False,plot=['vlos'],scale=40.,L=600)
+
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=False,plot=['dens'],L=600,cols=1)
