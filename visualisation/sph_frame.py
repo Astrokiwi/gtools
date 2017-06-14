@@ -177,7 +177,8 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 
             if ( dolog ):
                 map = np.log10(map)
-            print(np.min(map),np.max(map))
+            finiteIndices = np.isfinite(map)
+            print(np.min(map[finiteIndices]),np.max(map[finiteIndices]))
 
             mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh)
             cb = fig.colorbar(mesh,label=cblabel,cax=cbax)
@@ -218,6 +219,12 @@ def load_gadget(infile, plot_thing):
     if ( "emit" in need_to_load ):
         need_to_load.append("tdust")
     if ( "tdust" in need_to_load ):
+        need_to_load.append("table")
+    if ( "dust" in need_to_load ):
+        need_to_load.append("dg")
+    if ( "dg" in need_to_load ):
+        need_to_load.append("table")
+    if ( "table" in need_to_load ):
         need_to_load.append("col")
         need_to_load.append("temp")
 
@@ -251,33 +258,32 @@ def load_gadget(infile, plot_thing):
         #agn_heat_p = np.array(f["/PartType0/AGNHeat"])
         data.depth_p = np.array(f["/PartType0/AGNDepth"]) # unitless
 
-    if ( "tdust" in need_to_load ):
+    if ( "table" in need_to_load ):
         if ( not chTab ):
             print("Load dust tables")
-            chTab = tab_interp.CoolHeatTab(("../coolheat_tab_marta/shrunk_table_labels_170517.dat"),("../coolheat_tab_marta/shrunk_table_170517.dat"))
+            chTab = tab_interp.CoolHeatTab(("../coolheat_tab_marta/shrunk_table_labels_130617.dat"),("../coolheat_tab_marta/shrunk_table_130617.dat"))
             interpTabVec = np.vectorize(chTab.interpTab)
-#         
-#         if ( not hasattr(data,'coldens') ):
-#             data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
-#             data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
-#             data.coldens/=(molecular_mass*proton_mass_cgs) # N in cm**(-2) 
-#         
-#         if ( not hasattr(data,'u_p') ):
-#             data.u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
-#             data.u_p*=1.e10 # to erg/g
-#             data.TK_p = (gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*data.u_p)
-#         
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
         data.flux_p*=1.989e+53/(3.086e21)**2/(3.08568e+16)
         
         data.rho_p = np.array(f["/PartType0/Density"])
         data.rho_p*=6.77e-22 # to g/cm**3 
         data.nH_p = data.rho_p/(molecular_mass*proton_mass_cgs)
-        
-        print("Calculating dust temperatures from table")
+
+        print("Calculating dust/cooling/heating properties from table")
         tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.coldens.astype(np.float64))
+        
+
+    if ( "tdust" in need_to_load ):
         data.dustTemp = map(lambda y: y.dustT, tabStructs)
         data.dustTemp = np.array(data.dustTemp)        
+
+    if ( "dg" in need_to_load ):
+        data.dg = map(lambda y: y.dg, tabStructs)
+        data.dg = np.array(data.dg)
+
+    if ( "dust" in need_to_load ):
+        data.dust = data.dg * data.m_p
     
     if ( "emit" in need_to_load ):
         data.emissivity = 1.e-20*data.m_p * data.dustTemp**4. # arbitrary units
@@ -525,6 +531,14 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
             makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,data.dustTemp,data.m_p,data.h_p,L,mask,corners,width,r"$\log_{10} T_d$ (K)",1.,3.,cmap,quantslice,True)
             if ( cols==2 ):
                 makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,data.dustTemp,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} T_d$ (K)",1.,3.,cmap,quantslice,True)
+        elif ( plot_thing[irow]=='dg' ):
+            makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,data.dg,data.m_p,data.h_p,L,mask,corners,width,r"$f_d$",0.00635,.006363,cmap,quantslice,False)
+            if ( cols==2 ):
+                makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,data.dg,data.m_p,data.h_p,L,mask,corners_side,width,r"$f_d$",0.00635,.006363,cmap,quantslice,False)
+        elif ( plot_thing[irow]=='dust' ):
+            makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,None,data.dust,data.h_p,L,mask,corners,width,rhounit,drange[0],drange[1],cmap,dslice,True,circnorm=planenorm)
+            if ( cols==2 ):
+                makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,None,data.dust,data.h_p,L,mask,corners_side,width,rhounit,drange_s[0],drange_s[1],cmap,dslice,True,planenorm=planenorm)
         elif ( plot_thing[irow]=='view' ):
             makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,z,0.,[data.brightness,data.opac],data.m_p,data.h_p,L,mask,corners,width,r"$\log_{10} F$",0.,4.,cmap,viewslice,True)
             if ( cols==2 ):

@@ -37,6 +37,8 @@ outfile = "../pics/sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='Greys',flat=True,ring=True,plot=['emit','temp','dens'],L=400)
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['view'],scale=40.,L=600,cols=1,rot=[0.,np.pi/2.])
-sph_frame.makesph_trhoz_frame(infile,outfile,cmap='coolwarm',flat=False,ring=False,plot=['vlos'],scale=40.,L=600)
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='coolwarm',flat=False,ring=False,plot=['vlos'],scale=40.,L=600)
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=False,plot=['dens'],L=600,cols=1)
+
+sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['dust','dg','dens'])
