@@ -17,7 +17,34 @@ import tab_interp
 
 import numpy as np
 
+# --- Custom colormaps ---
 
+
+colsteps = [.375,.75]
+stepsize = .001
+cdict1 = {'red':   ((0.0, .5, .5),
+                   (colsteps[0], .8, .8),
+                   (colsteps[0]+stepsize, 0.0, 0.0),
+                   (colsteps[1], 0.0, 0.0),
+                   (colsteps[1]+stepsize, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'green':   ((0.0, 0.0, 0.0),
+                   (colsteps[0], 0.0, 0.0),
+                   (colsteps[0]+stepsize, 0.0, 0.0),
+                   (colsteps[1], 0.0, 0.0),
+                   (colsteps[1]+stepsize, .4, .4),
+                   (1.0, .7, .7)),
+
+         'blue':   ((0.0, 0.0, 0.0),
+                   (colsteps[0], 0.0, 0.0),
+                   (colsteps[0]+stepsize, .5, .5),
+                   (colsteps[1], .8, .8),
+                   (colsteps[1]+stepsize, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+        }
+
+P.register_cmap(name='RGBsteps', data=cdict1)
 
 
 densslice = 0
@@ -72,30 +99,51 @@ def azimuthalNorm(image, center=None):
 class GadgetData:
     pass
 
+class PlotParameters( object ):
+    pass
+
 def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,width,cblabel,clow,chigh,cmap_label,mode,dolog,**kwargs):
-    if "planenorm" in kwargs:
-        planenorm = kwargs["planenorm"]
-    else:
-        planenorm = False
-
-    if "circnorm" in kwargs:
-        circnorm = kwargs["circnorm"]
-    else:
-        circnorm = False
-
-    if "plusminus" in kwargs:
-        plusminus = kwargs["plusminus"]
-        cbax2 = kwargs["cbar2"]
-    else:
-        plusminus = False
+    global visibleAxes
+    default_values = dict()
+    default_values["planenorm"] = False
+    default_values["circnorm"] = False
+    default_values["plusminus"] = False
+    default_values["cbax2"] = None
+    default_values["cmap_label2"] = None
     
+    plot_parameters = PlotParameters()
+    
+    # THIS DOES NOT WORK - locals can't be created
+    for key in default_values:
+        if ( key in kwargs ):
+            setattr(plot_parameters,key,kwargs[key])
+        else:
+            setattr(plot_parameters,key,default_values[key])
+# 
+# 
+#     if "planenorm" in kwargs:
+#         planenorm = kwargs["planenorm"]
+#     else:
+#         planenorm = False
+# 
+#     if "circnorm" in kwargs:
+#         circnorm = kwargs["circnorm"]
+#     else:
+#         circnorm = False
+# 
+#     if "plusminus" in kwargs:
+#         plusminus = kwargs["plusminus"]
+#         cbax2 = kwargs["cbar2"]
+#     else:
+#         plusminus = False
 
     this_cmap = P.get_cmap(cmap_label)
-    if ( plusminus ):
-        cmap_label2 = kwargs["cmap2"]
+#     if ( plusminus ):
+#         cmap_label2 = kwargs["cmap2"]
+    if ( plot_parameters.cmap_label2 ):
         this_cmap2 = P.get_cmap(cmap_label2)
     
-    if ( not plusminus ):
+    if ( not plot_parameters.plusminus ):
         this_cmap.set_bad('black',1.)
         this_cmap.set_under('black',1.)
 #         if ( not ("gray" in cmap_label or "Grey" in cmap_label) ):
@@ -137,24 +185,38 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         ymids = np.arange(corner[1]+step,corner[1]+width+step,step)
         sp.set_axis_bgcolor('black')
         norm_map = np.log10(norm_map)
-        qv = sp.quiver(xmids,ymids,map1,map2,norm_map,headwidth=10.,pivot='mid',cmap=this_cmap,clim=[clow,chigh])
-        cb = fig.colorbar(qv,label=cblabel,cax=cbax)
+        #qv = sp.quiver(xmids,ymids,map1,map2,norm_map,headwidth=10.,pivot='mid',cmap=this_cmap,clim=[clow,chigh])
+        xedges = np.arange(corner[0],corner[0]+width,width/L)
+        yedges = np.arange(corner[1],corner[1]+width,width/L)
+
+        qv = sp.pcolormesh(xedges,yedges,norm_map,cmap=this_cmap,vmin=clow,vmax=chigh)
+        sp.streamplot(xmids,ymids,map1,map2)
+        if ( visibleAxes ):
+            cb = fig.colorbar(qv,label=cblabel,cax=cbax)
+        else:
+            cbax.set_axis_off()
+#         sp.set_xbound(corner[0],corner[0]+width)
+#         sp.set_ybound(corner[1],corner[1]+width)
+#         sp.set_xlim(corner[0],corner[0]+width)
+#         sp.set_ylim(corner[1],corner[1]+width)
+#         sp.set_xmargin(0)
+#         sp.set_ymargin(0)
     else:
         xedges = np.arange(corner[0],corner[0]+width,width/L)
         yedges = np.arange(corner[1],corner[1]+width,width/L)
 #         step = width/L
 #         xedges = np.arange(corner[0]+step,corner[0]+width+step,step)
 #         yedges = np.arange(corner[1]+step,corner[1]+width+step,step)
-        if ( planenorm ):
+        if ( plot_parameters.planenorm ):
             #iy0 = np.argmin(np.abs(yedges))
             #map[:,:]=(map[:,:].T/map[:,iy0]).T
             map[:,:]=(map[:,:].T/np.max(map[:,:],axis=1)).T
-        if ( circnorm ):
+        if ( plot_parameters.circnorm ):
             map = azimuthalNorm(map)
-        if ( circnorm ):
+        if ( plot_parameters.circnorm ):
             azimuthalNorm(map)
 
-        if ( plusminus ):
+        if ( plot_parameters.plusminus ):
         
             plusmap = map.copy()
             minusmap = map.copy()
@@ -165,14 +227,20 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             if ( np.sum(isplus)>0 ):
                 plusmap[isminus]=0.
                 mesh1=sp.pcolormesh(xedges,yedges,plusmap.T,cmap=this_cmap,vmin=clow,vmax=chigh,norm = colors.LogNorm())
-                cb = fig.colorbar(mesh1,label=cblabel,cax=cbax)
+                if ( visibleAxes ):
+                    cb = fig.colorbar(mesh1,label=cblabel,cax=cbax)
+                else:
+                    cbax.set_axis_off()
             
             if ( np.sum(isminus)>0 ):
                 minusmap[isplus]=0.
                 minusmap = -minusmap
             
                 mesh2=sp.pcolormesh(xedges,yedges,minusmap.T,cmap=this_cmap2,vmin=clow,vmax=chigh,norm = colors.LogNorm())
-                cb2 = fig.colorbar(mesh2,label=cblabel,cax=cbax2)
+                if ( visibleAxes ):
+                    cb2 = fig.colorbar(mesh2,label=cblabel,cax=cbax2)
+                else:
+                    cbax2.set_axis_off()
         else:
 
             if ( dolog ):
@@ -181,13 +249,17 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             print(np.min(map[finiteIndices]),np.max(map[finiteIndices]))
 
             mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh)
-            cb = fig.colorbar(mesh,label=cblabel,cax=cbax)
+            if ( visibleAxes ):
+                cb = fig.colorbar(mesh,label=cblabel,cax=cbax)
+            else:
+                cbax.set_axis_off()
     
-    #sp.set_xlim([corner[0],corner[0]+width])
-    #sp.set_ylim([corner[1],corner[1]+width])
-    sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
+    sp.set_xlim([corner[0],corner[0]+width])
+    sp.set_ylim([corner[1],corner[1]+width])
+    if ( visibleAxes ):
+        sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
     #mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap) 
-    sp.axis('equal')
+    #sp.axis('equal')
 
 def load_gadget(infile, plot_thing):
     global chTab
@@ -214,7 +286,7 @@ def load_gadget(infile, plot_thing):
     need_to_load = list(plot_thing)
     if ( "view" in need_to_load ):
         need_to_load.append("tdust")
-    if ( "vlos" in need_to_load ):
+    if ( "vlos" in need_to_load or "vmag" in need_to_load ):
         need_to_load.append("vels")
     if ( "emit" in need_to_load ):
         need_to_load.append("tdust")
@@ -227,6 +299,7 @@ def load_gadget(infile, plot_thing):
     if ( "table" in need_to_load ):
         need_to_load.append("col")
         need_to_load.append("temp")
+        need_to_load.append("nH")
 
     if ( "col" in need_to_load ):
         data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
@@ -258,6 +331,11 @@ def load_gadget(infile, plot_thing):
         #agn_heat_p = np.array(f["/PartType0/AGNHeat"])
         data.depth_p = np.array(f["/PartType0/AGNDepth"]) # unitless
 
+    if ( "nH" in need_to_load ):
+        data.rho_p = np.array(f["/PartType0/Density"])
+        data.rho_p*=6.77e-22 # to g/cm**3 
+        data.nH_p = data.rho_p/(molecular_mass*proton_mass_cgs)
+
     if ( "table" in need_to_load ):
         if ( not chTab ):
             print("Load dust tables")
@@ -266,9 +344,6 @@ def load_gadget(infile, plot_thing):
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
         data.flux_p*=1.989e+53/(3.086e21)**2/(3.08568e+16)
         
-        data.rho_p = np.array(f["/PartType0/Density"])
-        data.rho_p*=6.77e-22 # to g/cm**3 
-        data.nH_p = data.rho_p/(molecular_mass*proton_mass_cgs)
 
         print("Calculating dust/cooling/heating properties from table")
         tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.coldens.astype(np.float64))
@@ -314,6 +389,8 @@ def load_gadget(infile, plot_thing):
     return time,data
 
 def makesph_trhoz_frame(infile,outfile,**kwargs):
+    global visibleAxes
+
     if "cmap" in kwargs:
         cmap = kwargs["cmap"]
     else:
@@ -367,6 +444,12 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
     else:
         planenorm = False
 
+    if "visibleAxes" in kwargs:
+        visibleAxes = kwargs["visibleAxes"]
+    else:
+        visibleAxes = True
+
+
     if "cols" in kwargs:
         cols = kwargs["cols"]
         if ( cols!=1 and cols!=2 ):
@@ -386,7 +469,7 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
 
     print("Loading",infile)
     time,data = load_gadget(infile,plot_thing)
-    print("Plotting",infile)
+    print("Plotting",infile,", t=%.4f Myr"% time)
 
 
 
@@ -408,7 +491,7 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
         z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
     
     
-    if ( "vels" in plot_thing ):
+    if ( "vels" in plot_thing or "vmag" in plot_thing ):
         #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
         vel2d = (x*data.vels[:,0]+y*data.vels[:,1])/np.sqrt(x**2+y**2)
     
@@ -428,27 +511,41 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
 
     #corner = np.array([-.01,-.01])
 
-    # figure properties
-    if ( "heat" in plot_thing ):
-        fig, ax = P.subplots(nrows,3*cols, gridspec_kw = {'width_ratios':([1, 1, 16,16,1, 1])[0:3*cols]})
-        ax = np.resize(ax, (3,6)) # because 1D arrays have different syntax, we have to pretend it's 3D
-        cbax2left_index = 0
-        cbaxleft_index = 1
-        spleft_index = 2
-        spright_index = 3
-        cbaxright_index = 4
-        cbax2right_index = 5
+    if ( visibleAxes ):
+        # figure properties
+        if ( "heat" in plot_thing ):
+            fig, ax = P.subplots(nrows,3*cols, gridspec_kw = {'width_ratios':([1, 1, 16,16,1, 1])[0:3*cols]})
+            ax = np.resize(ax, (3,6)) # because 1D arrays have different syntax, we have to pretend it's 3D
+            cbax2left_index = 0
+            cbaxleft_index = 1
+            spleft_index = 2
+            spright_index = 3
+            cbaxright_index = 4
+            cbax2right_index = 5
         
+        else:
+            fig, ax = P.subplots(nrows,2*cols, gridspec_kw = {'width_ratios':([1, 16,16,1])[0:2*cols]})
+            ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
+            cbaxleft_index = 0
+            spleft_index = 1
+            spright_index = 2
+            cbaxright_index = 3
     else:
-        fig, ax = P.subplots(nrows,2*cols, gridspec_kw = {'width_ratios':([1, 16,16,1])[0:2*cols]})
-        ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
-        cbaxleft_index = 0
-        spleft_index = 1
-        spright_index = 2
-        cbaxright_index = 3
+            fig, ax = P.subplots(nrows,cols)
+            ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
+            cbaxleft_index = 0
+            spleft_index = 0
+            spright_index = 1
+            cbaxright_index = 1
         
-    fig.suptitle(r"$T="+("%.4f" % time)+"$ Myr")
-    fw_inches = 5.*cols
+        
+
+    if ( visibleAxes ):
+        fig.suptitle(r"$T="+("%.4f" % time)+"$ Myr")
+    if ( visibleAxes ):
+        fw_inches = 5.*cols
+    else:
+        fw_inches = 4.*cols
     fig.set_figwidth(fw_inches)
     fig.set_figheight(4.*nrows)
 
@@ -480,7 +577,7 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
         rhounit = r"$\log_{10} \Sigma$ (M$_\odot$/pc$^2$)"
         drange = [-2.,8.]
         #drange = [2.,6.]
-        #drange = [-1.,2.]
+        #drange = [-1.,4.]
     else:
         quantslice = zweightslice
         dslice = zdensslice
@@ -493,9 +590,24 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
     else:
         drange_s = drange
     
-    # do all subplots, calculating the full SPH smoothing each time
+    plotLabel = dict()
+    plotLabel["temp"] = r"$\log_{10} T_g$ (K)"
+    plotLabel["col"] = r"$\log_{10} N$ (cm$^{-2}$)"
+    plotLabel["nH"] = r"$\log_{10} n_{H}$ (cm$^{-3}$)"
+    plotLabel["heat"] = r"$H$"
+    plotLabel["dens"] = rhounit
+    plotLabel["depth"] = r"$\tau$"
+    plotLabel["vels"] = r"$\log_{10}v$ (km/s)"
+    plotLabel["tdust"] = r"$\log_{10} T_d$ (K)"
+    plotLabel["dg"] = r"$f_d$"
+    plotLabel["dust"] = rhounit
+    plotLabel["view"] = r"$\log_{10} F$"
+    plotLabel["vlos"] = r"$v_{LOS}$"
+    plotLabel["emit"] = r"$\log_{10} F$"
     
+    # do all subplots, calculating the full SPH smoothing each time
     for irow in range(nrows):
+        thisPlotLabel = plotLabel[plot_thing[irow]]
         if ( plot_thing[irow]=='temp' ):
             makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners,width,r"$\log_{10} T_g$ (K)",1.,6.,cmap,quantslice,True)
             if ( cols==2 ):
@@ -506,12 +618,17 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
             makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,data.coldens,data.m_p,data.h_p,L,mask,corners,width,r"$\log_{10} N$ (cm$^{-2}$)",15.,26.,cmap,quantslice,True)
             if ( cols==2 ):
                 makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,data.coldens,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} N$ (cm$^{-2}$)",15.,26.,cmap,quantslice,True)
+        elif ( plot_thing[irow]=='nH' ):
+            makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,data.nH_p,data.m_p,data.h_p,L,mask,corners,width,r"$\log_{10} n_{H}$ (cm$^{-3}$)",0.,8.,cmap,quantslice,True)
+            if ( cols==2 ):
+                makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,data.nH_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} n_{H}$ (cm$^{-3}$)",0.,8.,cmap,quantslice,True)
         elif ( plot_thing[irow]=='heat' ):
             makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,data.heat,data.m_p,data.h_p,L,mask,corners,width,r"$H$",.1e-2,1.e10,'Reds',quantslice,False,cmap2='Blues',plusminus=True,cbar2=ax[irow,cbax2left_index])
             if ( cols==2 ):
                 makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,data.heat,data.m_p,data.h_p,L,mask,corners_side,width,r"$H$",.1e-2,1.e10,'Reds',quantslice,False,cmap2='Blues',plusminus=True,cbar2=ax[irow,cbax2right_index])
         elif ( plot_thing[irow]=='dens' ):
             makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,None,data.m_p,data.h_p,L,mask,corners,width,rhounit,drange[0],drange[1],cmap,dslice,True,circnorm=planenorm)
+            #makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],rad2d,z,deep_side,0.,None,data.m_p,data.h_p,L,mask,corners_side,width,rhounit,drange_s[0],drange_s[1],cmap,dslice,True,planenorm=planenorm)
             if ( cols==2 ):
                 makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,None,data.m_p,data.h_p,L,mask,corners_side,width,rhounit,drange_s[0],drange_s[1],cmap,dslice,True,planenorm=planenorm)
             #    makesph_plot(fig,ax[1,2],ax[1,3],r2d,z,None,m_p,h_p,L,mask,[0.,-10.],width,r"$\log_{10} \Sigma$ (M$_\odot$/kpc$^2$)",-3.,3.,"plasma",False,True)
@@ -524,9 +641,13 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
             if ( cols==2 ):
                 makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,data.depth_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\tau$",0.,1.e3,cmap_r,zweightslice,False)
         elif ( plot_thing[irow]=='vels' ):
-            makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,[data.vels[:,0],data.vels[:,1]],data.m_p,data.h_p,L//subsample,mask,corners,width,r"$\log_{10}v$ (km/s)",-1.,3.,cmap,vec2dslice,False)
+            makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,[data.vels[:,0],data.vels[:,1]],data.m_p,data.h_p,L//subsample,mask,corners,width,r"$\log_{10}v$ (km/s)",0.,3.,cmap,vec2dslice,False)
             if ( cols==2 ):
-                makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,[vel2d,data.vels[:,2]],data.m_p,data.h_p,L//subsample,mask,corners_side,width,r"$\log_{10}v$ (km/s)",-1.,3.,cmap,vec2dslice,False)
+                makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,[vel2d,data.vels[:,2]],data.m_p,data.h_p,L//subsample,mask,corners_side,width,r"$\log_{10}v$ (km/s)",0.,3.,cmap,vec2dslice,False)
+#         if ( plot_thing[irow]=='vmag' ):
+#             makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,data.vface,data.m_p,data.h_p,L,mask,corners,width,r"$\log_{10} T_g$ (K)",0.,6.,cmap,quantslice,True)
+#             if ( cols==2 ):
+#                 makesph_plot(fig,ax[irow,spright_index],ax[irow,cbaxright_index],rad2d,z,deep_side,0.,data.vside,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} T_g$ (K)",0.,6.,cmap,quantslice,True)
         elif ( plot_thing[irow]=='tdust' ):
             makesph_plot(fig,ax[irow,spleft_index],ax[irow,cbaxleft_index],x,y,deep_face,0.,data.dustTemp,data.m_p,data.h_p,L,mask,corners,width,r"$\log_{10} T_d$ (K)",1.,3.,cmap,quantslice,True)
             if ( cols==2 ):
@@ -567,20 +688,30 @@ def makesph_trhoz_frame(infile,outfile,**kwargs):
 #     makesph_plot(fig,ax[1,2],ax[1,3],r2d,z,depth_p,m_p,h_p,L,mask,[0.,-10.],width,r"$\tau$ (erg/g/s)",0.,5.,"viridis",True,False)
 
     #for this_ax in (ax[0,1],ax[1,1],ax[2,1]):
-    for iax in range(nrows):
-        this_ax = ax[iax,1]
-        this_ax.yaxis.tick_right()
-        this_ax.yaxis.set_visible(False)
-
     
-#    for this_ax in (ax[0,0],ax[1,0],ax[2,0]):
-    for iax in range(nrows):
-        this_ax = ax[iax,0]
-        this_ax.yaxis.tick_left()
-        this_ax.yaxis.set_label_position("left")
+    if ( visibleAxes ):
+        for iax in range(nrows):
+            this_ax = ax[iax,1]
+            this_ax.yaxis.tick_right()
+            this_ax.yaxis.set_visible(False)
 
 
-    fig.subplots_adjust(left=0.07,hspace=.07,bottom=.05,top=.95)
+        #    for this_ax in (ax[0,0],ax[1,0],ax[2,0]):
+        for iax in range(nrows):
+            this_ax = ax[iax,0]
+            this_ax.yaxis.tick_left()
+            this_ax.yaxis.set_label_position("left")
+    else:
+        P.axis('off')
+
+    if ( visibleAxes ):
+        if (nrows==2):
+            fig.subplots_adjust(left=0.07,hspace=.07,bottom=.05,top=.95)
+        else:
+            fig.subplots_adjust(left=0.07,hspace=.07,bottom=.05,top=.9)
+    else:
+        fig.subplots_adjust(left=0.0,hspace=.0,top=1.,bottom=.0,right=1.,wspace=0.)
+        
     pos = ax[0,1].get_position()
     lpixx = (L/(pos.x1-pos.x0))
     my_dpi = int(np.floor(lpixx/fw_inches))*pixsize

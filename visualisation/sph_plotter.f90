@@ -93,11 +93,11 @@ module sph_plotter
             
 
                 dr = sqrt(dr)
-                mdepth = m(ip)*fkern(dr/h(ip))
-!                 vdepth = mdepth * exp(-cum_depth)
-!                 cum_depth = cum_depth + mdepth * opac(ip)
+                mdepth = m(ip)*fkern(dr/h(ip)) ! UNITS???
+                vdepth = mdepth * exp(-cum_depth)
+                cum_depth = cum_depth + mdepth * opac(ip)
 
-                vdepth = mdepth
+                !vdepth = mdepth
             
                 vlos = vx(ip)*ray(1)+vy(ip)*ray(2)+vz(ip)*ray(3)
                 vwidth2 = 10.d0/9.d0*u(ip) * 1.d-10 ! sound speed squared in km**2/s**2
@@ -266,21 +266,82 @@ module sph_plotter
 
     end function sph_weight_slice
 
+    function crossp(a,b) result(c)
+        implicit none
+        
+        real(kind=8), dimension(3) :: a,b
+        real(kind=8), dimension(3) :: c
+        
+        c(1) = a(2)*b(3) - a(3)*b(2)
+        c(2) = a(3)*b(1) - a(1)*b(3)
+        c(3) = a(1)*b(2) - a(2)*b(1)
+        
+    end function crossp
 
-    ! Imaging in optically thick limit
-    !
-    !  Emissivity in each pixel is e.g. sigma*T^4 where T is the dust temperature
-    !  of the tau = 1 surface. (sigma is the stefan-boltzmann constant)
-    ! 
-    ! Algorithm:
-    !  Sort particles in z order
-    !  In z-order (from near to far), each particle uses its smoothing kernel
-    !   to add its contribution to optical depth (tau) to each pixel.
-    !   (Optical depth is particle opacity op * column density for that pixel)
-    !  Once a pixel reaches tau=1, set the corresponding output pixel to the
-    !   value of v of the particle the caused tau to cross 1.0,
-    !   and don't continue to add optical depth to that particle any more.
-    !   (typically v is something like sigma*T_d**4)
+    function norm2crossp(a,b) result(norm2)
+        implicit none
+        
+        real(kind=8), dimension(3) :: a,b
+        real(kind=8) :: norm2
+        
+        norm2 =    (a(2)*b(3) - a(3)*b(2))**2 &
+                 + (a(3)*b(1) - a(1)*b(3))**2 &
+                 + (a(1)*b(2) - a(2)*b(1))**2
+        
+    end function norm2crossp
+
+    ! surface density along some radial ray
+    function sph_ray_integrate(xyz,m,h,xyzray_in,nray,n) result(rw)
+        implicit none
+        
+        integer :: n,nray
+        
+        real(kind=8), dimension(n,3) :: xyz ! particle positions
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! value to sum along ray
+
+        
+        real(kind=8), dimension(nray,3) :: xyzray_in ! Ray from 0,0 in these directions
+        real(kind=8), dimension(nray,3) :: xyzray ! Ray from 0,0 in these directions - normalised
+        
+        real(kind=8), dimension(nray) :: rw ! ray value along los (surface density)
+
+        real(kind=8) :: ray_norm, impact_pram, dotprod
+        real(kind=8) :: h2 ! h squared to avoid square roots later
+        real(kind=8) :: weight
+        
+        integer :: iray,ip
+
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+        
+        do iray=1,nray
+            ray_norm = sqrt(sum(xyzray_in(iray,:)**2))
+            xyzray(iray,:) = xyzray_in(iray,:)/ray_norm
+        end do
+        
+        rw = 0.d0
+        
+        do ip=1,n
+            h2 = h(ip)**2
+            do iray=1,nray
+                dotprod = sum(xyzray(iray,:)*xyz(ip,:))
+                if ( dotprod>0. ) then
+                    impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
+                    if ( impact_pram<h2 ) then
+                        impact_pram = sqrt(impact_pram)
+                        weight = fkern(impact_pram/h(ip))/h2
+                        
+                        rw(iray) = rw(iray) + weight
+                    endif
+                endif
+            end do
+        end do
+        
+    end function
+
+    ! Imaging
     function sph_optical_depth_los(x,y,m,h,v,op,L,c,w,z,inzarg,f,n) result(g)
         implicit none
 
