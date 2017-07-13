@@ -172,11 +172,16 @@ pmass = m_p[0] # assume all gas!
 
 binmasses = np.zeros((bins.size))
 binvdisp =  np.zeros((bins.size))
+binvzdisp =  np.zeros((bins.size))
+binvcirc = np.zeros((bins.size))
 for bindex in range(bins.size):
     if ( np.sum(bindices==bindex)>0 ):
         binmasses[bindex] = np.nansum(bindices==bindex)
         binvdisp[bindex] = np.nanstd(vrad_p[bindices==bindex])
+        binvzdisp[bindex] = np.nanstd(vel_p[bindices==bindex,2])
+        binvcirc[bindex] = np.nanmean(vcirc_p)
 
+np.nanstd(vel_p[bindices==bindex,2])
 binarea = np.zeros(Nbins)
 
 binarea = np.pi*(bins[1:]**2-bins[:-1]**2)*1e6*(3.086e18)**2 # in cm**2
@@ -184,6 +189,8 @@ binarea = np.pi*(bins[1:]**2-bins[:-1]**2)*1e6*(3.086e18)**2 # in cm**2
 binarea = np.append(binarea,binarea[-1]*1.e5) # large area -> small surface density goes in denominator -> large Q out
 binvdisp = np.append(binvdisp,1.e20)
 binvdisp*=1.e5 # from km/s to cm/s
+
+binvzdisp = np.append(binvzdisp,1.e20)
 
 binsurf = binmasses/binarea
 
@@ -195,18 +202,28 @@ binmids = bins+binstep/2.
 surfs = np.interp(rad2d_p,binmids,binsurf[1:])
 vdisp_p = np.interp(rad2d_p,binmids,binvdisp[1:])
 
+vzdisp = np.interp(rad2d_p,binmids,binvzdisp[1:])
+
 #vdisp_p = binvdisp[bindices]
 
 vdisp_p = np.sqrt(vdisp_p**2+cs_p**2)
 
 Q_approx_p = vdisp_p*omega_p/(pmass*surfs*np.pi*G)
 
+print("packing and saving quickprof")
+
+
+profout = [binmids[:-1],binvcirc[1:],binvzdisp[1:-1]]
+profout = np.array(profout).T
+np.savetxt("data/vcvzprof_"+run_id+output_dir+"_"+snap_str,profout)
+sys.exit()
+
 print("packing")
 
 dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],vel_p[:,0],vel_p[:,1],vel_p[:,2],nH_p,TK_p,
         agn_heat_p,depth_p,dustTemp,flux_p,dt_p,h_p,u_p,m_p,mJ_p,cs_p,
         radaccel_p[:,0],radaccel_p[:,1],radaccel_p[:,2],radrad_p,a_p[:,0],a_p[:,1],a_p[:,2],arad_p,cs_p,omega_p,
-        surfs,vdisp_p,Q_approx_p]
+        surfs,vdisp_p,Q_approx_p,vcirc_p,vzdisp]
 #dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],rho_p,TK_p,agn_heat_p,depth_p]
 
 #thinslice = (np.abs(xyz[:,2])<1.) & (rad2d_p<.02)

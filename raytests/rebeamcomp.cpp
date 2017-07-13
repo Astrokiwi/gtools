@@ -21,7 +21,7 @@ void savePoints(std::string fname, std::vector< double >* depths, gizData_t* dat
             for ( int jj = 0 ; jj<3 ; jj++ ) {
                 myfile << data->gasP[ig].r[jj] << " ";
             }
-            myfile << (*depths)[ig] << std::endl;
+            myfile << (*depths)[ig] << " " << data->gasP[ig].h << std::endl;
         //}
     }
     myfile.close();
@@ -52,7 +52,7 @@ int main() {
     }
     
     // make some artificial clumps
-    for ( int ig=0 ; ig<myData->ng ; ig+=(myData->ng/20) ) {
+    /*for ( int ig=0 ; ig<myData->ng ; ig+=(myData->ng/20) ) {
         gasP_t *p1 = &myData->gasP[ig];
         for ( int ii=0 ; ii<3 ; ii++ ) {
             p1->r[ii]/=1.5;
@@ -69,7 +69,10 @@ int main() {
             }
             
         }
-    }
+    }*/
+    
+    //std::cout << "Mass in 10^10 Msun:" << myData->gasP[0].m << std::endl;
+    //exit(1);
 
     
     rebeamrays *dr = new rebeamrays();
@@ -91,9 +94,16 @@ int main() {
     std::cout<<"nhot:"<<nhot<<std::endl;
 
     start = omp_get_wtime();
-    fluxes = dr->SPH_fluxes_tree(myData,&lums);
+    fluxes = dr->SPH_fluxes_tree(myData,&lums); // fluxes are actually dE/dt
     duration = ( omp_get_wtime() - start );
     std::cout<<"tree version:  "<< duration <<'\n';
+    // apply cooling
+    
+    for ( int ig=0 ; ig<myData->ng ; ig++ ) {
+        gasP_t *myP = &(myData->gasP[ig]);
+        fluxes[ig]+= - myP->m * dust_physics * planck_mean_absorb * powerfour(myP->uint);
+    }
+    
     savePoints("fluxes3.dat",&fluxes,myData);
 
     /*start = omp_get_wtime();

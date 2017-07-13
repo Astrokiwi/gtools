@@ -9,11 +9,11 @@ HDF5LIB  =  -L/usr/local/hdf5/lib -lhdf5 -lz
 LIBS   = -lm $(HDF5LIB)
 INCL = $(HDF5INCL)
 
-#OPTIONS =  -std=c++11 -fopenmp -O3 -ldl -Wall -mcmodel=medium
+OPTIONS =  -std=c++11 -fopenmp -O3 -ldl -Wall -mcmodel=medium
 #OPTIONS =  -std=c++11 -fopenmp -O0 -g3 -ldl -Wall -mcmodel=medium
 #OPTIONS =  -pg -std=c++11 -fopenmp -ldl -Wall -mcmodel=medium
 #OPTIONS =  -g -std=c++11 -fopenmp -O0 -ldl -Wall -mcmodel=medium
-OPTIONS =  -g -std=c++11 -fno-inline -fopenmp -ldl -Wall -mcmodel=medium
+#OPTIONS =  -g -std=c++11 -fno-inline -fopenmp -ldl -Wall -mcmodel=medium
 #OPTIONS =  -std=c++11 -fopenmp -fprofile-arcs -ftest-coverage -g3 -ldl -Wall -mcmodel=medium
 #OPTIONS =  -std=c++11 -fopenmp -fprofile-arcs -ftest-coverage -g -ldl -Wall -mcmodel=medium
 

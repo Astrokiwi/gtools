@@ -11,6 +11,8 @@ program disc_ICs
     real(kind=8) :: mtot, disc_rad, disc_inner_rad, disc_thick ! disc parameters
     real(kind=8) :: m_smbh,v_large,a_scale,c_scale ! potential parameters
     
+    integer :: np
+    
     logical :: selfgrav
     
     if ( command_argument_count()<1 ) then
@@ -34,6 +36,8 @@ program disc_ICs
     !mtot = 2.d6/1.d10 ! units of 1.d10 msun
     mtot = 8.426453d6 ! units of Msun
     !mtot = 1.d2/1.d10 ! units of 1.d10 msun
+    
+    np = 276118
 
     disc_rad = 20.d0 ! in pc
     disc_inner_rad = 0.5d0 ! pc
@@ -81,6 +85,9 @@ program disc_ICs
                 case("selfgrav")
                     read(invalue,*) selfgrav
 
+                case("N")
+                    read(invalue,*) np
+
                 case("outfile")
                     whitey = scan(intext,' ')
                     outfile = adjustl(trim(intext(whitey:)))
@@ -100,7 +107,7 @@ program disc_ICs
     
     !call set_N_onlygas(8192)
     !call set_N_onlygas(65536)
-    call set_N_onlygas(276118)
+    call set_N_onlygas(np)
     
     ! only mp_g(1) is actually read, but we need to give a value for 
     ! every entry, otherwise gadget/gizmo will try to read an array of 

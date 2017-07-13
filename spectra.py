@@ -27,8 +27,9 @@ def vel_absorb(*args):
 
 if __name__ == '__main__':
 
-    infile = "/export/1/djw/gizmos/1012/fataradtest/snapshot_070.hdf5"
-    nprocs = 18
+    #infile = "/export/1/djw/gizmos/1012/fataradtest/snapshot_070.hdf5"
+    infile = "/export/1/djw/gizmos/1020/aniso/snapshot_103.hdf5"
+    nprocs = 40
 
 
     f = h5py.File(infile,"r")
@@ -37,7 +38,7 @@ if __name__ == '__main__':
     xyz_p*=1.e3 # to pc
 
     m_p = np.array(f["/PartType0/Masses"]) # 10^10 msun
-    m_p*=1e+10 # 10^10 solar masses to solar masses
+    m_p*=1.e10 # 10^10 solar masses to solar masses
 
     n = m_p.size
 
@@ -58,35 +59,49 @@ if __name__ == '__main__':
 
     theta = np.pi/8.
     phi = 0.
-    dv = 500.
-    vsteps = 10**4
+    dv = 1000.
+    #vsteps = 10**4
+    vsteps = 10**3
 
     prof_sum = np.zeros(vsteps)
-    nprof = 0
 
-    gx = np.linspace(-1.,1.,9)
-    gy = np.linspace(-1.,1.,9)
+    #gx = np.linspace(-1.,1.,9)
+    #gy = np.linspace(-1.,1.,9)
+
+    #gx = [3.]
+    #gy = [3.]
+    thetas = np.linspace(0.,2.*np.pi,9)
+    cxy = []
+    for theta in thetas:
+        cxy.append([np.sin(theta)*5.,np.cos(theta)*5.])
+    
+
 
     P.figure() # subplots maybe?
     x = np.linspace(-dv,dv,vsteps)
     P.xlabel(r"$v$ (km/s)")
 
+    outp = [x]
 
-    cxy = []
-    for cx in gx:
-        for cy in gy:
-            cxy.append([cx,cy])
+#     cxy = []
+#     for cx in gx:
+#         for cy in gy:
+#             cxy.append([cx,cy])
 
-    for phi in np.linspace(0.,np.pi/2.,5):
+    #for phi in np.linspace(0.,np.pi/2.,5):
+    #for phi in np.linspace(0.,np.pi/2.,3):
+    for phi in [np.pi/4.]:
         print(phi)
         prof = np.mean(Parallel(n_jobs=nprocs)(delayed(vel_absorb)(xyz_p[:,0],xyz_p[:,1],xyz_p[:,2],m_p,h_p,u_p,opac_p,vel_p[:,0],vel_p[:,1],vel_p[:,2],t_cxy[0],t_cxy[1],theta,phi,dv,vsteps,n) for t_cxy in cxy),axis=0)
         #prof = prof/np.max(prof)
-        P.plot(x,prof,label=r"$\phi={}$".format(phi))
+        P.plot(x,prof,label=r"$\phi={}^\circ$".format(phi*180./np.pi))
+        outp.append(prof)
 
     P.legend()
     P.savefig("pics/proftest.png")
     P.close('all')
 
+    np.savetxt("data/proftest.dat",np.array(outp).T)
 
 
 

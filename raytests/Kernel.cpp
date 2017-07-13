@@ -42,7 +42,6 @@ void Kernel::set_L_flat(int L_in, int zL_in) {
 }
 
 Kernel::Kernel() {
-    //set_L_flat(256,256); // default
     set_L_flat(256,256); // default
 }
 

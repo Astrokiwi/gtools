@@ -142,6 +142,11 @@ class mintemptree {
         
         void dump(int ilevel);
         void dump();
+
+
+        std::vector<int>* getThreshList(gizData_t* d, int ip, double mtot);
+        void propagateThreshList(gizData_t* d, int ip,std::vector<int>* threshList,int ilevel, double mtot);
+
     private:
         void placeInChildNode(double r_p[3], int ip, double temp);
         
@@ -171,7 +176,7 @@ class rebeamrays {
     private:
         Kernel* kernel;
 
-        double one_sph_tree_ray(octtreelist *tree, gasP_t *p1, gasP_t *p2,bool alreadyDone[],gizData_t *d, int ig, int jg);
+        double one_sph_tree_ray(octtreelist *tree, gasP_t *p1, gasP_t *p2,bool alreadyDone[],gizData_t *d, int ig, int jg, double d12_norm);
 
         
         //bool between_particles(gasP_t *p1,gasP_t *p2,gasP_t *p3);
@@ -184,6 +189,12 @@ class rebeamrays {
 
 static inline double square(double x) {
     return x*x;
+    //return pow(x,2);
+}
+
+
+static inline double powerfour(double x) {
+    return x*x*x*x;
     //return pow(x,2);
 }
 
@@ -273,3 +284,22 @@ static inline double get_d12_norm(gasP_t *p1,gasP_t *p2) {
     
     return norm;
 }
+
+
+
+
+
+
+
+// units of area/mass - dust mass fraction * mean dust cross section/mean dust mass, in internal units, i.e. (kpc**2)/(1e10 Msun)
+// Here I'm using a dust grain radius of 10 µm and an internal dust density of 6 g/cm**3
+// and a dust mass fraction of 1%
+static const double dust_physics = .01 * 156.7;
+
+// fake values - these are tabulated later
+static const double planck_mean_absorb = .7;
+static const double planck_mean_emit_absorb = square(planck_mean_absorb);
+
+
+
+

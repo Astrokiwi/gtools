@@ -27,7 +27,7 @@ if __name__ == '__main__':
     if ( len(sys.argv)>3 ):
         lossrad = float(sys.argv[3])
     else:
-        lossrad = 20.
+        lossrad = 40.
 
     snapi = 0
     fullDir = "/export/1/djw/gizmos/"+run_id+"/"+output_dir
@@ -47,9 +47,6 @@ if __name__ == '__main__':
         if ( new_ctime>ctime ) :
             ctime = new_ctime
             snapf = new_snapf
-
-    os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
-
 
     print("nfiles:",snapf-snapi+1)
     

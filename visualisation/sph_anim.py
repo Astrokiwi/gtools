@@ -39,6 +39,7 @@ if __name__ == '__main__':
 #     run_id = args.run_id
 #     output_dir = args.output_dir
     
+    # TODO: don't do this!
     for parseval in parsevals:
         if ( vars(args)[parseval] ):
             vars()[parseval] = vars(args)[parseval]
@@ -56,15 +57,15 @@ if __name__ == '__main__':
     #run_id = sys.argv[1]
     #output_dir = sys.argv[2]
     
-    if ( len(sys.argv)>3 ):
-        nprocs = int(sys.argv[3])
-    else:
-        nprocs = default_procs
-
-    if ( len(sys.argv)>4 ):
-        maxsnapf = int(sys.argv[4])
-    else:
-        maxsnapf = -1
+#     if ( len(sys.argv)>3 ):
+#         nprocs = int(sys.argv[3])
+#     else:
+#         nprocs = default_procs
+# 
+#     if ( len(sys.argv)>4 ):
+#         maxsnapf = int(sys.argv[4])
+#     else:
+#         maxsnapf = -1
 
     #snapi = int(sys.argv[3])
     #snapf = int(sys.argv[4])
@@ -106,10 +107,10 @@ if __name__ == '__main__':
     outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in range(snapi,snapf+1)]
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))
-    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=400,scale=10.) for i in range(snapi,snapf+1))
+    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=400,scale=10.) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=False,ring=False,plot=['dens','temp'],L=400,scale=10.) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['vels','dens'],L=400) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['vels'],L=400,scale=10.) for i in range(snapi,snapf+1))
+    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['vels'],L=400,scale=10.) for i in range(snapi,snapf+1))
     #[sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1)]
 
 #     for snapx in range(snapi,snapf+1):
@@ -141,7 +142,7 @@ if __name__ == '__main__':
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhogiz_"+run_id+"_"+output_dir+".mp4"
 
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhoTgiz_"+run_id+"_"+output_dir+".mp4"
+    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhoTgiz_"+run_id+"_"+output_dir+".mp4"
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_rhoTgiz_"+run_id+"_"+output_dir+".mp4"
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_rhozoomgiz_"+run_id+"_"+output_dir+".mp4"
@@ -150,7 +151,7 @@ if __name__ == '__main__':
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_emitrhoTgiz_"+run_id+"_"+output_dir+".mp4"
 
     #cmd = "ffmpeg -y -r 12 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhovelgiz_"+run_id+"_"+output_dir+".mp4"
-    cmd = "ffmpeg -y -r 12 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_velgiz_"+run_id+"_"+output_dir+".mp4"
+    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_velgiz_"+run_id+"_"+output_dir+".mp4"
 
     print(cmd)
     os.system(cmd)
