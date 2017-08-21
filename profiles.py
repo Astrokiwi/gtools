@@ -43,14 +43,26 @@ vel_p = np.array(f["/PartType0/Velocities"])
 a_p = np.array(f["/PartType0/Acceleration"])
 h_p = np.array(f["/PartType0/SmoothingLength"])
 m_p = np.array(f["/PartType0/Masses"])
+#p_p = np.array(f["/PartType0/Pressure"])
 dt_p = np.array(f["/PartType0/TimeStep"])
 
-id_p = np.array(f["/PartType0/ParticleIDs"])
+
+id_p = np.array(f["/PartType0/ParticleIDs"]).astype(int)
+
+if "/PartType0/IRRadAccel" in f:
+    ir_radaccel_p = np.array(f["/PartType0/IRRadAccel"])
+else:
+    ir_radaccel_p = np.zeros((N_part,3))
 
 if "/PartType0/AGNHeat" in f:
     agn_heat_p = np.array(f["/PartType0/AGNHeat"])
 else:
     agn_heat_p = np.zeros(N_part)
+
+if "/PartType0/IRHeat" in f:
+    ir_heat_p = np.array(f["/PartType0/IRHeat"])
+else:
+    ir_heat_p = np.zeros(N_part)
 
 if "/PartType0/RadiativeAcceleration" in f:
     radaccel_p = np.array(f["/PartType0/RadiativeAcceleration"])
@@ -70,6 +82,7 @@ else:
 #print(depth_p)
 
 agn_heat_p*=1e10/3.08568e+16# to erg/s/g
+ir_heat_p*=1e10/3.08568e+16# to erg/s/g
 
 depth_p*=(1.989e+43/3.086e+21**2) # to g/cm**2
 
@@ -80,7 +93,9 @@ vel_p*=1. # in km/s
 h_p*=1. # already in kpc
 m_p*=1.989e+43 # 10^10 solar masses to g
 radaccel_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
+ir_radaccel_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
 a_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
+#p_p*=(1.989e+43/3.086e+21/3.08568e+16**2) # to dyne/cm**2 = g cm s**-2 cm**-2 = g s**-2 cm**-1
 #dt_p*=3.08568e+16 # to seconds
 
 G = 6.67259e-8 # in cgs
@@ -98,6 +113,8 @@ omega_p = vcirc_p/(rad_p * 3.08567758e16) # in Hz
 # in km/s/Gyr, roughly
 arad_p = (xyz[:,0]*a_p[:,0]+xyz[:,1]*a_p[:,1]+xyz[:,2]*a_p[:,2])/rad_p
 radrad_p = (xyz[:,0]*radaccel_p[:,0]+xyz[:,1]*radaccel_p[:,1]+xyz[:,2]*radaccel_p[:,2])/rad_p
+ir_radrad_p = (xyz[:,0]*ir_radaccel_p[:,0]+xyz[:,1]*ir_radaccel_p[:,1]+xyz[:,2]*ir_radaccel_p[:,2])/rad_p
+
 acirc_p = (xyz[:,1]*a_p[:,0]-xyz[:,0]*a_p[:,1])/rad2d_p
 
 lambda_cool = 1.e-24 # for testing
@@ -106,6 +123,7 @@ molecular_mass = 4./(1.+3.*.76)
 proton_mass_cgs = 1.6726e-24
 gamma_minus_one = 5./3.-1.
 boltzmann_cgs = 1.38066e-16
+
 
 depth_p/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
 
@@ -122,6 +140,13 @@ rcool_p = lambda_cool*nH_p/(molecular_mass*proton_mass_cgs)
 tcool_p = u_p/rcool_p
 
 tcool_p/=3.154e+7 # convert from seconds to years
+
+
+if ( "/PartType0/Pressure" in f ):
+    p_p = np.array(f["/PartType0/Pressure"])
+    p_p *=(1.989e+43/3.086e+21/3.08568e+16**2) # to dyne/cm**2 = g cm s**-2 cm**-2 = g s**-2 cm**-1
+else:
+    p_p = nH_p*TK_p*boltzmann_cgs
 
 if "/PartType0/AGNIntensity" in f:
     flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
@@ -213,17 +238,18 @@ Q_approx_p = vdisp_p*omega_p/(pmass*surfs*np.pi*G)
 print("packing and saving quickprof")
 
 
-profout = [binmids[:-1],binvcirc[1:],binvzdisp[1:-1]]
-profout = np.array(profout).T
-np.savetxt("data/vcvzprof_"+run_id+output_dir+"_"+snap_str,profout)
-sys.exit()
+# profout = [binmids[:-1],binvcirc[1:],binvzdisp[1:-1]]
+# profout = np.array(profout).T
+# np.savetxt("data/vcvzprof_"+run_id+output_dir+"_"+snap_str,profout)
+# sys.exit()
 
 print("packing")
 
 dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],vel_p[:,0],vel_p[:,1],vel_p[:,2],nH_p,TK_p,
         agn_heat_p,depth_p,dustTemp,flux_p,dt_p,h_p,u_p,m_p,mJ_p,cs_p,
         radaccel_p[:,0],radaccel_p[:,1],radaccel_p[:,2],radrad_p,a_p[:,0],a_p[:,1],a_p[:,2],arad_p,cs_p,omega_p,
-        surfs,vdisp_p,Q_approx_p,vcirc_p,vzdisp]
+        surfs,vdisp_p,Q_approx_p,vcirc_p,vzdisp,id_p,ir_radaccel_p[:,0],ir_radaccel_p[:,1],ir_radaccel_p[:,2],ir_radrad_p,
+        ir_heat_p,p_p,rho_p]
 #dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],rho_p,TK_p,agn_heat_p,depth_p]
 
 #thinslice = (np.abs(xyz[:,2])<1.) & (rad2d_p<.02)

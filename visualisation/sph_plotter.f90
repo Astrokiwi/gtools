@@ -12,6 +12,8 @@ module sph_plotter
     integer, parameter :: DENSE_WEIGHT_POS = 0
     integer(kind=1), parameter :: ZSLICE_MODE = B'00000010'
     integer, parameter :: ZSLICE_POS = 1
+    integer(kind=1), parameter :: MIN_MODE = B'00000100'
+    integer, parameter :: MIN_POS = 2
 
 
 
@@ -146,55 +148,70 @@ module sph_plotter
             call kernel_init
         endif
         
-        g = 0.d0
+        
+        if ( btest(mode,MIN_POS) ) then
+            g = huge(g(1,1))
+        else
+            g = 0.d0
+        endif
         mg = 0.d0
         r_cell = w/L
         area_cell = r_cell**2
-        
+
         do ip=1,n
-            if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
-                ih = ceiling(h(ip)/r_cell)
+            if ( f(ip) .and. .not. ( isnan(v(ip)) .or. v(ip)>HUGE(v(ip)) .or. v(ip)<-HUGE(v(ip)) ) ) then
+
+
                 ix = nint((x(ip)-c(1))/r_cell)
                 iy = nint((y(ip)-c(2))/r_cell)
+                if ( btest(mode,MIN_POS) ) then
+                    if ( ix<=L .and. iy<=L .and. ix>=1 .and. iy>=1 ) then
+                        g(ix,iy) = min(v(ip),g(ix,iy))
+                    endif
+                else
+                    ih = ceiling(h(ip)/r_cell)
                 
-                ix0 = max(1,ix-ih)
-                iy0 = max(1,iy-ih)
+                    ix0 = max(1,ix-ih)
+                    iy0 = max(1,iy-ih)
 
-                ix1 = min(L,ix+ih)
-                iy1 = min(L,iy+ih)
+                    ix1 = min(L,ix+ih)
+                    iy1 = min(L,iy+ih)
                 
-                if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
-                
-                    do hix=ix0,ix1
-                        do hiy=iy0,iy1
-                            if ( btest(mode,ZSLICE_POS) ) then
-                                dz = abs(z(ip)-zslice)
-                                rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell+dz**2)
-                                weight = kern(rdist/h(ip))/h(ip)**3
-                            else
-                                rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
-                                weight = fkern(rdist/h(ip))/h(ip)**2
-                            endif
-                            
-                            if ( btest(mode,DENSE_WEIGHT_POS) ) then
-                                g(hix,hiy) = g(hix,hiy) + weight * m(ip) * v(ip)
-                            endif
-                            mg(hix,hiy) = mg(hix,hiy) + weight * m(ip)
-                            
+                    if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+                        do hix=ix0,ix1
+                            do hiy=iy0,iy1
+                                if ( btest(mode,ZSLICE_POS) ) then
+                                    dz = abs(z(ip)-zslice)
+                                    rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell+dz**2)
+                                    weight = kern(rdist/h(ip))/h(ip)**3
+                                else
+                                    rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+                                    weight = fkern(rdist/h(ip))/h(ip)**2
+                                endif
+                        
+                                if ( btest(mode,DENSE_WEIGHT_POS) ) then
+                                    g(hix,hiy) = g(hix,hiy) + weight * m(ip) * v(ip)
+                                endif
+                                mg(hix,hiy) = mg(hix,hiy) + weight * m(ip)
+                            end do
                         end do
-                    end do
 
+                    endif
                 endif
                 
             endif
         end do
         
-        if ( btest(mode,DENSE_WEIGHT_POS) ) then
-            g = g/mg
+        if ( btest(mode,MIN_POS) ) then
+            where (g==huge(g(1,1))) g=-huge(g(1,1))
         else
-            g = mg
+            if ( btest(mode,DENSE_WEIGHT_POS) ) then
+                g = g/mg
+            else
+                g = mg
+            endif
         endif
-        
+
         return
     end function sph_general
     
@@ -215,6 +232,43 @@ module sph_plotter
         g = sph_general(x,y,m,h,v,L,c,w,f,nonsense_array,0.d0,WEIGHT_MODE,n)
 
     end function sph_weight
+    
+    
+    
+    function sph_min(x,y,h,v,L,c,w,f,n) result(g)
+        implicit none
+        integer :: n,L
+        real(kind=8), dimension(n) :: h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! values to smooth
+        real(kind=8), dimension(n) :: x,y ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+
+        real(kind=8), dimension(n) :: nonsense_array
+
+        g = sph_general(x,y,nonsense_array,h,v,L,c,w,f,nonsense_array,0.d0,MIN_MODE,n)
+
+    end function sph_min
+
+    function sph_minslice(x,y,h,v,L,c,w,f,n) result(g)
+        implicit none
+        integer :: n,L
+        real(kind=8), dimension(n) :: h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! values to smooth
+        real(kind=8), dimension(n) :: x,y ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+
+        real(kind=8), dimension(n) :: nonsense_array
+
+        
+        g = sph_general(x,y,nonsense_array,h,v,L,c,w,f,nonsense_array,0.d0,ior(MIN_MODE,ZSLICE_MODE),n)
+
+    end function sph_minslice
     
     function sph_dense(x,y,m,h,L,c,w,f,n) result(g)
         implicit none

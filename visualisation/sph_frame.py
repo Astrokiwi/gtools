@@ -62,6 +62,8 @@ zdensslice = 2
 zweightslice = 3
 vec2dslice = 4
 viewslice = 5
+minslice = 6
+zminslice = 7
 
 molecular_mass = 4./(1.+3.*.76)
 proton_mass_cgs = 1.6726e-24
@@ -116,6 +118,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                  planenorm=False,
                  circnorm=False,
                  plusminus=False,
+                 diverging=False,
                  visibleAxes=True,
                  cbar2=None,
                  cmap2=None):
@@ -129,7 +132,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     if ( cmap_label2 ):
         this_cmap2 = P.get_cmap(cmap_label2)
     
-    if ( not plusminus ):
+    if ( not plusminus and not diverging ):
         this_cmap.set_bad('black',1.)
         this_cmap.set_under('black',1.)
 
@@ -152,6 +155,10 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     elif (mode==viewslice ):
         zarg = np.argsort(z_p)
         map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
+    elif (mode==minslice ):
+        map = sph_plotter.sph_min(x_p,y_p,h_p,val_p,L,corner,width,mask,n)
+    elif (mode==zminslice ):
+        map = sph_plotter.sph_minslice(x_p,y_p,h_p,val_p,L,corner,width,mask,n)
         
     if ( mode==vec2dslice ):
         #map1/=1.e5
@@ -280,6 +287,13 @@ def load_gadget(infile, plot_thing):
         need_to_load.append("temp")
         need_to_load.append("nH")
 
+    if ( "vel_2d" in need_to_load or
+         "vel_r" in need_to_load or
+         "vel_x" in need_to_load or
+         "vel_y" in need_to_load or
+         "vel_z" in need_to_load ):
+        need_to_load.append("vels")
+
     if ( "col" in need_to_load ):
         data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
         data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
@@ -293,6 +307,11 @@ def load_gadget(infile, plot_thing):
 
     if ( "vels" in need_to_load ):
         data.vels = np.array(f["/PartType0/Velocities"]) # in km/s
+
+    # doesn't work well
+    if ( "dt" in need_to_load ):
+        data.dt_p = np.array(f["/PartType0/TimeStep"])
+        data.dt_p*=0.9778e9 # to yr
 
     # doesn't work well
     if ( "heat" in need_to_load ):
@@ -381,8 +400,8 @@ def makesph_trhoz_frame(infile,outfile,
                         rot=[0.,0.],
                         views=['face','side']
                         ):
-    cmap_r = cmap+"_r"
-    cmap_d = "coolwarm"
+    #cmap_r = cmap+"_r"
+    #cmap_d = "coolwarm"
     plot_thing = plot
     flatPlot = flat
     ringPlot = ring
@@ -429,9 +448,10 @@ def makesph_trhoz_frame(infile,outfile,
         z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
     
     
-    if ( "vels" in plot_thing or "vmag" in plot_thing ):
+    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r"]) ):
         #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
         data.vel2d = (x*data.vels[:,0]+y*data.vels[:,1])/np.sqrt(x**2+y**2)
+        data.velr = (x*data.vels[:,0]+y*data.vels[:,1]+z*data.vels[:,2])/np.sqrt(x**2+y**2+z**2)
         data.vel_x = data.vels[:,0]
         data.vel_y = data.vels[:,1]
         data.vel_z = data.vels[:,2]
@@ -446,7 +466,8 @@ def makesph_trhoz_frame(infile,outfile,
         # figure properties
         if ( "heat" in plot_thing ):
             fig, ax = P.subplots(nrows,3*cols, gridspec_kw = {'width_ratios':([1, 1, 16,16,1, 1])[0:3*cols]})
-            ax = np.resize(ax, (3,6)) # because 1D arrays have different syntax, we have to pretend it's 3D
+            if ( nrows<2 ):
+                ax = np.resize(ax, (3,6)) # because 1D arrays have different syntax, we have to pretend it's 3D
             cbax2left_index = 0
             cbaxleft_index = 1
             spleft_index = 2
@@ -456,18 +477,20 @@ def makesph_trhoz_frame(infile,outfile,
         
         else:
             fig, ax = P.subplots(nrows,2*cols, gridspec_kw = {'width_ratios':([1, 16,16,1])[0:2*cols]})
-            ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
+            if ( nrows<2 ):
+                ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
             cbaxleft_index = 0
             spleft_index = 1
             spright_index = 2
             cbaxright_index = 3
     else:
-            fig, ax = P.subplots(nrows,cols)
+        fig, ax = P.subplots(nrows,cols)
+        if ( nrows<2 ):
             ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
-            cbaxleft_index = 0
-            spleft_index = 0
-            spright_index = 1
-            cbaxright_index = 1
+        cbaxleft_index = 0
+        spleft_index = 0
+        spright_index = 1
+        cbaxright_index = 1
         
         
 
@@ -499,11 +522,13 @@ def makesph_trhoz_frame(infile,outfile,
         dslice = densslice
         rhounit = r"$\log_{10} \Sigma$ (M$_\odot$/pc$^2$)"
         drange = [-2.,8.]
+        thisminslice = minslice
         #drange = [2.,6.]
         #drange = [-1.,4.]
     else:
         quantslice = zweightslice
         dslice = zdensslice
+        thisminslice = zminslice
         rhounit = r"$\log_{10} \rho$ (M$_\odot$/pc$^3$)"
         drange = [-2.,7.]
     
@@ -530,9 +555,15 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["view"] = r"$\log_{10} F$"
     plotLabel["vlos"] = r"$v_{LOS}$"
     plotLabel["emit"] = r"$\log_{10} F$"
+    plotLabel["dt"] = r"$\log_{10}$ dt"
+    plotLabel["vel_2d"] = r"$v_{2D}$"
+    plotLabel["vel_x"] = r"$v_{x}$"
+    plotLabel["vel_y"] = r"$v_{y}$"
+    plotLabel["vel_z"] = r"$v_{z}$"
+    plotLabel["vel_r"] = r"$v_{r}$"
 
     plotRanges = dict()
-    plotRanges["temp"] = [1.,6.]*2
+    plotRanges["temp"] = [.999,6.]*2
     plotRanges["col"] = [15.,26.]*2
     plotRanges["nH"] = [0.,8.]*2
     plotRanges["heat"] = [1e-2,1.e10]*2
@@ -545,6 +576,12 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["view"] = [0.,4.]*2
     plotRanges["vlos"] = [-1.2e2,1.2e2]*2
     plotRanges["emit"] = [-12.,-3.]*2
+    plotRanges["dt"] = [1.,3.]*2
+    plotRanges["vel_2d"] = [-25.,25.]*2
+    plotRanges["vel_r"] = [-25.,25.]*2
+    plotRanges["vel_x"] = [-200.,200.]*2
+    plotRanges["vel_y"] = [-200.,200.]*2
+    plotRanges["vel_z"] = [-25.,25.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -560,6 +597,12 @@ def makesph_trhoz_frame(infile,outfile,
     plotSliceTypes["view"] = viewslice
     plotSliceTypes["vlos"] = viewslice
     plotSliceTypes["emit"] = dslice
+    plotSliceTypes["dt"] = thisminslice
+    plotSliceTypes["vel_2d"] = quantslice
+    plotSliceTypes["vel_r"] = quantslice
+    plotSliceTypes["vel_x"] = quantslice
+    plotSliceTypes["vel_y"] = quantslice
+    plotSliceTypes["vel_z"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -578,13 +621,22 @@ def makesph_trhoz_frame(infile,outfile,
     plotData["view"] = ["brightness","opac","brightness","opac"]
     plotData["vlos"] = ["vel_z","opac","vel_x","opac"]
     plotData["emit"] = "emmissivity"
+    plotData["dt"] = "dt_p"
+    plotData["vel_2d"] = "vel2d"
+    plotData["vel_r"] = "velr"
+    plotData["vel_x"] = "vel_x"
+    plotData["vel_y"] = "vel_y"
+    plotData["vel_z"] = "vel_z"
     
-    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit"]
+    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt"]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
+    divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d"]
+    
     customCmaps = dict()
     customCmaps["heat"] = 'Reds'
+    customCmaps["dt"] = cmap+"_r"
 
     customCmaps2 = dict()
     customCmaps2["heat"] = 'Blues'
@@ -602,6 +654,7 @@ def makesph_trhoz_frame(infile,outfile,
         thisPlotRanges = plotRanges[plot_thing[irow]]
         thisSliceType = plotSliceTypes[plot_thing[irow]]
         thisDoLog = (plot_thing[irow] in logSliceTypes)
+        thisDiverging = (plot_thing[irow] in divergingTypes)
         
         if ( plot_thing[irow] in plotCustomMass ):
             thisMass = data.__dict__[plot_thing[irow]]
@@ -640,7 +693,7 @@ def makesph_trhoz_frame(infile,outfile,
         else:
             this_cmap = cmap
 
-        if ( plot_thing[irow] in customCmaps ):
+        if ( plot_thing[irow] in customCmaps2 ):
             this_cmap2 = customCmaps2[plot_thing[irow]]
         else:
             this_cmap2 = None
@@ -653,10 +706,10 @@ def makesph_trhoz_frame(infile,outfile,
         for icol,view in enumerate(views):
             if ( view=='face' ):
                 makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
-                        cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes)
+                        cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging)
             elif ( view=='side' ):
                 makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,data.m_p,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
-                        cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes)
+                        cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging)
 
 
 

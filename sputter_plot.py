@@ -59,7 +59,10 @@ y_basis = np.linspace(0.,12.,num=bins)
 x,y = np.meshgrid(x_basis,y_basis)
 
 #z=(5.9-(-2.7446+1.5439*xy[:,0]-.37046*xy[:,0]**2+.21642*xy[:,0]**3-.34755*xy[:,0]**4+.10114*xy[:,0]**5))-xy[:,1]
-z = (5.9-(-2.7446+1.5439*x-.37046*x**2+.21642*x**3-.34755*x**4+.10114*x**5))-y
+grainrad = 0.1 # in microns
+grainrad_logangstrom = np.log10(grainrad)+4.
+
+z = (grainrad_logangstrom-(-2.7446+1.5439*x-.37046*x**2+.21642*x**3-.34755*x**4+.10114*x**5))-y
 
 #z = x
 
@@ -70,8 +73,8 @@ P.pcolormesh(x_basis+6.,y_basis,z,cmap=this_cmap,vmin=0.,vmax=9.)
 P.colorbar(label=r"$\log_{10} t_\mathrm{sput}$ (yr)")
 P.xlabel(r"$\log_{10} T$ (K)")
 P.ylabel(r"$\log_{10} n_\mathrm{H}$ (cm$^{-3}$)")
-P.suptitle("Sputtering time-scales (a/(da/dt)) from analytic fit of Tielens et al 1994 for silicates\n Assuming grain radius = 60e-4 cm")
+P.suptitle("Sputtering time-scales (a/(da/dt)) from analytic fit of Tielens et al 1994 for silicates\n Assuming grain radius = 0.1 micron")
 
-P.savefig("pics/sputter_plot.png",dpi=300)
+P.savefig("../figures/sputter_plot.png",dpi=300)
 
 P.close()

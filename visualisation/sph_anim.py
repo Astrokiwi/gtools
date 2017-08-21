@@ -13,7 +13,8 @@ import re
 
 import argparse
 
-
+def doop(*args):
+    print(args)
 
 def sort_nicely( l ):
     """ Sort the given list in the way that humans expect.
@@ -26,14 +27,24 @@ if __name__ == '__main__':
     default_values = dict()
     default_values["nprocs"]=8
     default_values["maxsnapf"]=-1
+    default_values["rad"]=15.
+    default_values["L"]=400
+    default_values["plot"]="dens,temp"
+    default_values["cmap"]="plasma"
+    default_values["slice"]=False
     
-    parsevals = ["nprocs","maxsnapf","run_id","output_dir"]
+    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
     parser.add_argument('output_dir',help="name of subdirectory for run")
     parser.add_argument('--nprocs',type=int,help="processors to run on (default {})".format(default_values["nprocs"]))
     parser.add_argument('--maxsnapf',type=int,help="snapshot to end on (default=-1=do all snapshots)")
+    parser.add_argument('--rad',type=float,help="radius of plot in parsecs")
+    parser.add_argument('--L',type=int,help="size of plot area in pixels")
+    parser.add_argument('--plot',type=str,help="values to plot, separated by commas")
+    parser.add_argument('--cmap',type=str,help="colourmap palette")
+    parser.add_argument('--slice',help="option to be slice plot",action='store_true')
     args = parser.parse_args()
     
 #     run_id = args.run_id
@@ -50,7 +61,16 @@ if __name__ == '__main__':
 #                 print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],vars()[parseval]))
             else:
                 raise Exception("No default value for {} - it must be specified!".format(parseval))
+
+    flatPlot = not slice
+
+    if ( flatPlot ):
+        smooth_str = "smooth"
+    else:
+        smooth_str = "slice"
     
+    toplot = plot.split(",")
+    outp_plot = "".join(toplot)
 
     print("Running")
 
@@ -106,9 +126,13 @@ if __name__ == '__main__':
     infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in range(snapi,snapf+1)]
     outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in range(snapi,snapf+1)]
 
+    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
+    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
+
+
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=400,scale=10.) for i in range(snapi,snapf+1))
-    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=False,ring=False,plot=['dens','temp'],L=400,scale=10.) for i in range(snapi,snapf+1))
+    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='viridis',flat=True,ring=True,plot=['dt'],L=200,scale=15.,pixsize=2) for i in range(snapi,snapf+1))
+    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=400,scale=15.) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['vels','dens'],L=400) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['vels'],L=400,scale=10.) for i in range(snapi,snapf+1))
     #[sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1)]
@@ -131,6 +155,9 @@ if __name__ == '__main__':
     #for snapx in [37]:
     
     print("to mp4!")
+    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+".mp4"
+
+
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_rhotempgiz_"+run_id+"_"+output_dir+".mp4"
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_depthtempgiz_"+run_id+"_"+output_dir+".mp4"
 
@@ -142,7 +169,9 @@ if __name__ == '__main__':
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhogiz_"+run_id+"_"+output_dir+".mp4"
 
-    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhoTgiz_"+run_id+"_"+output_dir+".mp4"
+    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothmin_dtgiz_"+run_id+"_"+output_dir+".mp4"
+    
+    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhoTgiz_"+run_id+"_"+output_dir+".mp4"
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_rhoTgiz_"+run_id+"_"+output_dir+".mp4"
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_rhozoomgiz_"+run_id+"_"+output_dir+".mp4"
