@@ -32,7 +32,7 @@ if __name__ == '__main__':
     nruns = len(sys.argv)-2
     if ( nruns%3!=0 ):
         raise Exception("python sigma_angle folder1 subdir1 dump1 folder2 subdir2 dump2 [etc] outputfile")
-    nruns = nruns/3
+    nruns = nruns//3
 
     outpFile = sys.argv[-1]
 

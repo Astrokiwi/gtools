@@ -10,15 +10,20 @@ import pylab as P
 
 #infile = "data/sigma_angle_sfnograv.dat"
 #infile = "data/sigma_angle_sdev.out"
-infile = "data/aniso_sigma_angle.dat"
+# infile = "data/aniso_sigma_angle.dat"
 #infile = "data/aniso_sigma_angle_lowres.dat"
 #titles = ["Grav","Grav+wSF","Grav+SF","NoGrav"]
 #titles = ["SelfGrav","SelfGrav+SF","SelfGrav+SF+HighEdd","NoSelfGrav"]
-titles = ["SelfGrav","SelfGrav+SF","NoSelfGrav"]
+# titles = ["SelfGrav","SelfGrav+SF","NoSelfGrav"]
 #outp = "../figures/sigma_angle_sfnograv.png"
 #outp = "../figures/sigma_angle_sfnograv_new.png"
-outp = "../figures/sigma_angle_sfnograv_aniso.png"
+# outp = "../figures/sigma_angle_sfnograv_aniso.png"
 #outp = "../figures/sigma_angle_sfnograv_aniso_lowres.png"
+
+infile = "data/sigangle_small_big.dat"
+titles = ["small_big"]
+outp = "../figures/sigma_angle_small_big.png"
+
 
 data = np.loadtxt(infile)
 

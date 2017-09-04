@@ -343,7 +343,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
                 H = np.log10(H).T
             #H = H.T
             #P.pcolormesh(xedges,yedges,H,cmap='plasma',vmin=np.min(H[np.isfinite(H)]),vmax=np.max(H[np.isfinite(H)])) #,norm=colors.LogNorm()
-            P.pcolormesh(xedges,yedges,H,cmap='viridis',vmin=0.,vmax=3.5) #,norm=colors.LogNorm()
+            P.pcolormesh(xedges,yedges,H,cmap='plasma',vmin=0.,vmax=3.5) #,norm=colors.LogNorm()
             P.xlim(xedges[0],xedges[-1])
             P.ylim(yedges[0],yedges[-1])
             ax = P.gca()

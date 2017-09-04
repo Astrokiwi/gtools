@@ -157,7 +157,8 @@ else:
 
 
 tabStructs = interpTabVec(nH_p.astype(np.float64),TK_p.astype(np.float64),flux_p.astype(np.float64),depth_p.astype(np.float64))
-dustTemp = map(lambda y: y.dustT, tabStructs)
+#dustTemp = map(lambda y: y.dustT, tabStructs)
+dustTemp = [y.dustT for y in tabStructs]
 dustTemp = np.array(dustTemp)
 
 # dustTemp = np.zeros(N_part)
