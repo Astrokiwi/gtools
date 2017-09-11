@@ -6,10 +6,12 @@ import sys
 import os
 from joblib import Parallel, delayed
 
-#from sys import path
-#path.append("../src/")
 import sph_frame
 import re
+
+from sys import path
+path.append("../")
+import gizmodatadir
 
 import argparse
 
@@ -94,7 +96,9 @@ if __name__ == '__main__':
 
 
     snapi = 0
-    fullDir = "/export/1/djw/gizmos/"+run_id+"/"+output_dir
+    gizmoDir = gizmodatadir.gizmoDir()
+    movieDir = gizmodatadir.movieDir()
+    fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 
     fnames = os.listdir(fullDir)
     sort_nicely(fnames)
@@ -155,7 +159,7 @@ if __name__ == '__main__':
     #for snapx in [37]:
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+".mp4"
+    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+".mp4"
 
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_rhotempgiz_"+run_id+"_"+output_dir+".mp4"
