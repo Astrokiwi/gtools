@@ -32,7 +32,7 @@ if __name__ == '__main__':
     default_values["rad"]=15.
     default_values["L"]=400
     default_values["plot"]="dens,temp"
-    default_values["cmap"]="plasma"
+    default_values["cmap"]="viridis"
     default_values["slice"]=False
     
     parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice"]

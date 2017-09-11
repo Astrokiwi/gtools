@@ -169,34 +169,43 @@ module sph_plotter
                         g(ix,iy) = min(v(ip),g(ix,iy))
                     endif
                 else
-                    ih = ceiling(h(ip)/r_cell)
-                
-                    ix0 = max(1,ix-ih)
-                    iy0 = max(1,iy-ih)
-
-                    ix1 = min(L,ix+ih)
-                    iy1 = min(L,iy+ih)
-                
-                    if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
-                        do hix=ix0,ix1
-                            do hiy=iy0,iy1
-                                if ( btest(mode,ZSLICE_POS) ) then
-                                    dz = abs(z(ip)-zslice)
-                                    rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell+dz**2)
-                                    weight = kern(rdist/h(ip))/h(ip)**3
-                                else
-                                    rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
-                                    weight = fkern(rdist/h(ip))/h(ip)**2
-                                endif
-                        
-                                if ( btest(mode,DENSE_WEIGHT_POS) ) then
-                                    g(hix,hiy) = g(hix,hiy) + weight * m(ip) * v(ip)
-                                endif
-                                mg(hix,hiy) = mg(hix,hiy) + weight * m(ip)
-                            end do
-                        end do
-
+                    if ( btest(mode,ZSLICE_POS) ) then
+                        dz = abs(z(ip)-zslice)
+                    else
+                        dz = -1
                     endif
+                    
+                    if ( dz<h(ip) ) then
+                
+                        ih = ceiling(h(ip)/r_cell)
+                
+                        ix0 = max(1,ix-ih)
+                        iy0 = max(1,iy-ih)
+
+                        ix1 = min(L,ix+ih)
+                        iy1 = min(L,iy+ih)
+                
+                        if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+                            do hix=ix0,ix1
+                                do hiy=iy0,iy1
+                                    if ( btest(mode,ZSLICE_POS) ) then
+                                        rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell+dz**2)
+                                        weight = kern(rdist/h(ip))/h(ip)**3
+                                    else
+                                        rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+                                        weight = fkern(rdist/h(ip))/h(ip)**2
+                                    endif
+                        
+                                    if ( btest(mode,DENSE_WEIGHT_POS) ) then
+                                        g(hix,hiy) = g(hix,hiy) + weight * m(ip) * v(ip)
+                                    endif
+                                    mg(hix,hiy) = mg(hix,hiy) + weight * m(ip)
+                                end do
+                            end do
+
+                        endif
+                    endif
+
                 endif
                 
             endif

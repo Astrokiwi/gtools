@@ -17,7 +17,14 @@ import tab_interp
 
 import numpy as np
 
+from difflib import SequenceMatcher
+
+import itertools
+
 #from enum import Enum
+
+def similar(a, b):
+    return SequenceMatcher(None, a, b).ratio()
 
 # --- Custom colormaps ---
 
@@ -125,10 +132,10 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 
     cmap_label2=cmap2
     cbax2=cbar2
-    
+
     this_cmap = P.get_cmap(cmap_label)
 
-    
+    #print(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,width,cblabel,clow,chigh,cmap_label,mode,dolog,planenorm,circnorm,plusminus,diverging,visibleAxes,cbar2,cmap2)
     if ( cmap_label2 ):
         this_cmap2 = P.get_cmap(cmap_label2)
     
@@ -232,6 +239,9 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             if ( dolog ):
                 map = np.log10(map)
             finiteIndices = np.isfinite(map)
+            if ( np.sum(finiteIndices)==0 ):
+                print(map)
+                raise Exception("No finite values in map")
             print(np.min(map[finiteIndices]),np.max(map[finiteIndices]))
 
             mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh)
@@ -291,7 +301,8 @@ def load_gadget(infile, plot_thing):
          "vel_r" in need_to_load or
          "vel_x" in need_to_load or
          "vel_y" in need_to_load or
-         "vel_z" in need_to_load ):
+         "vel_z" in need_to_load or
+         "vel_a" in need_to_load):
         need_to_load.append("vels")
 
     if ( "col" in need_to_load ):
@@ -448,9 +459,10 @@ def makesph_trhoz_frame(infile,outfile,
         z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
     
     
-    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r"]) ):
+    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a"]) ):
         #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
         data.vel2d = (x*data.vels[:,0]+y*data.vels[:,1])/np.sqrt(x**2+y**2)
+        data.vel_a = (-x*data.vels[:,1]+y*data.vels[:,0])/np.sqrt(x**2+y**2)
         data.velr = (x*data.vels[:,0]+y*data.vels[:,1]+z*data.vels[:,2])/np.sqrt(x**2+y**2+z**2)
         data.vel_x = data.vels[:,0]
         data.vel_y = data.vels[:,1]
@@ -561,6 +573,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["vel_y"] = r"$v_{y}$"
     plotLabel["vel_z"] = r"$v_{z}$"
     plotLabel["vel_r"] = r"$v_{r}$"
+    plotLabel["vel_a"] = r"$v_{\theta}$"
 
     plotRanges = dict()
     plotRanges["temp"] = [.999,6.]*2
@@ -577,11 +590,13 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["vlos"] = [-1.2e2,1.2e2]*2
     plotRanges["emit"] = [-12.,-3.]*2
     plotRanges["dt"] = [1.,3.]*2
-    plotRanges["vel_2d"] = [-25.,25.]*2
+    #plotRanges["vel_2d"] = [-25.,25.]*2
+    plotRanges["vel_2d"] = [-250.,250.]*2
     plotRanges["vel_r"] = [-25.,25.]*2
     plotRanges["vel_x"] = [-200.,200.]*2
     plotRanges["vel_y"] = [-200.,200.]*2
     plotRanges["vel_z"] = [-25.,25.]*2
+    plotRanges["vel_a"] = [-100.,100.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -603,6 +618,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotSliceTypes["vel_x"] = quantslice
     plotSliceTypes["vel_y"] = quantslice
     plotSliceTypes["vel_z"] = quantslice
+    plotSliceTypes["vel_a"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -627,12 +643,13 @@ def makesph_trhoz_frame(infile,outfile,
     plotData["vel_x"] = "vel_x"
     plotData["vel_y"] = "vel_y"
     plotData["vel_z"] = "vel_z"
+    plotData["vel_a"] = "vel_a"
     
     logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt"]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
-    divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d"]
+    divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d","vel_a"]
     
     customCmaps = dict()
     customCmaps["heat"] = 'Reds'
@@ -649,7 +666,18 @@ def makesph_trhoz_frame(infile,outfile,
         # Believe it or not, this is clearer than writing out each
         # plot command by hand - there's less repetition
         if ( not plot_thing[irow] in plotLabel ):
-            raise Exception(plot_thing[irow]+" not a valid plot type")
+            errstr = "{} is not a valid plot type\n".format(plot_thing[irow])
+            matchRatios = list(map(similar,itertools.repeat(plot_thing[irow]),plotLabel))
+            bestFit = np.argmax(matchRatios)
+            errstr+= "Valid plot types:\n"
+            labelstrs = list(plotLabel)
+            for i in range(len(labelstrs)):
+                if ( i!=bestFit ):
+                    if ( matchRatios[i]>.5 ):
+                        labelstrs[i]+=" - possible fit?"
+            labelstrs[bestFit]+=" - best match"
+            errstr += "\n".join(labelstrs)
+            raise Exception(errstr)
         thisPlotLabel = plotLabel[plot_thing[irow]]
         thisPlotRanges = plotRanges[plot_thing[irow]]
         thisSliceType = plotSliceTypes[plot_thing[irow]]
@@ -677,7 +705,7 @@ def makesph_trhoz_frame(infile,outfile,
                 thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
                 thisPlotQuantitySide = [data.__dict__[plotCommand[2]],data.__dict__[plotCommand[3]]]
             else:
-                raise Exception("{} is not a valid thing to plot".format(plotCommand))
+                raise Exception("{} is not a valid plot format".format(plotCommand))
         else:
             thisPlotQuantityFace = None
             thisPlotQuantitySide = None
