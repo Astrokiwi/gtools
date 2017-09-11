@@ -14,6 +14,7 @@ program disc_ICs
     real(kind=8) :: inwards_v
     real(kind=8) :: v0,v0rad,v_index
     real(kind=8) :: T0
+    real(kind=8) :: vloop0,vlooprad
     
     real(kind=8) :: dense_index
     
@@ -55,6 +56,8 @@ program disc_ICs
     !disc_thick = 0.01d0 ! in kpc/kpc - this is a slope
     
     v0rad = -1. ! in km/s
+    
+    vlooprad = -1. ! in pc (i.e. don't do vloop)
     
     selfgrav = .true.
     
@@ -105,6 +108,10 @@ program disc_ICs
                 case("vlaw")
                     !read(invalue,*) v_flat
                     read(intext,*,iostat=ios) invariable,v0,v0rad,v_index
+
+                case("vloop")
+                    !read(invalue,*) v_flat
+                    read(intext,*,iostat=ios) invariable,vloop0,vlooprad
 
                 case("mtot")
                     read(invalue,*) mtot
@@ -161,6 +168,7 @@ program disc_ICs
     disc_inner_rad = disc_inner_rad/1.e3
     disc_thick = disc_thick/1.e3
     v0rad = v0rad/1.e3
+    vlooprad = vlooprad/1.e3
     
     !call set_N_onlygas(8192)
     !call set_N_onlygas(65536)
@@ -182,7 +190,7 @@ program disc_ICs
     call disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
                    m_smbh,v_large,a_scale,c_scale,selfgrav,&
                    inwards_v,v0,v0rad,v_index,tproffile,T0,&
-                   dense_index)
+                   dense_index,vloop0,vlooprad)
     
     !call write_ICs("data/discICs_midres.dat")
     !call write_ICs("data/holy_razorthin_discICs_midres.dat")
@@ -249,7 +257,8 @@ end subroutine
 
 subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
                    m_smbh,v_large,a_scale,c_scale,selfgrav,inwards_v,&
-                   v0,v0rad,v_index,tproffile,T0,dense_index)
+                   v0,v0rad,v_index,tproffile,T0,dense_index,&
+                   vloop0,vlooprad)
     use gadget_ics_IO
     implicit none
     
@@ -260,10 +269,13 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
     real(kind=8) :: v0,v0rad,v_index
     real(kind=8) :: T0
     real(kind=8) :: dense_index
+    real(kind=8) :: vloop0,vlooprad
     character(len=256) :: tproffile
     
     real(kind=8), dimension(:,:), allocatable :: rans
-    real(kind=8), dimension(:),allocatable :: rads, vcircs, mrads
+    real(kind=8), dimension(:),allocatable :: rads, vcircs, mrads, vrads, vphis
+    real(kind=8), dimension(:),allocatable :: rad2d, z_over_r, rad_transformed
+    real(kind=8), dimension(:,:),allocatable :: r_transformed
     logical :: selfgrav
     
     real(kind=8), parameter :: pi = 4.d0*atan(-1.d0)
@@ -284,6 +296,7 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
     m_smbh = m_smbh/1.d10
     v_large = v_large*1.d5*(tunit_cgs/runit_cgs) ! tunit/runit is basically 1 km/s anyway
     inwards_v = inwards_v*1.d5*(tunit_cgs/runit_cgs) ! tunit/runit is basically 1 km/s anyway
+    vloop0 = vloop0*1.d5*(tunit_cgs/runit_cgs) ! tunit/runit is basically 1 km/s anyway
     ! a_scale and c_scale are already in kpc
     
     allocate(rans(p_data%ng,3))
@@ -320,6 +333,7 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
     
     allocate(rads(p_data%ng))
     allocate(vcircs(p_data%ng))
+    allocate(vrads(p_data%ng))
     
     rads = sqrt(p_data%r_p(1,:)**2+p_data%r_p(2,:)**2+p_data%r_p(3,:)**2) ! sqrt is slow, but this is O(N) so okay
     !
@@ -356,22 +370,70 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
     else
         call temp_profile(tproffile,rads,vcircs)
     endif 
+    
+    if ( vlooprad<0 ) then
+        vrads = - inwards_v
+    else
+        allocate(rad2d(p_data%ng))
+        allocate(z_over_r(p_data%ng))
+        allocate(vphis(p_data%ng))
+        allocate(r_transformed(3,p_data%ng))
+        allocate(rad_transformed(p_data%ng))
+    
+
+        rad2d = sqrt(p_data%r_p(1,:)**2+p_data%r_p(2,:)**2) - disc_inner_rad
+        z_over_r = rad2d/p_data%r_p(3,:)
+        
+        vrads = (1.d0-z_over_r**2)/(z_over_r**2+1.d0)
+        vphis = 2.d0*z_over_r/(z_over_r**2+1.d0)
+        
+        r_transformed(3,:) = p_data%r_p(3,:)
+        r_transformed(1:2,:) = p_data%r_p(1:2,:)*spread(1.d0-disc_inner_rad/rad2d,1,2)
+        
+        rad_transformed=sqrt(r_transformed(1,:)**2+r_transformed(2,:)**2+r_transformed(3,:)**2)
+        
+        vrads = vloop0*vrads*erfc(rad_transformed/vlooprad)/2.
+        vphis = vloop0*vphis*erfc(rad_transformed/vlooprad)/2.
+    endif
 
     ! convert from temperature in K to internal units (1e10 erg/g)
     p_data%u_p(:) = real(p_data%u_p(:)/u_to_TK/uunit_cgs)
 
     !vcircs = dsqrt(G*mtot*rads/disc_rad**2)
     !print *,vcircs*runit_cgs/tunit_cgs*1.e-5
+    print *,p_data%v_p(:,1)
+
     
     ! convert to cartesian
     p_data%v_p(1,:) =  real(vcircs * p_data%r_p(2,:) / rads)
     p_data%v_p(2,:) = real(-vcircs * p_data%r_p(1,:) / rads)
     p_data%v_p(3,:) = 0.
+
+    print *,p_data%v_p(:,1)
     
-    ! include radial impulse
-    p_data%v_p(:,:) = real(p_data%v_p(:,:) - p_data%r_p(:,:) * inwards_v / spread(rads(:),1,3))
+    if ( vlooprad>=0 ) then
+    ! TODO: include vphi
+        p_data%v_p(1:2,:) = real(p_data%v_p(1:2,:) + p_data%r_p(1:2,:)*spread(vphis*z_over_r/sqrt(z_over_r**2+1.)/rad2d,1,2))
+        p_data%v_p(3,:) = real(p_data%v_p(3,:) - vphis/sqrt(z_over_r**2+1.))
+        
+        ! include radial impulse
+        p_data%v_p(:,:) = real(p_data%v_p(:,:) + r_transformed(:,:) * spread(vrads(:)/rad_transformed(:),1,3))
+    else
+        ! include radial impulse
+        p_data%v_p(:,:) = real(p_data%v_p(:,:) + p_data%r_p(:,:) * spread(vrads(:)/rads,1,3))
+    endif
     
+    print *,p_data%v_p(:,1)
+
+    if ( vlooprad>0 ) then
+        deallocate(z_over_r)
+        deallocate(rad2d)
+        deallocate(vphis)
+        deallocate(r_transformed)
+    endif
+
     deallocate(rads)
+    deallocate(vrads)
     deallocate(vcircs)
     
     ! set initial IDs
