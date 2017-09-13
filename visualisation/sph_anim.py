@@ -32,10 +32,11 @@ if __name__ == '__main__':
     default_values["rad"]=15.
     default_values["L"]=400
     default_values["plot"]="dens,temp"
+    default_values["views"]="face,side"
     default_values["cmap"]="viridis"
     default_values["slice"]=False
     
-    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice"]
+    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
@@ -45,6 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--rad',type=float,help="radius of plot in parsecs")
     parser.add_argument('--L',type=int,help="size of plot area in pixels")
     parser.add_argument('--plot',type=str,help="values to plot, separated by commas")
+    parser.add_argument('--views',type=str,help="face and/or side view, separated by commas")
     parser.add_argument('--cmap',type=str,help="colourmap palette")
     parser.add_argument('--slice',help="option to be slice plot",action='store_true')
     args = parser.parse_args()
@@ -73,6 +75,9 @@ if __name__ == '__main__':
     
     toplot = plot.split(",")
     outp_plot = "".join(toplot)
+
+    toview = views.split(",")
+    outp_views = "".join(toview)
 
     print("Running")
 
@@ -131,7 +136,7 @@ if __name__ == '__main__':
     outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in range(snapi,snapf+1)]
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
+    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad,views=toview) for i in range(snapi,snapf+1))
 
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))

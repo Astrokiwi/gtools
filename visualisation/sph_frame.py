@@ -305,6 +305,11 @@ def load_gadget(infile, plot_thing):
          "vel_a" in need_to_load):
         need_to_load.append("vels")
 
+    if ( "arad" in need_to_load ):
+        data.arads = np.array(f["/PartType0/RadiativeAcceleration"])
+        data.arads*=3.24086617e-12 # to cm/s/s
+        data.arad = np.sqrt(np.sum(data.arads**2,axis=1))
+
     if ( "col" in need_to_load ):
         data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
         data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
@@ -335,10 +340,10 @@ def load_gadget(infile, plot_thing):
 #         data.heat[heatplus] = np.maximum(0.,np.log10(data.heat[heatplus]))
 #         data.heat[heatminus] = -np.maximum(0.,np.log10(-data.heat[heatminus]))
 
-    if ( "depth" in need_to_load):
-        #rho_p = np.array(f["/PartType0/Density"])
-        #agn_heat_p = np.array(f["/PartType0/AGNHeat"])
-        data.depth_p = np.array(f["/PartType0/AGNDepth"]) # unitless
+#     if ( "depth" in need_to_load):
+#         #rho_p = np.array(f["/PartType0/Density"])
+#         #agn_heat_p = np.array(f["/PartType0/AGNHeat"])
+#         data.depth_p = np.array(f["/PartType0/AGNDepth"]) # unitless
 
     if ( "nH" in need_to_load ):
         data.rho_p = np.array(f["/PartType0/Density"])
@@ -360,11 +365,11 @@ def load_gadget(infile, plot_thing):
 
     if ( "tdust" in need_to_load ):
         data.dustTemp = map(lambda y: y.dustT, tabStructs)
-        data.dustTemp = np.array(data.dustTemp)        
+        data.dustTemp = np.array(list(data.dustTemp))
 
     if ( "dg" in need_to_load ):
         data.dg = map(lambda y: y.dg, tabStructs)
-        data.dg = np.array(data.dg)
+        data.dg = np.array(list(data.dg))
 
     if ( "dust" in need_to_load ):
         data.dust = data.dg * data.m_p
@@ -428,7 +433,7 @@ def makesph_trhoz_frame(infile,outfile,
         raise Exception("rot needs to be [theta,phi]")
         
     if ( not all(view=='face' or view=='side' for view in views) ):
-        raise Exception("Views must be an array of size two containing only 'face' or 'side'")
+        raise Exception("Views must be an array of size one or two containing only 'face' or 'side'")
     
     cols = len(views)
     if ( cols!=1 and cols!=2 ):
@@ -574,6 +579,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["vel_z"] = r"$v_{z}$"
     plotLabel["vel_r"] = r"$v_{r}$"
     plotLabel["vel_a"] = r"$v_{\theta}$"
+    plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
 
     plotRanges = dict()
     plotRanges["temp"] = [.999,6.]*2
@@ -597,6 +603,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["vel_y"] = [-200.,200.]*2
     plotRanges["vel_z"] = [-25.,25.]*2
     plotRanges["vel_a"] = [-100.,100.]*2
+    plotRanges["arad"] = [-9.,-3.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -619,6 +626,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotSliceTypes["vel_y"] = quantslice
     plotSliceTypes["vel_z"] = quantslice
     plotSliceTypes["vel_a"] = quantslice
+    plotSliceTypes["arad"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -644,8 +652,9 @@ def makesph_trhoz_frame(infile,outfile,
     plotData["vel_y"] = "vel_y"
     plotData["vel_z"] = "vel_z"
     plotData["vel_a"] = "vel_a"
+    plotData["arad"] = "arad"
     
-    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt"]
+    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad"]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
