@@ -36,9 +36,18 @@ outfile = "../pics/sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='Spectral',flat=True,ring=True,plot=['vel_2d','vel_x','vel_y','vel_z','vel_r'],L=600)
 
-sph_frame.makesph_trhoz_frame(infile,outfile,cmap='Spectral',flat=False,ring=False,plot=['vel_a'],L=400,scale=2.)
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='Spectral',flat=False,ring=False,plot=['vel_a'],L=400,scale=2.)
 
-#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens','temp'],L=400,scale=.5,)
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens'],L=800,scale=8.)
+
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['arad','col'],L=800,scale=1.5)
+
+sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['dens'],L=800,scale=1.5)
+
+
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['vel_2d','vel_z','vels'],L=400,scale=1.)
+#,views=['side']
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens'],L=800,scale=4.,views=['face'])
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['temp'],L=1024,scale=10.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['temp'],L=400,subsample=10.,pixsize=1)
 
