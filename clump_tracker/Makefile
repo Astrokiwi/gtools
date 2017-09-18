@@ -1,5 +1,9 @@
-fof:
-	f2py --opt=-O2 --f90flags="-O2 -Wall -mcmodel=medium" -c fof.f90 -m fof
+fof_step:
+	f2py --opt=-O2 --f90flags="-O2 -Wall -mcmodel=medium" -c fof_step.f90 -m fof_step
+
+
+# fof:
+# 	f2py --opt=-O2 --f90flags="-O2 -Wall -mcmodel=medium" -c fof.f90 -m fof
 
 
 # FORT = h5fc
