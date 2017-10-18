@@ -15,6 +15,14 @@ disc : ${DISC_OBJS}
 	mv ${DISC_EXEC} ..
 
 
+DROP_OBJS=gadget_ics_IO.o blobdrop_ICs.o
+DROP_EXEC=blobdrop_ICs
+
+drop : ${DROP_OBJS}
+	${FORT} ${OPTIONS} -o ${DROP_EXEC} ${DROP_OBJS} ${LIBS}
+	mv ${DROP_EXEC} ..
+
+
 BLOB_OBJS=gadget_ics_IO.o blob_ICs.o
 BLOB_EXEC=blob_ICs
 
