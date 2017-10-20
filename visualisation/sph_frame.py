@@ -353,6 +353,10 @@ def load_gadget(infile, plot_thing,
         data.rho_p*=6.77e-22 # to g/cm**3 
         data.nH_p = data.rho_p/(molecular_mass*proton_mass_cgs)
 
+    if ( "AGNI" in need_to_load ):
+        data.AGNI = np.array(f["/PartType0/AGNIntensity"])
+        data.AGNI*= (1.989e53/(0.9778e9*3.154e7)/3.086e21**2) # convert from internal units (energy/Gyr-ish/kpc**2) to erg/s/cm**2
+
     if ( "table" in need_to_load ):
         if ( not chTab ):
             print("Load dust tables")
@@ -606,6 +610,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["vel_r"] = r"$v_{r}$"
     plotLabel["vel_a"] = r"$v_{\theta}$"
     plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
+    plotLabel["AGNI"] = r"Unextinced $I_{AGN}$ (log erg/s/cm^2)"
 
     plotRanges = dict()
     plotRanges["temp"] = [.999,6.]*2
@@ -630,6 +635,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["vel_z"] = [-25.,25.]*2
     plotRanges["vel_a"] = [-100.,100.]*2
     plotRanges["arad"] = [-9.,-3.]*2
+    plotRanges["AGNI"] = [-9.,-3.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -653,6 +659,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotSliceTypes["vel_z"] = quantslice
     plotSliceTypes["vel_a"] = quantslice
     plotSliceTypes["arad"] = quantslice
+    plotSliceTypes["AGNI"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
