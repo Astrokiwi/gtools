@@ -11,19 +11,19 @@ import re
 
 from sys import path
 path.append("../")
-import gizmodatadir
+import gizmo_tools
 
 import argparse
 
 def doop(*args):
     print(args)
 
-def sort_nicely( l ):
-    """ Sort the given list in the way that humans expect.
-    """
-    convert = lambda text: int(text) if text.isdigit() else text
-    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
-    l.sort( key=alphanum_key )
+# def sort_nicely( l ):
+#     """ Sort the given list in the way that humans expect.
+#     """
+#     convert = lambda text: int(text) if text.isdigit() else text
+#     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+#     l.sort( key=alphanum_key )
 
 if __name__ == '__main__':
     default_values = dict()
@@ -35,8 +35,14 @@ if __name__ == '__main__':
     default_values["views"]="face,side"
     default_values["cmap"]="viridis"
     default_values["slice"]=False
+    default_values["phi"]=0.
+    default_values["theta"]=0.
+    default_values["noaxes"]=False
+    default_values["centredens"]=False
+    default_values["centrecom"]=False
+    default_values["suffix"]=""
     
-    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views"]
+    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
@@ -48,7 +54,13 @@ if __name__ == '__main__':
     parser.add_argument('--plot',type=str,help="values to plot, separated by commas")
     parser.add_argument('--views',type=str,help="face and/or side view, separated by commas")
     parser.add_argument('--cmap',type=str,help="colourmap palette")
+    parser.add_argument('--phi',type=float,help="phi (latitudinal) rotation angle in degrees")
+    parser.add_argument('--theta',type=float,help="theta (azimuthal) rotation angle in degrees")
     parser.add_argument('--slice',help="option to be slice plot",action='store_true')
+    parser.add_argument('--noaxes',help="don't show axes - fill frame with plot",action='store_true')
+    parser.add_argument('--centredens',help="centre on densest particle",action='store_true')
+    parser.add_argument('--centrecom',help="centre on centre of mass",action='store_true')
+    parser.add_argument('--suffix',help="suffix on anim filename")
     args = parser.parse_args()
     
 #     run_id = args.run_id
@@ -58,11 +70,11 @@ if __name__ == '__main__':
     for parseval in parsevals:
         if ( vars(args)[parseval] ):
             vars()[parseval] = vars(args)[parseval]
-#             print("setting {} to {}, current value:{}".format(parseval,vars(args)[parseval],vars()[parseval]))
+            print("setting {} to {}, current value:{}".format(parseval,vars(args)[parseval],vars()[parseval]))
         else:
             if ( parseval in default_values ):
                 vars()[parseval] = default_values[parseval]
-#                 print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],vars()[parseval]))
+                print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],vars()[parseval]))
             else:
                 raise Exception("No default value for {} - it must be specified!".format(parseval))
 
@@ -78,7 +90,10 @@ if __name__ == '__main__':
 
     toview = views.split(",")
     outp_views = "".join(toview)
-
+    
+    phi*=2.*np.pi/360.
+    theta*=2.*np.pi/360.
+    visibleAxes=not noaxes
     print("Running")
 
     #run_id = sys.argv[1]
@@ -100,27 +115,34 @@ if __name__ == '__main__':
     #determine which files to look at
 
 
+#     snapi = 0
+#     gizmoDir = gizmo_tools.gizmoDir()
+#     movieDir = gizmo_tools.movieDir()
+#     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
+# 
+#     fnames = os.listdir(fullDir)
+#     sort_nicely(fnames)
+#     fnames = np.array(fnames)
+#     #fnames.sort()
+#     snapshotfilebools = np.array([x.startswith("snapshot") for x in fnames])
+#     snapshotfiles = fnames[snapshotfilebools]
+# 
+#     snapf = 0
+#     ctime = os.path.getmtime(fullDir+"/snapshot_000.hdf5")
+#     for fname in snapshotfiles[1:]:
+#         new_snapf = int(fname[9:len(fname)-5])
+#         new_ctime = os.path.getmtime(fullDir+"/"+fname)
+#         if ( new_ctime>ctime ) :
+#             ctime = new_ctime
+#             snapf = new_snapf
+    
     snapi = 0
-    gizmoDir = gizmodatadir.gizmoDir()
-    movieDir = gizmodatadir.movieDir()
+    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
+
+    gizmoDir = gizmo_tools.getGizmoDir()
+    movieDir = gizmo_tools.getMovieDir()
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 
-    fnames = os.listdir(fullDir)
-    sort_nicely(fnames)
-    fnames = np.array(fnames)
-    #fnames.sort()
-    snapshotfilebools = np.array([x.startswith("snapshot") for x in fnames])
-    snapshotfiles = fnames[snapshotfilebools]
-
-    snapf = 0
-    ctime = os.path.getmtime(fullDir+"/snapshot_000.hdf5")
-    for fname in snapshotfiles[1:]:
-        new_snapf = int(fname[9:len(fname)-5])
-        new_ctime = os.path.getmtime(fullDir+"/"+fname)
-        if ( new_ctime>ctime ) :
-            ctime = new_ctime
-            snapf = new_snapf
-    
     
 # max run
     if ( maxsnapf>-1 and snapf>maxsnapf ):
@@ -136,7 +158,7 @@ if __name__ == '__main__':
     outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in range(snapi,snapf+1)]
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad,views=toview) for i in range(snapi,snapf+1))
+    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad,views=toview,rot=[theta,phi],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom) for i in range(snapi,snapf+1))
 
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))
@@ -164,7 +186,7 @@ if __name__ == '__main__':
     #for snapx in [37]:
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+".mp4"
+    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
 
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_rhotempgiz_"+run_id+"_"+output_dir+".mp4"
