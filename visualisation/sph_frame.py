@@ -257,7 +257,8 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     #mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap) 
     #sp.axis('equal')
 
-def load_gadget(infile, plot_thing):
+def load_gadget(infile, plot_thing,
+                        centredens=False):
     global chTab
     global interpTabVec
 
@@ -280,6 +281,8 @@ def load_gadget(infile, plot_thing):
     data.h_p = np.array(f["/PartType0/SmoothingLength"]) # kpc
     
     need_to_load = list(plot_thing)
+    if centredens:
+        need_to_load.append("nH")
     if ( "view" in need_to_load ):
         need_to_load.append("tdust")
     if ( "vlos" in need_to_load or "vmag" in need_to_load ):
@@ -414,7 +417,9 @@ def makesph_trhoz_frame(infile,outfile,
                         pixsize=None,
                         plot=['dens','temp'],
                         rot=[0.,0.],
-                        views=['face','side']
+                        views=['face','side'],
+                        centredens=False,
+                        centrecom=False
                         ):
     #cmap_r = cmap+"_r"
     #cmap_d = "coolwarm"
@@ -442,7 +447,7 @@ def makesph_trhoz_frame(infile,outfile,
     nrows = len(plot_thing)
 
     print("Loading",infile)
-    time,data = load_gadget(infile,plot_thing)
+    time,data = load_gadget(infile,plot_thing,centredens=centredens)
     print("Plotting",infile,", t=%.4f Myr"% time)
 
 
@@ -520,17 +525,38 @@ def makesph_trhoz_frame(infile,outfile,
     fig.set_figwidth(fw_inches)
     fig.set_figheight(4.*nrows)
 
-    # physical coordinates of region to plot, in pc
-    corners = [-width/2.,-width/2.]
-
+    # set x coordinate - cartesian or cylindrical ("ringplot")
     if ( ringPlot ):
         if ( not flatPlot ):
             raise Exception("ring==true requires flat==true")
-        corners_side = [0.,-width/2.]
         rad2d = np.sqrt(x**2+y**2)
     else:   
-        corners_side = corners
         rad2d = x
+
+    # physical coordinates of region to plot, in pc
+    if centredens or centrecom :
+        if centredens and centrecom :
+            raise Exception("Can't set both centredens and centrecom")
+        if centredens:
+            i_maxdens = np.argmax(data.nH_p)
+            corners = [x[i_maxdens]-width/2,y[i_maxdens]-width/2.]
+            corners_side = [rad2d[i_maxdens]-width/2.,z[i_maxdens]-width/2.]
+        if centrecom:
+            x_com = np.mean(x)
+            y_com = np.mean(y)
+            corners = [x_com-width/2.,y_com-width/2.]
+            r2d_com = np.mean(rad2d)
+            z_com = np.mean(z)
+            corners_side = [r2d_com-width/2.,z_com-width/2.]
+    else:
+        # centre on 0,0
+        corners = [-width/2.,-width/2.]
+        if ( ringPlot ):
+            if ( not flatPlot ):
+                raise Exception("ring==true requires flat==true")
+            corners_side = [0.,-width/2.]
+        else:   
+            corners_side = corners
 
     deep_face = z
     deep_side = y
