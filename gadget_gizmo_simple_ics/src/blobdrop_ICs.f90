@@ -1,16 +1,75 @@
 ! create a random blob of just gas
 
+module blobdata
+    integer, parameter :: n_maxblobs = 100
+
+    real(kind=8),dimension(n_maxblobs) :: mtot, blob_dist, blob_rad, blob_vcirc, blob_vrad
+    real(kind=8),dimension(n_maxblobs) :: T0
+    integer,dimension(n_maxblobs)      :: blobn
+    
+    integer :: nblobs
+
+    contains
+    
+    subroutine parse_blobline(intext)
+        implicit none
+        character(len=256) :: intext,textleft
+        character(len=256) :: word
+        character(len=8) :: format_str
+        character(len=256) :: command
+        
+        nblobs = nblobs + 1
+        
+        read(intext,"(A4,A)") word,textleft ! remove "blob" part
+        command = "0"
+        
+        do while (len(trim(textleft))>0 )
+            textleft = adjustl(textleft)
+            read(textleft,*) word
+            write(format_str,"('(A',I2.2,',A)')") len(trim(word))
+            read(textleft,format_str) word,textleft
+            if ( command=="0" ) then
+                command = word
+                print *,trim(word),"command"
+            else
+                select case(command)
+                    case("mtot")
+                        read(word,*) mtot(nblobs)
+                    case("temp")
+                        read(word,*) T0(nblobs)
+    
+                    case("dist")
+                        read(word,*) blob_dist(nblobs)
+                    case("rad")
+                        read(word,*) blob_rad(nblobs)
+    
+                    case("vcirc")
+                        read(word,*) blob_vcirc(nblobs)
+                    case("vrad")
+                        read(word,*) blob_vrad(nblobs)
+    
+                    case("N")
+                        read(word,*) blobn(nblobs)
+                    case default
+                        print *,command,word," not understood"
+                end select
+                print *,trim(word),"value"
+                command = "0"
+            endif
+        enddo
+        
+    end subroutine
+end module blobdata
+
 program blobdrop_ICs
     use gadget_ics_IO
+    use blobdata
     implicit none
     
     character(len=256) :: pramfile,intext,invariable,invalue,outfile,trimtext
     integer :: ios
     integer :: whitey
-    
-    real(kind=8) :: mtot, blob_dist, blob_rad, blob_vcirc, blob_vrad
-    real(kind=8) :: T0
-    
+
     integer :: np
     
     logical :: valid_command
@@ -38,6 +97,7 @@ program blobdrop_ICs
 
     T0 = 1.e4 ! in K
 
+    nblobs = 0
 
     outfile = "data/testout.dat"
     
@@ -67,24 +127,8 @@ program blobdrop_ICs
                 stop
             endif
             select case(invariable)
-                case("mtot")
-                    read(invalue,*) mtot
-                case("temp")
-                    read(invalue,*) T0
-
-                case("dist")
-                    read(invalue,*) blob_dist
-                case("rad")
-                    read(invalue,*) blob_rad
-
-                case("vcirc")
-                    read(invalue,*) blob_vcirc
-                case("vrad")
-                    read(invalue,*) blob_vrad
-
-                case("N")
-                    read(invalue,*) np
-
+                case("blob")
+                    call parse_blobline(intext)
                 case("outfile")
                     whitey = scan(intext,' ')
                     outfile = adjustl(trim(intext(whitey:)))
@@ -104,6 +148,11 @@ program blobdrop_ICs
     end do
     close(15)
     
+    if ( nblobs==0 ) then
+        print *,"Must specify at least one blob!"
+        stop
+    endif
+    
     ! units of 1e10 Msun, kpc
     mtot = mtot/1.e10
     blob_dist = blob_dist/1.e3
@@ -114,7 +163,7 @@ program blobdrop_ICs
     ! only mp_g(1) is actually read, but we need to give a value for 
     ! every entry, otherwise gadget/gizmo will try to read an array of 
     ! mass values per particle from the IC file
-    header%mp_g(1:6) = mtot/header%np(1)
+    header%mp_g(1:6) = sum(mtot)/header%np(1)
     
     call set_cosmo_noncosmo
     
@@ -124,7 +173,7 @@ program blobdrop_ICs
 
     call p_data%doAllocations
     
-    call blobdrop_locs(blob_dist, blob_rad, blob_vcirc, blob_vrad, T0)
+!     call blobdrop_locs(blob_dist, blob_rad, blob_vcirc, blob_vrad, T0)
     
     call write_ICs(outfile)
     
@@ -183,82 +232,82 @@ subroutine set_flags
 
 end subroutine 
 
-subroutine blobdrop_locs(blob_dist, blob_rad, blob_vcirc, blob_vrad, T0)
-    use gadget_ics_IO
-    implicit none
-    
-    integer :: ip
-    real(kind=8) :: blob_dist, blob_rad, blob_vcirc, blob_vrad, T0
-    
-    real(kind=8), dimension(:,:), allocatable :: rans
-    real(kind=8), dimension(:),allocatable :: rads
-    
-    real(kind=8), parameter :: pi = 4.d0*atan(-1.d0)
-    
-    ! gadget/gizmo internal units
-    real(kind=8), parameter :: munit_cgs = 1.989d43 ! 10^10 solar masses
-    real(kind=8), parameter :: tunit_cgs = 3.08568d16 ! just under a Gyr
-    real(kind=8), parameter :: runit_cgs = 3.0857d21 ! 1 kpc
-    real(kind=8), parameter :: uunit_cgs = 1.d10 ! 1e10 erg/g
-    !real(kind=8), parameter :: G = 6.67408d-8 * tunit_cgs**2 * munit_cgs / runit_cgs**3 ! G=43007.1
-    real(kind=8), parameter :: G = 43007.1 ! from Gizmo output, consist with above units
-    
-    real(kind=8), parameter :: molecular_mass = 4./(1.+3.*.76), proton_mass_cgs = 1.6726d-24
-    real(kind=8), parameter :: gamma_minus_one = 5./3.-1., boltzmann_cgs = 1.38066d-16
-    real(kind=8), parameter :: u_to_TK = gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)
-    
-    ! unit conversions
-     ! n.b. tunit/runit is basically 1 km/s anyway
-    blob_vrad = blob_vrad*1.e5*(tunit_cgs/runit_cgs)
-    blob_vcirc = blob_vcirc*1.e5*(tunit_cgs/runit_cgs)
-    
-    allocate(rans(p_data%ng,3))
-
-    call random_number(rans) ! generate random numbers
-
-    rans(:,1) = rans(:,1)**(1./3.) * blob_rad ! radius
-    rans(:,2) = 2.d0*pi*rans(:,2) ! theta (0,2pi)
-    rans(:,3) = acos(2.d0*rans(:,3)-1.d0) ! phi (0,pi)
-
-    p_data%r_p(1,:) = real( rans(:,1)*cos(rans(:,2))*sin(rans(:,3)) + blob_dist )
-    p_data%r_p(2,:) = real( rans(:,1)*sin(rans(:,2))*sin(rans(:,3))             )
-    p_data%r_p(3,:) = real( rans(:,1)*cos(rans(:,3))                            )
-
-    
-    deallocate(rans)
-    
-    ! Velocities - use spherical approximation, which I think is what Widrow Pym Dubinski 2008 use
-    ! so a_r=GM(r)/r^2 and v_circ=sqrt(r*a_r)
-    ! vertical eqm is just from temperature, and we don't need velocity dispersion because we have temperature
-    !
-    ! density is constant, so M(r)=G * M_tot * r^2 / r_max^2
-    ! add external potential to this
-    
-    allocate(rads(p_data%ng))
-    
-    rads = sqrt(p_data%r_p(1,:)**2+p_data%r_p(2,:)**2+p_data%r_p(3,:)**2) ! sqrt is slow, but this is O(N) so okay
-
-    ! convert from temperature in K to internal units (1e10 erg/g)
-    p_data%u_p(:) = real(T0/u_to_TK/uunit_cgs)
-
-    ! convert to cartesian
-    p_data%v_p(1,:) =  real(blob_vcirc * p_data%r_p(2,:) / rads)
-    p_data%v_p(2,:) = real(-blob_vcirc * p_data%r_p(1,:) / rads)
-    p_data%v_p(3,:) = 0.
-
-    ! include radial impulse
-    p_data%v_p(:,:) = real(p_data%v_p(:,:) + p_data%r_p(:,:) * spread(blob_vrad/rads,1,3))
-
-    deallocate(rads)
-    
-    ! set initial IDs
-    do ip=1,p_data%ng
-        p_data%id_p(ip) = ip
-    end do
-    
-
-end subroutine blobdrop_locs
-
+! subroutine blobdrop_locs(blob_dist, blob_rad, blob_vcirc, blob_vrad, T0)
+!     use gadget_ics_IO
+!     implicit none
+!     
+!     integer :: ip
+!     real(kind=8) :: blob_dist, blob_rad, blob_vcirc, blob_vrad, T0
+!     
+!     real(kind=8), dimension(:,:), allocatable :: rans
+!     real(kind=8), dimension(:),allocatable :: rads
+!     
+!     real(kind=8), parameter :: pi = 4.d0*atan(-1.d0)
+!     
+!     ! gadget/gizmo internal units
+!     real(kind=8), parameter :: munit_cgs = 1.989d43 ! 10^10 solar masses
+!     real(kind=8), parameter :: tunit_cgs = 3.08568d16 ! just under a Gyr
+!     real(kind=8), parameter :: runit_cgs = 3.0857d21 ! 1 kpc
+!     real(kind=8), parameter :: uunit_cgs = 1.d10 ! 1e10 erg/g
+!     !real(kind=8), parameter :: G = 6.67408d-8 * tunit_cgs**2 * munit_cgs / runit_cgs**3 ! G=43007.1
+!     real(kind=8), parameter :: G = 43007.1 ! from Gizmo output, consist with above units
+!     
+!     real(kind=8), parameter :: molecular_mass = 4./(1.+3.*.76), proton_mass_cgs = 1.6726d-24
+!     real(kind=8), parameter :: gamma_minus_one = 5./3.-1., boltzmann_cgs = 1.38066d-16
+!     real(kind=8), parameter :: u_to_TK = gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)
+!     
+!     ! unit conversions
+!      ! n.b. tunit/runit is basically 1 km/s anyway
+!     blob_vrad = blob_vrad*1.e5*(tunit_cgs/runit_cgs)
+!     blob_vcirc = blob_vcirc*1.e5*(tunit_cgs/runit_cgs)
+!     
+!     allocate(rans(p_data%ng,3))
+! 
+!     call random_number(rans) ! generate random numbers
+! 
+!     rans(:,1) = rans(:,1)**(1./3.) * blob_rad ! radius
+!     rans(:,2) = 2.d0*pi*rans(:,2) ! theta (0,2pi)
+!     rans(:,3) = acos(2.d0*rans(:,3)-1.d0) ! phi (0,pi)
+! 
+!     p_data%r_p(1,:) = real( rans(:,1)*cos(rans(:,2))*sin(rans(:,3)) + blob_dist )
+!     p_data%r_p(2,:) = real( rans(:,1)*sin(rans(:,2))*sin(rans(:,3))             )
+!     p_data%r_p(3,:) = real( rans(:,1)*cos(rans(:,3))                            )
+! 
+!     
+!     deallocate(rans)
+!     
+!     ! Velocities - use spherical approximation, which I think is what Widrow Pym Dubinski 2008 use
+!     ! so a_r=GM(r)/r^2 and v_circ=sqrt(r*a_r)
+!     ! vertical eqm is just from temperature, and we don't need velocity dispersion because we have temperature
+!     !
+!     ! density is constant, so M(r)=G * M_tot * r^2 / r_max^2
+!     ! add external potential to this
+!     
+!     allocate(rads(p_data%ng))
+!     
+!     rads = sqrt(p_data%r_p(1,:)**2+p_data%r_p(2,:)**2+p_data%r_p(3,:)**2) ! sqrt is slow, but this is O(N) so okay
+! 
+!     ! convert from temperature in K to internal units (1e10 erg/g)
+!     p_data%u_p(:) = real(T0/u_to_TK/uunit_cgs)
+! 
+!     ! convert to cartesian
+!     p_data%v_p(1,:) =  real(blob_vcirc * p_data%r_p(2,:) / rads)
+!     p_data%v_p(2,:) = real(-blob_vcirc * p_data%r_p(1,:) / rads)
+!     p_data%v_p(3,:) = 0.
+! 
+!     ! include radial impulse
+!     p_data%v_p(:,:) = real(p_data%v_p(:,:) + p_data%r_p(:,:) * spread(blob_vrad/rads,1,3))
+! 
+!     deallocate(rads)
+!     
+!     ! set initial IDs
+!     do ip=1,p_data%ng
+!         p_data%id_p(ip) = ip
+!     end do
+!     
+! 
+! end subroutine blobdrop_locs
+! 
 
 
 

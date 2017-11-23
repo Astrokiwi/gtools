@@ -69,15 +69,22 @@ if "/PartType0/RadiativeAcceleration" in f:
 else:
     radaccel_p = np.zeros((N_part,3))
 
-# if "/PartType0/AGNDepth" in f:
-#     depth_p = np.array(f["/PartType0/AGNDepth"]) # unitless
-# else:
-#     depth_p = np.zeros(N_part)
-
 if "/PartType0/AGNColDens" in f:
     depth_p = np.array(f["/PartType0/AGNColDens"]) # surface density units
 else:
     depth_p = np.zeros(N_part)
+
+if "/PartType0/AGNDepth" in f:
+    tau_p = np.array(f["/PartType0/AGNDepth"]) # unitless
+else:
+    tau_p = np.zeros(N_part)
+
+
+if "/PartType0/AGNOpacity" in f:
+    opac_p = np.array(f["/PartType0/AGNOpacity"]) # surface/mass units
+else:
+    opac_p = np.zeros(N_part)
+
 
 #print(depth_p)
 
@@ -95,6 +102,7 @@ m_p*=1.989e+43 # 10^10 solar masses to g
 radaccel_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
 ir_radaccel_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
 a_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
+opac_p*=0.478679 # to cm**2/g
 #p_p*=(1.989e+43/3.086e+21/3.08568e+16**2) # to dyne/cm**2 = g cm s**-2 cm**-2 = g s**-2 cm**-1
 #dt_p*=3.08568e+16 # to seconds
 
@@ -250,7 +258,7 @@ dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],vel_p[:,0],vel_p[:,1],vel_p[:,2
         agn_heat_p,depth_p,dustTemp,flux_p,dt_p,h_p,u_p,m_p,mJ_p,cs_p,
         radaccel_p[:,0],radaccel_p[:,1],radaccel_p[:,2],radrad_p,a_p[:,0],a_p[:,1],a_p[:,2],arad_p,cs_p,omega_p,
         surfs,vdisp_p,Q_approx_p,vcirc_p,vzdisp,id_p,ir_radaccel_p[:,0],ir_radaccel_p[:,1],ir_radaccel_p[:,2],ir_radrad_p,
-        ir_heat_p,p_p,rho_p]
+        ir_heat_p,p_p,rho_p,tau_p,opac_p]
 #dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],rho_p,TK_p,agn_heat_p,depth_p]
 
 #thinslice = (np.abs(xyz[:,2])<1.) & (rad2d_p<.02)
