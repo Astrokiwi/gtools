@@ -299,6 +299,7 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("col")
         need_to_load.append("temp")
         need_to_load.append("nH")
+        need_to_load.append("depth")
 
     if ( "vel_2d" in need_to_load or
          "vel_r" in need_to_load or
@@ -317,6 +318,10 @@ def load_gadget(infile, plot_thing,
         data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
         data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
         data.coldens/=(molecular_mass*proton_mass_cgs) # N in cm**(-2) 
+
+    if ( "depth" in need_to_load ):
+        data.depth = np.array(f["/PartType0/AGNOpticalDepth"]) # Msun/kpc**2
+
     
     if ( "temp" in need_to_load ):
         data.u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
@@ -360,14 +365,14 @@ def load_gadget(infile, plot_thing,
     if ( "table" in need_to_load ):
         if ( not chTab ):
             print("Load dust tables")
-            chTab = tab_interp.CoolHeatTab(("../coolheat_tab_marta/shrunk_table_labels_130617.dat"),("../coolheat_tab_marta/shrunk_table_130617.dat"))
+            chTab = tab_interp.CoolHeatTab(("../coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),("../coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"))
             interpTabVec = np.vectorize(chTab.interpTab)
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
         data.flux_p*=1.989e+53/(3.086e21)**2/(3.08568e+16)
         
 
         print("Calculating dust/cooling/heating properties from table")
-        tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.coldens.astype(np.float64))
+        tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.depth.astype(np.float64))
         
 
     if ( "tdust" in need_to_load ):
@@ -466,8 +471,9 @@ def makesph_trhoz_frame(infile,outfile,
     
     # rotate
     if ( rot[0]!=0. or rot[1]!=0. ):
-        x  = x*np.cos(rot[0]) - y*np.sin(rot[0])
+        xr = x*np.cos(rot[0]) - y*np.sin(rot[0])
         yr = x*np.sin(rot[0]) + y*np.cos(rot[0])
+        x = xr
         
         y = yr*np.cos(rot[1]) - z*np.sin(rot[1])
         z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
@@ -635,7 +641,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["vel_z"] = [-25.,25.]*2
     plotRanges["vel_a"] = [-100.,100.]*2
     plotRanges["arad"] = [-9.,-3.]*2
-    plotRanges["AGNI"] = [-9.,-3.]*2
+    plotRanges["AGNI"] = [3.,6.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -686,8 +692,9 @@ def makesph_trhoz_frame(infile,outfile,
     plotData["vel_z"] = "vel_z"
     plotData["vel_a"] = "vel_a"
     plotData["arad"] = "arad"
+    plotData["AGNI"] = "AGNI"
     
-    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad"]
+    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad","AGNI"]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
