@@ -11,7 +11,7 @@ import pylab as P
 
 from sph_plotter import sph_plotter
 
-from sys import path
+from sys import path, version
 path.append("../src/")
 import tab_interp
 
@@ -285,6 +285,8 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("nH")
     if ( "view" in need_to_load ):
         need_to_load.append("tdust")
+        need_to_load.append("opac")
+        need_to_load.append("dg")
     if ( "vlos" in need_to_load or "vmag" in need_to_load ):
         need_to_load.append("vels")
     if ( "emit" in need_to_load ):
@@ -296,9 +298,9 @@ def load_gadget(infile, plot_thing,
     if ( "dg" in need_to_load ):
         need_to_load.append("table")
     if ( "table" in need_to_load ):
-        need_to_load.append("col")
         need_to_load.append("temp")
         need_to_load.append("nH")
+        need_to_load.append("tau")
 
     if ( "vel_2d" in need_to_load or
          "vel_r" in need_to_load or
@@ -353,6 +355,9 @@ def load_gadget(infile, plot_thing,
         data.rho_p*=6.77e-22 # to g/cm**3 
         data.nH_p = data.rho_p/(molecular_mass*proton_mass_cgs)
 
+    if ( "tau" in need_to_load ):
+        data.tau = np.array(f["/PartType0/AGNDepth"])
+
     if ( "AGNI" in need_to_load ):
         data.AGNI = np.array(f["/PartType0/AGNIntensity"])
         data.AGNI*= (1.989e53/(0.9778e9*3.154e7)/3.086e21**2) # convert from internal units (energy/Gyr-ish/kpc**2) to erg/s/cm**2
@@ -360,14 +365,14 @@ def load_gadget(infile, plot_thing,
     if ( "table" in need_to_load ):
         if ( not chTab ):
             print("Load dust tables")
-            chTab = tab_interp.CoolHeatTab(("../coolheat_tab_marta/shrunk_table_labels_130617.dat"),("../coolheat_tab_marta/shrunk_table_130617.dat"))
+            chTab = tab_interp.CoolHeatTab(("../coolheat_tab_marta/shrunk_table_labels_031117.dat"),("../coolheat_tab_marta/shrunk_table_031117.dat"))
             interpTabVec = np.vectorize(chTab.interpTab)
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
         data.flux_p*=1.989e+53/(3.086e21)**2/(3.08568e+16)
         
 
         print("Calculating dust/cooling/heating properties from table")
-        tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.coldens.astype(np.float64))
+        tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.tau.astype(np.float64))
         
 
     if ( "tdust" in need_to_load ):
@@ -384,17 +389,22 @@ def load_gadget(infile, plot_thing,
     if ( "emit" in need_to_load ):
         data.emissivity = 1.e-20*data.m_p * data.dustTemp**4. # arbitrary units
 
+    if ( "opac" in need_to_load ):
+        data.opac = np.array(f["/PartType0/AGNOpacity"]) # internal units: kpc**2/1e10 solar mass
+        data.opac*= 1.e-4 # to pc**2/solar mass
+
     if ( "view" in need_to_load or "vlos" in need_to_load ):
         if ( "view" in need_to_load ):
-            data.brightness = 5.67e-5 * data.dustTemp**4. # erg/s/cm^2
+            data.brightness = 5.67e-5 * data.dustTemp**4. * data.dg/np.nanmax(data.dg) # erg/s/cm^2
         #opacity = 652. # cm^2/g, somewhat arbitrary
         #opacity = 1. # cm^2/g, somewhat arbitrary
-        opacity = 65.2 # cm^2/g, somewhat arbitrary
-        opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
-        data.opac = np.full((n),opacity)
+        #opacity = 65.2 # cm^2/g, somewhat arbitrary
+        #opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
+        #data.opac = np.full((n),opacity)
         
         if ( "view" in need_to_load ):
-            sputtered = (data.dustTemp>2.5e3) # or something, super arbitrary
+            #sputtered = (data.dustTemp>2.5e3) # or something, super arbitrary
+            sputtered = (data.dustTemp>1.e5) # or something, super arbitrary
             data.brightness[sputtered] = 0.
             data.opac[sputtered] = 0.
 
@@ -425,6 +435,9 @@ def makesph_trhoz_frame(infile,outfile,
                         centredens=False,
                         centrecom=False
                         ):
+    if version[0]=='2':
+        raise Exception("Requires Python 3.X. Current version:"+version)
+
     #cmap_r = cmap+"_r"
     #cmap_d = "coolwarm"
     plot_thing = plot
@@ -611,10 +624,11 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["vel_a"] = r"$v_{\theta}$"
     plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
     plotLabel["AGNI"] = r"Unextinced $I_{AGN}$ (log erg/s/cm^2)"
+    plotLabel["tau"] = r"$\tau$"
 
     plotRanges = dict()
     plotRanges["temp"] = [.999,6.]*2
-    plotRanges["col"] = [15.,26.]*2
+    plotRanges["col"] = [18.,25.]*2
     plotRanges["nH"] = [0.,8.]*2
     plotRanges["heat"] = [1e-2,1.e10]*2
     plotRanges["dens"] = drange+drange_s
@@ -636,6 +650,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["vel_a"] = [-100.,100.]*2
     plotRanges["arad"] = [-9.,-3.]*2
     plotRanges["AGNI"] = [-9.,-3.]*2
+    plotRanges["tau"] = [0.,5.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -660,6 +675,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotSliceTypes["vel_a"] = quantslice
     plotSliceTypes["arad"] = quantslice
     plotSliceTypes["AGNI"] = quantslice
+    plotSliceTypes["tau"] = zweightslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -686,6 +702,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotData["vel_z"] = "vel_z"
     plotData["vel_a"] = "vel_a"
     plotData["arad"] = "arad"
+    plotData["tau"] = "tau"
     
     logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad"]
     extraBarTypes = ["heat"]
