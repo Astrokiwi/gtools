@@ -149,6 +149,8 @@ if __name__ == '__main__':
         print("Forcing snapf down from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
+    snapf = maxsnapf
+
     os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
 
 
