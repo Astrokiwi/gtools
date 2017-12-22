@@ -41,8 +41,9 @@ def lastConsecutiveSnapshot(run_id,output_dir):
     #fnames.sort()
     snapshotfilebools = np.array([x.startswith("snapshot") for x in fnames])
     snapshotfiles = fnames[snapshotfilebools]
+    
+    print(snapshotfiles)
 
-    snapf = 0
     ctime = os.path.getmtime(fullDir+"/snapshot_000.hdf5")
     for fname in snapshotfiles[1:]:
         new_snapf = int(fname[9:len(fname)-5])

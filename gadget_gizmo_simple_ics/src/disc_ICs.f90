@@ -1,13 +1,6 @@
-! create a random blob of just gas
+! create a disc of gas from an IC file
 
-program disc_ICs
-    use gadget_ics_IO
-    implicit none
-    
-    character(len=256) :: pramfile,intext,invariable,invalue,outfile,trimtext
-    character(len=256) :: tproffile
-    integer :: ios
-    integer :: whitey
+module IC_parameters
     
     real(kind=8) :: mtot, disc_rad, disc_inner_rad, disc_thick ! disc parameters
     real(kind=8) :: m_smbh,v_large,a_scale,c_scale ! potential parameters
@@ -18,9 +11,29 @@ program disc_ICs
     
     real(kind=8) :: dense_index
     
-    integer :: np
+    real(kind=8) :: hernquist_mass,hernquist_scale
+    
+    integer :: pot_type
+    integer, parameter :: FLAT_POT=0, HERNQUIST_POT=1
     
     logical :: selfgrav
+
+    character(len=256) :: position_file
+
+
+end module IC_parameters
+
+program disc_ICs
+    use gadget_ics_IO
+    use IC_parameters
+    implicit none
+    
+    character(len=256) :: pramfile,intext,invariable,invalue,outfile,trimtext
+    character(len=256) :: tproffile
+    integer :: ios
+    integer :: whitey
+    
+    integer :: np
     
     logical :: valid_command
     
@@ -36,12 +49,19 @@ program disc_ICs
     ! set default values
     
     ! Softened Keplerian in centre, flat rotation curve at large radii
+    pot_type = 0
     m_smbh = 1.d6! in solar masses *SOLAR_MASS/ALL.UnitMass_in_g;
     !m_smbh = 1.d7! in solar masses *SOLAR_MASS/ALL.UnitMass_in_g;
     v_large=146. ! in km/s/UnitVelocity_in_cm_per_s;
     a_scale=0.01d0 ! in kpc/CM_PER_MPC/UnitLength_in_cm;
     c_scale=0.0001d0 ! in kpc/CM_PER_MPC/UnitLength_in_cm;
     inwards_v=0.
+    
+    position_file = "" ! generate positions randomly
+    
+    ! hernquist type bulge potential
+    hernquist_mass = 1.d9
+    hernquist_scale = 250.d0
 
     !mtot = 2.d6/1.d10 ! units of 1.d10 msun
     mtot = 8.426453d6 ! units of Msun
@@ -98,12 +118,34 @@ program disc_ICs
                     read(invalue,*) m_smbh
                 case("v_large")
                     read(invalue,*) v_large
+                    if ( pot_type/=FLAT_POT ) then
+                        print *,"WARNING - potential parameters set for wrong profile"
+                    endif
                 case("a_scale")
                     read(invalue,*) a_scale
+                    if ( pot_type/=FLAT_POT ) then
+                        print *,"WARNING - potential parameters set for wrong profile"
+                    endif
                 case("c_scale")
                     read(invalue,*) c_scale
                 case("inv")
                     read(invalue,*) inwards_v
+                
+                case("flat")
+                    pot_type = FLAT_POT
+                case("hernquist")
+                    pot_type = HERNQUIST_POT
+                
+                case("hernquist_scale")
+                    read(invalue,*) hernquist_scale
+                    if ( pot_type/=HERNQUIST_POT ) then
+                        print *,"WARNING - potential parameters set for wrong profile"
+                    endif
+                case("hernquist_mass")
+                    read(invalue,*) hernquist_mass
+                    if ( pot_type/=HERNQUIST_POT ) then
+                        print *,"WARNING - potential parameters set for wrong profile"
+                    endif
 
                 case("vlaw")
                     !read(invalue,*) v_flat
@@ -135,6 +177,10 @@ program disc_ICs
                     endif
                 case("temp")
                     read(invalue,*) T0
+
+                case("pfile")
+                    read(intext,"(A6,A)",iostat=ios) invariable,position_file
+                    ! read in N too
 
                 case("N")
                     read(invalue,*) np
@@ -187,10 +233,7 @@ program disc_ICs
 
     call p_data%doAllocations
     
-    call disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
-                   m_smbh,v_large,a_scale,c_scale,selfgrav,&
-                   inwards_v,v0,v0rad,v_index,tproffile,T0,&
-                   dense_index,vloop0,vlooprad)
+    call disc_locs(tproffile)
     
     !call write_ICs("data/discICs_midres.dat")
     !call write_ICs("data/holy_razorthin_discICs_midres.dat")
@@ -255,28 +298,18 @@ subroutine set_flags
 
 end subroutine 
 
-subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
-                   m_smbh,v_large,a_scale,c_scale,selfgrav,inwards_v,&
-                   v0,v0rad,v_index,tproffile,T0,dense_index,&
-                   vloop0,vlooprad)
+subroutine disc_locs(tproffile)
     use gadget_ics_IO
+    use IC_parameters
     implicit none
     
     integer :: ip
-    real(kind=8) :: disc_rad, disc_inner_rad, disc_thick, mtot
-    real(kind=8) :: m_smbh,v_large,a_scale,c_scale ! potential parameters
-    real(kind=8) :: inwards_v
-    real(kind=8) :: v0,v0rad,v_index
-    real(kind=8) :: T0
-    real(kind=8) :: dense_index
-    real(kind=8) :: vloop0,vlooprad
     character(len=256) :: tproffile
     
     real(kind=8), dimension(:,:), allocatable :: rans
     real(kind=8), dimension(:),allocatable :: rads, vcircs, mrads, vrads, vphis
     real(kind=8), dimension(:),allocatable :: rad2d, z_over_r, rad_transformed
     real(kind=8), dimension(:,:),allocatable :: r_transformed
-    logical :: selfgrav
     
     real(kind=8), parameter :: pi = 4.d0*atan(-1.d0)
     
@@ -294,34 +327,49 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
     
     ! unit conversions
     m_smbh = m_smbh/1.d10
+    hernquist_mass = hernquist_mass/1.d10
     v_large = v_large*1.d5*(tunit_cgs/runit_cgs) ! tunit/runit is basically 1 km/s anyway
     inwards_v = inwards_v*1.d5*(tunit_cgs/runit_cgs) ! tunit/runit is basically 1 km/s anyway
     vloop0 = vloop0*1.d5*(tunit_cgs/runit_cgs) ! tunit/runit is basically 1 km/s anyway
     ! a_scale and c_scale are already in kpc
     
+    
     allocate(rans(p_data%ng,3))
-
     call random_number(rans) ! generate random numbers
-    
-    ! radius - for constant density
-    !rans(:,1) = dsqrt(rans(:,1))*disc_rad ! no inner radius
-    !rans(:,1) = dsqrt(rans(:,1)*(disc_rad**2-disc_inner_rad**2)+disc_inner_rad**2)  
-    
-    ! radius - for power-law density
-    rans(:,1) = (  rans(:,1)*(disc_rad**(dense_index+2.d0)-disc_inner_rad**(dense_index+2.d0)) &
-                    +disc_inner_rad**(dense_index+2.d0)   )**(1./(dense_index+2.d0))  
+    if ( position_file=="" ) then
 
-    !rans(:,1) = (rans(:,1)*(disc_rad**3-disc_inner_rad**3)+disc_inner_rad**3)**(1.d0/3.d0) ! with flaring disc
-    ! theta coordinate
-    rans(:,2) = rans(:,2)*2.*pi
-    ! height above/below plane
-    !rans(:,3) = (rans(:,3)-.5d0)*2.d0*(disc_thick*rans(:,1)) ! thickness is disk_thick*rad
-    rans(:,3) = (rans(:,3)-.5d0)*2.d0*disc_thick ! thickness is disk_thick
     
-    p_data%r_p(1,:) = real(rans(:,1)*dsin(rans(:,2)))
-    p_data%r_p(2,:) = real(rans(:,1)*dcos(rans(:,2)))
-    p_data%r_p(3,:) = real(rans(:,3))
+        ! radius - for constant density
+        !rans(:,1) = dsqrt(rans(:,1))*disc_rad ! no inner radius
+        !rans(:,1) = dsqrt(rans(:,1)*(disc_rad**2-disc_inner_rad**2)+disc_inner_rad**2)  
     
+        ! radius - for power-law density
+        rans(:,1) = (  rans(:,1)*(disc_rad**(dense_index+2.d0)-disc_inner_rad**(dense_index+2.d0)) &
+                        +disc_inner_rad**(dense_index+2.d0)   )**(1./(dense_index+2.d0))  
+
+        !rans(:,1) = (rans(:,1)*(disc_rad**3-disc_inner_rad**3)+disc_inner_rad**3)**(1.d0/3.d0) ! with flaring disc
+        ! theta coordinate
+        rans(:,2) = rans(:,2)*2.*pi
+        ! height above/below plane
+        !rans(:,3) = (rans(:,3)-.5d0)*2.d0*(disc_thick*rans(:,1)) ! thickness is disk_thick*rad
+        rans(:,3) = (rans(:,3)-.5d0)*2.d0*disc_thick ! thickness is disk_thick
+    
+        p_data%r_p(1,:) = real(rans(:,1)*dsin(rans(:,2)))
+        p_data%r_p(2,:) = real(rans(:,1)*dcos(rans(:,2)))
+        p_data%r_p(3,:) = real(rans(:,3))
+    
+    else
+        open(unit=16,file=position_file)
+        do ip=1,p_data%ng
+            read(16,*) p_data%r_p(2,ip), p_data%r_p(1,ip)
+            ! centre arbitrarily
+            p_data%r_p(1,ip) = (p_data%r_p(1,ip)-325)*1.e-5
+            p_data%r_p(2,ip) = (-p_data%r_p(2,ip)+180)*1.e-5
+            p_data%r_p(3,ip) = (rans(ip,3)-.5e0)*2.e-5+.5e-3
+        end do
+        
+        close(16)
+    endif
     deallocate(rans)
     
     ! Velocities - use spherical approximation, which I think is what Widrow Pym Dubinski 2008 use
@@ -359,7 +407,17 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
                 mrads = 0.d0 ! only external potential
             endif
     
-            mrads = mrads + m_smbh*rads**2/(rads**2+c_scale**2) + v_large**2*rads**2/G/dsqrt(rads**2+a_scale**2)
+            ! smbh potential
+            mrads = mrads + m_smbh*rads**2/(rads**2+c_scale**2)
+            
+            select case(pot_type)
+                case(FLAT_POT)
+                    mrads = mrads + v_large**2*rads**2/G/dsqrt(rads**2+a_scale**2)
+                case(HERNQUIST_POT)
+                    mrads = mrads + hernquist_mass*(rads/(hernquist_scale+rads))**2
+                case default
+                    print*,"POT NOT FOUND"
+            end select
             vcircs = dsqrt(G*mrads/rads)
         
             deallocate(mrads)
@@ -399,9 +457,14 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
     ! convert from temperature in K to internal units (1e10 erg/g)
     p_data%u_p(:) = real(p_data%u_p(:)/u_to_TK/uunit_cgs)
 
+    if ( position_file/="" ) then
+        !vcircs = 0.d0
+        !print *,"velocities=0 for great justice"
+    endif
+
     !vcircs = dsqrt(G*mtot*rads/disc_rad**2)
     !print *,vcircs*runit_cgs/tunit_cgs*1.e-5
-    print *,p_data%v_p(:,1)
+    print *,p_data%v_p(:,1),p_data%r_p(:,1)
 
     
     ! convert to cartesian
@@ -409,7 +472,7 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
     p_data%v_p(2,:) = real(-vcircs * p_data%r_p(1,:) / rads)
     p_data%v_p(3,:) = 0.
 
-    print *,p_data%v_p(:,1)
+    print *,p_data%v_p(:,1),p_data%r_p(:,1)
     
     if ( vlooprad>=0 ) then
     ! TODO: include vphi
@@ -423,7 +486,7 @@ subroutine disc_locs(disc_rad, disc_inner_rad, disc_thick, mtot,&
         p_data%v_p(:,:) = real(p_data%v_p(:,:) + p_data%r_p(:,:) * spread(vrads(:)/rads,1,3))
     endif
     
-    print *,p_data%v_p(:,1)
+    print *,p_data%v_p(:,1),p_data%r_p(:,1)
 
     if ( vlooprad>0 ) then
         deallocate(z_over_r)

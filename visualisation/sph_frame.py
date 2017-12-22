@@ -71,6 +71,10 @@ vec2dslice = 4
 viewslice = 5
 minslice = 6
 zminslice = 7
+vorinoislice = 8
+zvorinoislice = 9
+maxslice = 10
+zmaxslice = 11
 
 molecular_mass = 4./(1.+3.*.76)
 proton_mass_cgs = 1.6726e-24
@@ -166,6 +170,14 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         map = sph_plotter.sph_min(x_p,y_p,h_p,val_p,L,corner,width,mask,n)
     elif (mode==zminslice ):
         map = sph_plotter.sph_minslice(x_p,y_p,h_p,val_p,L,corner,width,mask,n)
+    elif mode==vorinoislice:
+        map = sph_plotter.sph_vorinoi(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
+    elif mode==zvorinoislice:
+        map = sph_plotter.sph_vorinoi_slice(x_p,y_p,m_p,h_p,val_p,L,corner,width,z_p,zslice,mask,n)
+    elif mode==maxslice:
+        map = sph_plotter.sph_max(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
+    elif mode==zmaxslice:
+        map = sph_plotter.sph_max_slice(x_p,y_p,m_p,h_p,val_p,L,corner,width,z_p,zslice,mask,n)
         
     if ( mode==vec2dslice ):
         #map1/=1.e5
@@ -323,6 +335,12 @@ def load_gadget(infile, plot_thing,
     if ( "depth" in need_to_load ):
         data.depth = np.array(f["/PartType0/AGNOpticalDepth"]) # Msun/kpc**2
 
+    if ( "list" in need_to_load ):
+        data.list = np.arange(n)
+
+    if ( "rand" in need_to_load ):
+        data.rand = np.random.random(n)
+
     
     if ( "temp" in need_to_load ):
         data.u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
@@ -382,6 +400,7 @@ def load_gadget(infile, plot_thing,
     if ( "tdust" in need_to_load ):
         data.dustTemp = map(lambda y: y.dustT, tabStructs)
         data.dustTemp = np.array(list(data.dustTemp))
+        data.dustTemp = data.dustTemp**4 # for test
 
     if ( "dg" in need_to_load ):
         data.dg = map(lambda y: y.dg, tabStructs)
@@ -437,7 +456,9 @@ def makesph_trhoz_frame(infile,outfile,
                         rot=[0.,0.],
                         views=['face','side'],
                         centredens=False,
-                        centrecom=False
+                        centrecom=False,
+                        vorinoi=False,
+                        maxmode=False
                         ):
     if version[0]=='2':
         raise Exception("Requires Python 3.X. Current version:"+version)
@@ -588,6 +609,9 @@ def makesph_trhoz_frame(infile,outfile,
         rhounit = r"$\log_{10} \Sigma$ (M$_\odot$/pc$^2$)"
         drange = [-2.,8.]
         thisminslice = minslice
+        vslice = vorinoislice
+        mslice = maxslice
+#         drange = [-2.,2.] # TEMPORARY
         #drange = [2.,6.]
         #drange = [-1.,4.]
     else:
@@ -596,7 +620,8 @@ def makesph_trhoz_frame(infile,outfile,
         thisminslice = zminslice
         rhounit = r"$\log_{10} \rho$ (M$_\odot$/pc$^3$)"
         drange = [-2.,7.]
-    
+        vslice = zvorinoislice   
+        mslice = zmaxslice
     if ( planenorm ):
         drange_s = [-3.6,0.]
         drange = [-4.5,0.]
@@ -630,21 +655,28 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
     plotLabel["AGNI"] = r"Unextinced $I_{AGN}$ (log erg/s/cm^2)"
     plotLabel["tau"] = r"$\tau$"
+    plotLabel["list"] = r"$i$"
+    plotLabel["rand"] = r"$q$"
+    plotLabel["opac"] = r"$\kappa$"
+    plotLabel["smooth"] = r"$h_p$"
 
     plotRanges = dict()
-    plotRanges["temp"] = [.999,6.]*2
+    plotRanges["temp"] = [.999,4.]*2
+    #plotRanges["temp"] = [3.,4.]*2
     plotRanges["col"] = [18.,25.]*2
     plotRanges["nH"] = [0.,8.]*2
     plotRanges["heat"] = [1e-2,1.e10]*2
     plotRanges["dens"] = drange+drange_s
     plotRanges["depth"] = [0.,1.e3]*2
     plotRanges["vels"] = [0.,3.]*2
-    plotRanges["tdust"] = [1.,3.]*2
+    #plotRanges["tdust"] = [1.,3.]*2
+    #plotRanges["tdust"] = [1.3,2.2]*2
+    plotRanges["tdust"] = [4.,8.]*2
     plotRanges["dg"] = [0.00635,.006363]*2
     plotRanges["dust"] = drange+drange_s
     plotRanges["view"] = [0.,4.]*2
     plotRanges["vlos"] = [-1.2e2,1.2e2]*2
-    plotRanges["emit"] = [-12.,-3.]*2
+    plotRanges["emit"] = [0.,6.]*2
     plotRanges["dt"] = [1.,3.]*2
     #plotRanges["vel_2d"] = [-25.,25.]*2
     plotRanges["vel_2d"] = [-250.,250.]*2
@@ -656,6 +688,11 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["arad"] = [-9.,-3.]*2
     plotRanges["AGNI"] = [-9.,-3.]*2
     plotRanges["tau"] = [0.,5.]*2
+    plotRanges["list"] = [0.,1.e6]*2
+    plotRanges["rand"] = [0.,1.]*2
+#     plotRanges["opac"] = [-4.,-1.6]*2
+    plotRanges["opac"] = [-2.,-1.]*2
+    plotRanges["smooth"] = [-2.,2.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -681,6 +718,9 @@ def makesph_trhoz_frame(infile,outfile,
     plotSliceTypes["arad"] = quantslice
     plotSliceTypes["AGNI"] = quantslice
     plotSliceTypes["tau"] = zweightslice
+    plotSliceTypes["list"] = quantslice
+    plotSliceTypes["opac"] = quantslice
+    plotSliceTypes["smooth"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -698,7 +738,8 @@ def makesph_trhoz_frame(infile,outfile,
 #    plotData["dust"] = dslice
     plotData["view"] = ["brightness","opac","brightness","opac"]
     plotData["vlos"] = ["vel_z","opac","vel_x","opac"]
-    plotData["emit"] = "emmissivity"
+    plotData["emit"] = "emissivity"
+    plotData["opac"] = "opac"
     plotData["dt"] = "dt_p"
     plotData["vel_2d"] = "vel2d"
     plotData["vel_r"] = "velr"
@@ -709,8 +750,11 @@ def makesph_trhoz_frame(infile,outfile,
     plotData["arad"] = "arad"
     plotData["tau"] = "tau"
     plotData["AGNI"] = "AGNI"
+    plotData["list"] = "list"
+    plotData["rand"] = "rand"
+    plotData["smooth"] = "h_p"
     
-    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad","AGNI"]
+    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad","AGNI","opac","smooth"]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
@@ -745,7 +789,12 @@ def makesph_trhoz_frame(infile,outfile,
             raise Exception(errstr)
         thisPlotLabel = plotLabel[plot_thing[irow]]
         thisPlotRanges = plotRanges[plot_thing[irow]]
-        thisSliceType = plotSliceTypes[plot_thing[irow]]
+        if maxmode:
+            thisSliceType = mslice
+        elif vorinoi:
+            thisSliceType = vslice
+        else:
+            thisSliceType = plotSliceTypes[plot_thing[irow]]
         thisDoLog = (plot_thing[irow] in logSliceTypes)
         thisDiverging = (plot_thing[irow] in divergingTypes)
         

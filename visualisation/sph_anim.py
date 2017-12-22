@@ -142,14 +142,11 @@ if __name__ == '__main__':
     gizmoDir = gizmo_tools.getGizmoDir()
     movieDir = gizmo_tools.getMovieDir()
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
-
     
 # max run
     if ( maxsnapf>-1 and snapf>maxsnapf ):
         print("Forcing snapf down from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
-
-    snapf = maxsnapf
 
     os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
 

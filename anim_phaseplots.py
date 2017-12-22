@@ -32,8 +32,13 @@ if __name__ == '__main__':
     #includedVals = ["mJ_p","nH_p","TK_p","p_p"]
     #includedVals = ["mJ_p","TK_p"]
     #includedVals = ["rad2d_p","hz_rat"]
-    includedVals = ["mJ_p","nH_p","TK_p"]
-    #includedVals = ["nH_p","TK_p"]
+    #includedVals = ["mJ_p","nH_p","TK_p"]
+    #includedVals = ["rad_p","vrad"]
+    #includedVals = ["flux_p","radrad_p"]
+    includedVals = ["nH_p","TK_p"]
+    #includedVals = ["rad_p","nH_p"]
+    #includedVals = ["depth_p","radrad_p"]
+    #includedVals = ["dt_p","TK_p"]
     #includedVals = ["prat"]
     #includedVals = ["nH_p","p_p"]
     #includedVals = ["h_p","nH_p"]
@@ -58,6 +63,7 @@ if __name__ == '__main__':
             ctime = new_ctime
             snapf = new_snapf
     
+    
     l = len(includedVals)
     n_anim = (l*(l-1))//2
     animstrs = np.empty((snapf),dtype=object)
@@ -68,7 +74,7 @@ if __name__ == '__main__':
         for j in range(i+1,l):
             anim_names.append(includedVals[i]+includedVals[j])
     
-    pool = Pool(processes=64)
+    pool = Pool(processes=80)
     animstrs = pool.starmap(phaseplots.savephaseplots,zip(it.repeat(run_id),it.repeat(output_dir),snap_strs,it.repeat(includedVals)))
     pool.close()
     animstrs = np.vstack(animstrs)

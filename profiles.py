@@ -10,7 +10,8 @@ path.append("src/")
 import tab_interp
 
 print("Loading table (short form)")
-chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_080517.dat"),("coolheat_tab_marta/shrunk_table_080517.dat"))
+#chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_031117.dat"),("coolheat_tab_marta/shrunk_table_031117.dat"))
+chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_171117tau.dat"),("coolheat_tab_marta/shrunk_table_171117tau.dat"))
 interpTabVec = np.vectorize(chTab.interpTab)
 
 print("Running")
@@ -164,7 +165,7 @@ else:
     flux_p/=(3.086e21)**2 # erg/s/kpc**2 to erg/s/cm**2
 
 
-tabStructs = interpTabVec(nH_p.astype(np.float64),TK_p.astype(np.float64),flux_p.astype(np.float64),depth_p.astype(np.float64))
+tabStructs = interpTabVec(nH_p.astype(np.float64),TK_p.astype(np.float64),flux_p.astype(np.float64),tau_p.astype(np.float64))
 #dustTemp = map(lambda y: y.dustT, tabStructs)
 dustTemp = [y.dustT for y in tabStructs]
 dustTemp = np.array(dustTemp)

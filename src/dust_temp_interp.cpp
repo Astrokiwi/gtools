@@ -44,9 +44,9 @@ double CoolHeatTab::right_weight(double edges[], int nedges, int index, double v
 
 int CoolHeatTab::agn_tab_index(int id, int it, int ii, int is) {
     return  is +
-            agn_nsurf*ii +
-            agn_nsurf*agn_nintensity*it +
-            agn_nsurf*agn_nintensity*agn_ntemp*id;
+            agn_ncolumn_in*ii +
+            agn_ncolumn_in*agn_nintensity*it +
+            agn_ncolumn_in*agn_nintensity*agn_ntemp*id;
 };
 // 
 // struct[] coolHeatDust CoolHeatTab::interpTabVec(double density[], double temperature[], double intensity[], double coldens[], int n) {
@@ -60,7 +60,13 @@ int CoolHeatTab::agn_tab_index(int id, int it, int ii, int is) {
 // } 
 
 // takes input values in *cgs units*
-struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, double intensity, double coldens) {
+struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, double intensity, double column_in) {
+    if ( !this->data_loaded ) {
+        struct coolHeatDust garbage;
+        return garbage;
+    }
+
+
     int jj,kk;
     
     int tab_index[4];
@@ -74,7 +80,7 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
     values[0] = log10(density);
     values[1] = log10(temperature);
     values[2] = log10(intensity);
-    values[3] = coldens;
+    values[3] = column_in;
     
     for (jj=0 ; jj<4 ; jj++ ) {
         tab_index[jj] = value_to_index(tables[jj],*ntabs[jj],values[jj]);
@@ -85,7 +91,7 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
     }
 
     // too clever by half
-    double heat_interp=0.,cool_interp=0.,dust_interp=0.,dg_interp=0.;
+    double heat_interp=0.,cool_interp=0.,dust_interp=0.,dg_interp=0.,opac_abs_interp=0.,opac_scat_interp=0.,column_out_interp=0.,arad_interp=0.;
     double weightsum = 0.;
     for (jj=0 ; jj<16 ; jj++ ) {
         int idex = agn_tab_index(interp_indices[0][jj%2],interp_indices[1][(jj/2)%2],interp_indices[2][(jj/4)%2],interp_indices[3][(jj/8)%2]);
@@ -100,15 +106,22 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
         cool_interp+=weight*agn_cool_tab[idex];
         dust_interp+=weight*agn_dust_tab[idex];
         dg_interp+=weight*agn_dg_tab[idex];
+        opac_scat_interp+=weight*agn_opac_scat_tab[idex];
+        opac_abs_interp+=weight*agn_opac_abs_tab[idex];
+        column_out_interp+=weight*agn_column_out_tab[idex];
+        arad_interp+=weight*agn_arad_tab[idex];
         weightsum+=weight;
-//         std::cout << weight << " " << idex << " " << agn_dust_tab[idex] << " " << agn_cool_tab[idex] << " " << agn_heat_tab[idex] << " " << dust_interp << std::endl;
 
     }
     
     outp.dCool = cool_interp;
     outp.dHeat = heat_interp;
     outp.dustT = dust_interp;
+    outp.opac_abs = opac_abs_interp;
+    outp.opac_scat = opac_scat_interp;
     outp.dg = dg_interp;
+    outp.column_out = column_out_interp;
+    outp.arad = arad_interp;
     
     outp.id = interp_indices[0][0];
     outp.fd = interp_weights[0][1];
@@ -137,11 +150,20 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
 CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab) {
     int i,ntab;
     
-    double arad_filler;
+    this->data_loaded = false;
+    
+    //double arad_filler;
+
+    //std::cout << flabels << std::endl;
+
     
     // read in tables
     //std::ifstream f_tablab (flabels.c_str(), std::ifstream::in);
     std::ifstream f_tablab (flabels, std::ifstream::in);
+    
+    if ( !f_tablab.is_open() ) {
+        return;
+    }
 
     f_tablab >> agn_ndense;
     agn_dense_vals = new double[agn_ndense];
@@ -161,33 +183,43 @@ CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab) {
         f_tablab >> agn_intensity_vals[i];
     }
 
-    f_tablab >> agn_nsurf;
-    agn_surf_vals = new double[agn_nsurf];
-    for ( i=0 ; i<agn_nsurf ; i++ ) {
-        f_tablab >> agn_surf_vals[i];
+    f_tablab >> agn_ncolumn_in;
+    agn_column_in_vals = new double[agn_ncolumn_in];
+    for ( i=0 ; i<agn_ncolumn_in ; i++ ) {
+        f_tablab >> agn_column_in_vals[i];
     }
     
     f_tablab.close();
     
-    ntab=agn_ndense*agn_ntemp*agn_nintensity*agn_nsurf;
+    ntab=agn_ndense*agn_ntemp*agn_nintensity*agn_ncolumn_in;
     agn_heat_tab = new double[ntab];
     agn_cool_tab = new double[ntab];
     agn_dust_tab = new double[ntab];
     agn_dg_tab = new double[ntab];
+    agn_opac_scat_tab = new double[ntab];
+    agn_opac_abs_tab = new double[ntab];
+    agn_arad_tab = new double[ntab];
+    agn_column_out_tab = new double[ntab];
     
-    //std::ifstream f_tabvals (ftab.c_str(), std::ifstream::in);
     std::ifstream f_tabvals (ftab, std::ifstream::in);
-    
+    if ( !f_tabvals.is_open() ) {
+        return;
+    }
+
+    //std::cout << ftab << std::endl;
     for ( i=0 ; i<ntab ; i++ ) {
-        f_tabvals >> agn_heat_tab[i] >> agn_cool_tab[i] >> agn_dust_tab[i] >> arad_filler >> agn_dg_tab[i];
-//         if ( agn_heat_tab[i]==0 ) {
-//             std::cout << "borked" << i << std::endl;
-//             exit(0);
-//         }
-//         if ( agn_dg_tab[i]>1. ) {
-//             std::cout << "borked" << i << std::endl;
-//             exit(0);
-//         }
+        //double opac_scat, opac_abs;
+        f_tabvals >> agn_heat_tab[i] >> agn_cool_tab[i] >> agn_dust_tab[i] >> agn_arad_tab[i] >> agn_dg_tab[i] >> agn_opac_abs_tab[i] >> agn_opac_scat_tab[i] >> agn_column_out_tab[i];
+        //std::cout << " " <<  agn_heat_tab[i] << " " <<  agn_cool_tab[i] << " " <<  agn_dust_tab[i] << " " <<  agn_arad_tab[i] << " " <<  agn_dg_tab[i] << " " <<  agn_opac_abs_tab[i] << " " <<  agn_opac_scat_tab[i] << " " <<  agn_column_out_tab[i] << std::endl;
+        //agn_opac_tab[i] = opac_scat+opac_abs;
+        if ( agn_heat_tab[i]==0 ) {
+            std::cout << "heat borked" << i << " " << agn_heat_tab[i] << std::endl;
+            exit(0);
+        }
+        if ( agn_dg_tab[i]>1. ) {
+            std::cout << "dg borked" << i << " " << agn_dg_tab[i] << std::endl;
+            exit(0);
+        }
     }
     f_tabvals.close();
     
@@ -239,8 +271,10 @@ CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab) {
     ntabs[1] = &agn_ntemp;
     tables[2] = agn_intensity_vals;
     ntabs[2] = &agn_nintensity;
-    tables[3] = agn_surf_vals;
-    ntabs[3] = &agn_nsurf;
+    tables[3] = agn_column_in_vals;
+    ntabs[3] = &agn_ncolumn_in;
+    
+    this->data_loaded = true;
 
 }
 

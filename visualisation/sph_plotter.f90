@@ -14,6 +14,10 @@ module sph_plotter
     integer, parameter :: ZSLICE_POS = 1
     integer(kind=1), parameter :: MIN_MODE = B'00000100'
     integer, parameter :: MIN_POS = 2
+    integer(kind=1), parameter :: VORINOI_MODE = B'00001000'
+    integer, parameter :: VORINOI_POS = 3
+    integer(kind=1), parameter :: MAX_MODE = B'00010000'
+    integer, parameter :: MAX_POS = 4
 
 
 
@@ -130,7 +134,7 @@ module sph_plotter
         
         real(kind=8), dimension(L,L) :: g ! output grid
 
-        real(kind=8), dimension(L,L) :: mg ! mass grid
+        real(kind=8), dimension(L,L) :: mg ! mass or distance grid
         
         integer :: ip ! this particle
         integer :: ix,iy ! grid position of particle
@@ -151,10 +155,16 @@ module sph_plotter
         
         if ( btest(mode,MIN_POS) ) then
             g = huge(g(1,1))
+        else if ( btest(mode,MAX_POS) ) then
+            g = -huge(g(1,1))
         else
             g = 0.d0
         endif
-        mg = 0.d0
+        if ( btest(mode,VORINOI_POS) ) then
+            mg = huge(mg(1,1))
+        else
+            mg = 0.d0
+        endif
         r_cell = w/L
         area_cell = r_cell**2
 
@@ -195,11 +205,22 @@ module sph_plotter
                                         rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
                                         weight = fkern(rdist/h(ip))/h(ip)**2
                                     endif
-                        
-                                    if ( btest(mode,DENSE_WEIGHT_POS) ) then
-                                        g(hix,hiy) = g(hix,hiy) + weight * m(ip) * v(ip)
+
+                                    if ( btest(mode,MAX_POS) ) then
+                                        if ( rdist<h(ip) ) then
+                                            g(hix,hiy) = max(v(ip),g(hix,hiy))
+                                        endif
+                                    elseif ( btest(mode,VORINOI_POS) ) then
+                                        if ( mg(hix,hiy)>rdist .and. ( rdist<=h(ip) .or. ih==1 ) ) then
+                                            mg(hix,hiy)=rdist
+                                            g(hix,hiy)=v(ip)
+                                        endif
+                                    else
+                                        if ( btest(mode,DENSE_WEIGHT_POS) ) then
+                                            g(hix,hiy) = g(hix,hiy) + weight * m(ip) * v(ip)
+                                        endif
+                                        mg(hix,hiy) = mg(hix,hiy) + weight * m(ip)
                                     endif
-                                    mg(hix,hiy) = mg(hix,hiy) + weight * m(ip)
                                 end do
                             end do
 
@@ -211,13 +232,15 @@ module sph_plotter
             endif
         end do
         
-        if ( btest(mode,MIN_POS) ) then
-            where (g==huge(g(1,1))) g=-huge(g(1,1))
-        else
-            if ( btest(mode,DENSE_WEIGHT_POS) ) then
-                g = g/mg
+        if ( .not. btest(mode,MAX_POS) ) then
+            if ( btest(mode,MIN_POS) .or. btest(mode,VORINOI_POS) ) then
+                where (g==huge(g(1,1))) g=-huge(g(1,1))
             else
-                g = mg
+                if ( btest(mode,DENSE_WEIGHT_POS) ) then
+                    g = g/mg
+                else
+                    g = mg
+                endif
             endif
         endif
 
@@ -241,6 +264,42 @@ module sph_plotter
         g = sph_general(x,y,m,h,v,L,c,w,f,nonsense_array,0.d0,WEIGHT_MODE,n)
 
     end function sph_weight
+    
+    function sph_vorinoi(x,y,m,h,v,L,c,w,f,n) result(g)
+        implicit none
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! values to smooth
+        real(kind=8), dimension(n) :: x,y ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+
+        real(kind=8), dimension(n) :: nonsense_array
+
+        
+        g = sph_general(x,y,m,h,v,L,c,w,f,nonsense_array,0.d0,VORINOI_MODE,n)
+
+    end function sph_vorinoi
+    
+    function sph_max(x,y,m,h,v,L,c,w,f,n) result(g)
+        implicit none
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! values to smooth
+        real(kind=8), dimension(n) :: x,y ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+
+        real(kind=8), dimension(n) :: nonsense_array
+
+        
+        g = sph_general(x,y,m,h,v,L,c,w,f,nonsense_array,0.d0,MAX_MODE,n)
+
+    end function sph_max
     
     
     
@@ -329,6 +388,40 @@ module sph_plotter
 
     end function sph_weight_slice
 
+    function sph_vorinoi_slice(x,y,m,h,v,L,c,w,z,zslice,f,n) result(g)
+        implicit none
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! values to smooth
+        real(kind=8), dimension(n) :: x,y,z ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+        real(kind=8) :: zslice
+
+        g = sph_general(x,y,m,h,v,L,c,w,f,z,zslice,ior(VORINOI_MODE,ZSLICE_MODE),n)
+
+    end function sph_vorinoi_slice
+
+
+    function sph_max_slice(x,y,m,h,v,L,c,w,z,zslice,f,n) result(g)
+        implicit none
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! values to smooth
+        real(kind=8), dimension(n) :: x,y,z ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+        real(kind=8) :: zslice
+
+        g = sph_general(x,y,m,h,v,L,c,w,f,z,zslice,ior(MAX_MODE,ZSLICE_MODE),n)
+
+    end function sph_max_slice
+
+
     function crossp(a,b) result(c)
         implicit none
         
@@ -410,7 +503,7 @@ module sph_plotter
 
         integer :: n,L
         real(kind=8), dimension(n) :: m,h ! mass, smoothing
-        real(kind=8), dimension(n) :: v ! value of particle that is visible if it's at the tau=1 surface
+        real(kind=8), dimension(n) :: v ! brightness of particle
         real(kind=8), dimension(n) :: op ! particle opacity per unit mass
         real(kind=8), dimension(n) :: x,y,z ! particle positions
         logical, dimension(n) :: f ! mask
@@ -471,6 +564,7 @@ module sph_plotter
 
                                 this_opac = weight * m(ip) * op(ip)
                                 g(hix,hiy) = g(hix,hiy) + min(1.,this_opac)*v(ip)*exp(-opg(hix,hiy))
+                                !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
                                 opg(hix,hiy) = opg(hix,hiy) + this_opac
 !                                 if ( opg(hix,hiy)>=1.d0 ) then
 !                                     g(hix,hiy)=v(ip)
@@ -608,7 +702,7 @@ module sph_plotter
             norm = norm+kern_tab(ir)/(nkern-1.)*3.14159265359d0*r
 !            write(*,"(I5,3E15.5)") ir,r,kern_tab(ir),sum
         end do
-        kern_tab(ir) = kern_tab(ir)/norm ! Normalise so it all sums to 1.
+        kern_tab(:) = kern_tab(:)/norm ! Normalise so it all sums to 1.
         
         ! normalise 3d kernel
         kern_norm = 0.
