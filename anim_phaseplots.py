@@ -12,6 +12,8 @@ import phaseplots
 import re
 import itertools as it
 
+import gizmotools
+
 def sort_nicely( l ):
     """ Sort the given list in the way that humans expect.
     """
@@ -46,7 +48,9 @@ if __name__ == '__main__':
     #includedVals = ["cs_p","h_p"]
 
     snapi = 0
-    fullDir = "/export/1/djw/gizmos/"+run_id+"/"+output_dir
+    gizmoDir = gizmo_tools.getGizmoDir()
+    movieDir = gizmo_tools.getMovieDir()
+    fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 
     fnames = os.listdir(fullDir)
     sort_nicely(fnames)
