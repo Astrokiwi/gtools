@@ -15,11 +15,15 @@ from sys import path
 path.append("src/")
 import tab_interp
 
+import gizmo_tools
+
 # luminosity = 6.2849e42 # erg/s
 
 def savephaseplots(run_id,output_dir,snap_str,includedVals):
     print("plotting:"+"".join([run_id,output_dir,snap_str,"".join(includedVals)]))
-    f = h5py.File("/export/1/djw/gizmos/"+run_id+"/"+output_dir+"/snapshot_"+snap_str+".hdf5","r")
+    gizmoDir = gizmo_tools.getGizmoDir()
+    fullDir = gizmoDir+"/"+run_id+"/"+output_dir
+    f = h5py.File(fullDir+"/snapshot_"+snap_str+".hdf5","r")
 
     header = f["/Header"]
     time = header.attrs.get("Time")

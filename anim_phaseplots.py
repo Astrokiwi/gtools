@@ -47,25 +47,27 @@ if __name__ == '__main__':
     #includedVals = ["mJ_p","prat"]
     #includedVals = ["cs_p","h_p"]
 
+#     snapi = 0
+
     snapi = 0
-    gizmoDir = gizmo_tools.getGizmoDir()
+    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
     movieDir = gizmo_tools.getMovieDir()
-    fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 
-    fnames = os.listdir(fullDir)
-    sort_nicely(fnames)
-    fnames = np.array(fnames)
-    snapshotfilebools = np.array([x.startswith("snapshot") for x in fnames])
-    snapshotfiles = fnames[snapshotfilebools]
+#     fnames = os.listdir(fullDir)
+#     sort_nicely(fnames)
+#     fnames = np.array(fnames)
+#     snapshotfilebools = np.array([x.startswith("snapshot") for x in fnames])
+#     snapshotfiles = fnames[snapshotfilebools]
+# 
+#     snapf = 0
+#     ctime = os.path.getmtime(fullDir+"/snapshot_000.hdf5")
+#     for fname in snapshotfiles[1:]:
+#         new_snapf = int(fname[9:len(fname)-5])
+#         new_ctime = os.path.getmtime(fullDir+"/"+fname)
+#         if ( new_ctime>ctime ) :
+#             ctime = new_ctime
+#             snapf = new_snapf
 
-    snapf = 0
-    ctime = os.path.getmtime(fullDir+"/snapshot_000.hdf5")
-    for fname in snapshotfiles[1:]:
-        new_snapf = int(fname[9:len(fname)-5])
-        new_ctime = os.path.getmtime(fullDir+"/"+fname)
-        if ( new_ctime>ctime ) :
-            ctime = new_ctime
-            snapf = new_snapf
     
     
     l = len(includedVals)
@@ -88,7 +90,7 @@ if __name__ == '__main__':
         #np.savetxt(anim_file_list,animstrs[:,i_anim],fmt='%s')
         first_filename = animstrs[0,i_anim]
         anim_catch = first_filename[:-7]+"%03d.png"
-        cmd = "ffmpeg -y -r 24 -i "+anim_catch+" -c:v mpeg4 -q:v 1 /export/1/djw/movies/phaseplots"+run_id+"_"+output_dir+"_"+anim_names[i_anim]+".mp4"
+        cmd = "ffmpeg -y -r 24 -i "+anim_catch+" -c:v mpeg4 -q:v 1 "+movieDir+"/phaseplots"+run_id+"_"+output_dir+"_"+anim_names[i_anim]+".mp4"
         #cmd = "ffmpeg -y -r 5 -i "+anim_file_list+" -c:v mpeg4 -q:v 1 /export/1/djw/movies/phaseplots"+run_id+"_"+output_dir+"_"+anim_names[i_anim]+".mp4"
         os.system(cmd)
 # 
