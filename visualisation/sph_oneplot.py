@@ -10,6 +10,10 @@ import os
 #path.append("../src/")
 import sph_frame
 
+from sys import path
+path.append("../")
+import gizmo_tools
+
 print("Running")
 
 run_id = sys.argv[1]
@@ -17,7 +21,11 @@ output_dir = sys.argv[2]
 
 snapx = int(sys.argv[3])
 
-fullDir = "/export/1/djw/gizmos/"+run_id+"/"+output_dir
+
+gizmoDir = gizmo_tools.getGizmoDir()
+movieDir = gizmo_tools.getMovieDir()
+fullDir = gizmoDir+"/"+run_id+"/"+output_dir
+
 
 infile = fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5"
 outfile = "../pics/sphoneplot"+run_id+output_dir+"%03d.png"%snapx
