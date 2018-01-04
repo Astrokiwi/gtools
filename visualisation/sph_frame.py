@@ -11,7 +11,7 @@ import pylab as P
 
 from sph_plotter import sph_plotter
 
-from sys import path, version
+from sys import path, version, exit
 path.append("../src/")
 import tab_interp
 
@@ -124,6 +124,15 @@ class GadgetData:
 class PlotParameters( object ):
     pass
 
+#wrapper for pcolormesh so it doesn't die if there's nothing finite to plot
+def safe_pcolormesh(sp,*args,**qwargs):
+# args[2] is the actual map
+    if np.sum(np.isfinite(args[2]))==0:
+        args = list(args)
+        args[2][:,:] = qwargs["vmin"]
+        args = tuple(args)
+    return sp.pcolormesh(*args,**qwargs)
+
 def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,width,cblabel,clow,chigh,cmap_label,mode,
                  dolog=True,
                  planenorm=False,
@@ -196,7 +205,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         xedges = np.arange(corner[0],corner[0]+width,width/L)
         yedges = np.arange(corner[1],corner[1]+width,width/L)
 
-        qv = sp.pcolormesh(xedges,yedges,norm_map,cmap=this_cmap,vmin=clow,vmax=chigh)
+        qv = safe_pcolormesh(sp,xedges,yedges,norm_map,cmap=this_cmap,vmin=clow,vmax=chigh)
         sp.streamplot(xmids,ymids,map1,map2)
         if ( visibleAxes ):
             cb = fig.colorbar(qv,label=cblabel,cax=cbax)
@@ -231,7 +240,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             
             if ( np.sum(isplus)>0 ):
                 plusmap[isminus]=0.
-                mesh1=sp.pcolormesh(xedges,yedges,plusmap.T,cmap=this_cmap,vmin=clow,vmax=chigh,norm = colors.LogNorm())
+                mesh1=safe_pcolormesh(sp,xedges,yedges,plusmap.T,cmap=this_cmap,vmin=clow,vmax=chigh,norm = colors.LogNorm())
                 if ( visibleAxes ):
                     cb = fig.colorbar(mesh1,label=cblabel,cax=cbax)
                 else:
@@ -241,7 +250,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                 minusmap[isplus]=0.
                 minusmap = -minusmap
             
-                mesh2=sp.pcolormesh(xedges,yedges,minusmap.T,cmap=this_cmap2,vmin=clow,vmax=chigh,norm = colors.LogNorm())
+                mesh2=safe_pcolormesh(sp,xedges,yedges,minusmap.T,cmap=this_cmap2,vmin=clow,vmax=chigh,norm = colors.LogNorm())
                 if ( visibleAxes ):
                     cb2 = fig.colorbar(mesh2,label=cblabel,cax=cbax2)
                 else:
@@ -250,13 +259,13 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 
             if ( dolog ):
                 map = np.log10(map)
-            finiteIndices = np.isfinite(map)
-            if ( np.sum(finiteIndices)==0 ):
-                print(map)
-                raise Exception("No finite values in map")
-            print(np.min(map[finiteIndices]),np.max(map[finiteIndices]))
+#             finiteIndices = np.isfinite(map)
+#             if ( np.sum(finiteIndices)==0 ):
+#                 print(map)
+#                 raise Exception("No finite values in map")
+#             print(np.min(map[finiteIndices]),np.max(map[finiteIndices]))
 
-            mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh)
+            mesh = safe_pcolormesh(sp,xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh)
             if ( visibleAxes ):
                 cb = fig.colorbar(mesh,label=cblabel,cax=cbax)
             else:
