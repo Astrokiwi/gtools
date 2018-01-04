@@ -12,7 +12,7 @@ import phaseplots
 import re
 import itertools as it
 
-import gizmotools
+import gizmo_tools
 
 def sort_nicely( l ):
     """ Sort the given list in the way that humans expect.
