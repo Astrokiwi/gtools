@@ -380,7 +380,6 @@ end function
 ! assume surface density decreases monotonically with distance at constant Q
 subroutine calc_max_q_surf_profile
     use IC_parameters
-    use gadget_ics_IO
     use Units
     implicit none
 
@@ -390,7 +389,6 @@ subroutine calc_max_q_surf_profile
     real(kind=8) :: r_guess, r_lowerbound,r_upperbound
     real(kind=8) :: mass_guess
     real(kind=8) :: sensitivity, error
-    real(kind=8), dimension(p_data%ng,3) :: rans
     
     sensitivity = 1.d-4
     
@@ -563,7 +561,7 @@ subroutine disc_locs(tproffile)
         rans(:,2) = rans(:,2)*2.*pi
         ! height above/below plane
         !rans(:,3) = (rans(:,3)-.5d0)*2.d0*(disc_thick*rans(:,1)) ! thickness is disk_thick*rad
-        if ( rho_target<=0 .and. .not. constant_surf ) then
+        if ( rho_target<=0 .or. constant_surf ) then
             rans(:,3) = (rans(:,3)-.5d0)*2.d0*disc_thick ! thickness is disk_thick
         endif
     
