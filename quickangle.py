@@ -3,7 +3,7 @@ import gizmo_tools
 import numpy as np
 import h5py
 
-bins = np.arange(0.,91.,1.)
+bins = np.arange(0.,91.,.25)
 
 
 if __name__ == '__main__':
@@ -29,6 +29,8 @@ if __name__ == '__main__':
     z_p = xyz_p[:,2]
     
     theta_p = np.abs(np.arctan2(z_p,rad2d_p)*180./np.pi)
+    
+    print(np.median(theta_p),np.mean(theta_p))
         
     theta_histogram, theta_edges = np.histogram(theta_p,weights=mass_p,bins=bins)
     
