@@ -69,10 +69,10 @@ module sph_plotter
         ! for extinction
         zlos = x*ray(1)+y*ray(2)+z*ray(3)
         
-        print *,"sorting"
+!         print *,"sorting"
         
         zarg = rargsort(zlos) ! SLOW! presort maybe? store values?
-        print *,"sorted"
+!         print *,"sorted"
 
         prof = 0.d0
         cum_depth = 0.d0
@@ -167,9 +167,19 @@ module sph_plotter
         endif
         r_cell = w/L
         area_cell = r_cell**2
+        
+!         if (any(isnan(v)) .and. btest(mode,DENSE_WEIGHT_POS)) then
+!             print *,"v",n,count(isnan(v))
+!         endif
+!         if (any(isnan(m))) then
+!             print *,"m",n,count(isnan(v))
+!         endif
 
         do ip=1,n
-            if ( f(ip) .and. .not. ( isnan(v(ip)) .or. v(ip)>HUGE(v(ip)) .or. v(ip)<-HUGE(v(ip)) ) ) then
+            if ( f(ip) .and. &
+             (.not.btest(mode,DENSE_WEIGHT_POS) .or. &
+                .not. ( isnan(v(ip)) .or. v(ip)>HUGE(v(ip)) .or. v(ip)<-HUGE(v(ip)) ) )&
+                   ) then
 
 
                 ix = nint((x(ip)-c(1))/r_cell)
@@ -243,6 +253,8 @@ module sph_plotter
                 endif
             endif
         endif
+        
+!         g(1,1) = count(isnan(v))
 
         return
     end function sph_general
@@ -497,6 +509,66 @@ module sph_plotter
         
     end function
 
+    ! quick dotplot
+    function sph_dot(x,y,v,L,c,w,overmode,f,n) result(g)
+        implicit none
+
+        integer :: n,L
+        real(kind=8), dimension(n) :: v ! particle value
+        real(kind=8), dimension(n) :: x,y ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+        
+        integer :: overmode ! 0 = max, 1 = min
+
+        integer :: ip ! particle index
+
+        integer :: ix,iy ! grid position of particle
+        
+        real(kind=8) :: r_cell, area_cell
+        
+        real(kind=8) :: rdist
+
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+        
+        g = -HUGE(v(ip))
+! 
+!         if ( overmode==0 ) then
+!             g = -HUGE(v(ip))
+!         else
+!             g = HUGE(v(ip))
+!         endif
+        
+        r_cell = w/L
+        area_cell = r_cell**2
+
+        do ip=1,n
+            if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+                ix = nint((x(ip)-c(1))/r_cell)
+                iy = nint((y(ip)-c(2))/r_cell)
+                
+                if ( ix<=L .and. iy<=L .and. ix>=1 .and. iy>=1 ) then
+                    if ( overmode==0 ) then
+                        g(ix,iy) = max(v(ip),g(ix,iy))
+                    else
+                        if ( g(ix,iy)==-HUGE(v(ip)) ) then
+                            g(ix,iy)=v(ip)
+                        else
+                            g(ix,iy) = min(v(ip),g(ix,iy))
+                        endif
+                    endif
+
+                endif
+                
+            endif
+        end do
+
+    end function
+    
     ! Imaging
     function sph_optical_depth_los(x,y,m,h,v,op,L,c,w,z,inzarg,f,n) result(g)
         implicit none
@@ -680,7 +752,7 @@ module sph_plotter
         
         real(kind=8) :: norm
         
-        print *,"initializing kernel"
+!         print *,"initializing kernel"
         
         kern_tab = 0.
 !        sum = 0.

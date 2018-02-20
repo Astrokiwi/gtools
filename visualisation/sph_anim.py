@@ -29,7 +29,8 @@ if __name__ == '__main__':
     default_values = dict()
     default_values["nprocs"]=8
     default_values["maxsnapf"]=-1
-    default_values["rad"]=15.
+    default_values["rad"]="15"
+    #default_values["rads"]=""
     default_values["L"]=400
     default_values["plot"]="dens,temp"
     default_values["views"]="face,side"
@@ -41,15 +42,17 @@ if __name__ == '__main__':
     default_values["centredens"]=False
     default_values["centrecom"]=False
     default_values["suffix"]=""
+    default_values["dotmode"]=""
     
-    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix"]
+    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
     parser.add_argument('output_dir',help="name of subdirectory for run")
     parser.add_argument('--nprocs',type=int,help="processors to run on (default {})".format(default_values["nprocs"]))
     parser.add_argument('--maxsnapf',type=int,help="snapshot to end on (default=-1=do all snapshots)")
-    parser.add_argument('--rad',type=float,help="radius of plot in parsecs")
+    parser.add_argument('--rad',type=str,help="radius of all plots in parsecs - same value for all plots, or separated by commas")
+    #parser.add_argument('--rads',type=float,help="radius of each plot in parsecs, separated by commas")
     parser.add_argument('--L',type=int,help="size of plot area in pixels")
     parser.add_argument('--plot',type=str,help="values to plot, separated by commas")
     parser.add_argument('--views',type=str,help="face and/or side view, separated by commas")
@@ -61,6 +64,7 @@ if __name__ == '__main__':
     parser.add_argument('--centredens',help="centre on densest particle",action='store_true')
     parser.add_argument('--centrecom',help="centre on centre of mass",action='store_true')
     parser.add_argument('--suffix',help="suffix on anim filename")
+    parser.add_argument('--dotmode',help="max, min, or nothing - dot plot mode")
     args = parser.parse_args()
     
 #     run_id = args.run_id
@@ -80,10 +84,20 @@ if __name__ == '__main__':
 
     flatPlot = not slice
 
-    if ( flatPlot ):
+    if dotmode:
+        smooth_str = dotmode
+    elif flatPlot:
         smooth_str = "smooth"
     else:
         smooth_str = "slice"
+    
+    if "," in rad:
+        rad = [float(x) for x in rad.split(",")]
+    else:
+        rad = float(rad)
+    
+#     if not rads is "":
+#         plotRads = 
     
     toplot = plot.split(",")
     outp_plot = "".join(toplot)
@@ -157,7 +171,7 @@ if __name__ == '__main__':
     outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in range(snapi,snapf+1)]
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad,views=toview,rot=[theta,phi],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom) for i in range(snapi,snapf+1))
+    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad,views=toview,rot=[theta,phi],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode) for i in range(snapi,snapf+1))
 
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))

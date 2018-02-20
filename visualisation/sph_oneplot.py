@@ -50,7 +50,13 @@ outfile = "../pics/sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=True,plot=['nH','temp','opac','tdust'],L=800,scale=1.,rot=[0,80./360.*2.*np.pi],maxmode=True)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=True,plot=['nH'],L=800,scale=1.,rot=[0,80./360.*2.*np.pi],maxmode=True)
 
-sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',views=['face'],flat=True,ring=True,plot=['nH'],L=800,scale=.5)
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',views=['face'],flat=True,ring=True,plot=['nH'],L=800,scale=.5)
+#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens','temp'],L=400,scale=[30.,150.])
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=False,ring=False,plot=['dens','tau'],L=400,scale=[.5,.5])
+
+sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=False,ring=False,plot=['temp'],L=400,scale=3.,dotmode='max')
+
+
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',views=['face'],flat=True,ring=True,plot=['temp'],L=800,scale=1.e4)
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens','temp'],L=400,scale=2.)

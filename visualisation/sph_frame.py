@@ -26,6 +26,10 @@ import itertools
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
+def raiseprint(a):
+    print(a)
+    raise Exception(a)
+
 # --- Custom colormaps ---
 
 
@@ -75,6 +79,8 @@ vorinoislice = 8
 zvorinoislice = 9
 maxslice = 10
 zmaxslice = 11
+maxdotslice = 12
+mindotslice = 13
 
 molecular_mass = 4./(1.+3.*.76)
 proton_mass_cgs = 1.6726e-24
@@ -85,6 +91,22 @@ boltzmann_cgs = 1.38066e-16
 chTab = None
 interpTabVec = None
 
+debug_mode = False
+
+np.seterr(all='ignore') # don't worry about bad logs etc - we want to propagate NaNs
+
+def if_not_debug(f):
+    def empty_function(*args,**kwargs):
+        pass
+    
+    if debug_mode:
+        return empty_function
+    else:
+        return f
+
+@if_not_debug
+def verboseprint(*args,**kwargs):
+    print(*args,**kwargs)
 
 # adapted from http://www.astrobetter.com/wiki/tiki-index.php?page=python_radial_profiles
 def azimuthalNorm(image, center=None):
@@ -158,6 +180,21 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 
     n = m_p.size
     
+#     if np.unique(m_p).size>1:
+#         print("not unique ",np.unique(m_p))
+# 
+#     for a,label in zip((x_p,y_p,m_p,h_p),("x","y","m","h")):
+#         if np.any(~np.isfinite(a)):
+#             print("bad ",label,n,np.sum(~np.isfinite(h_p)))
+# 
+
+    
+#     if val_p is None:
+#         raiseprint("val_p is None!")
+    
+#     print("calculating nerrors")
+#     nerrors_in = np.sum(~np.isfinite(val_p))
+    
     if ( mode==weightslice ):
         map = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
     elif (mode==densslice ):
@@ -187,7 +224,13 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         map = sph_plotter.sph_max(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
     elif mode==zmaxslice:
         map = sph_plotter.sph_max_slice(x_p,y_p,m_p,h_p,val_p,L,corner,width,z_p,zslice,mask,n)
-        
+    elif mode==maxdotslice or mode==mindotslice:
+        map = sph_plotter.sph_dot(x_p,y_p,val_p,L,corner,width,mode-maxdotslice,mask,n)
+    
+#     nerrors = map[0,0]
+    
+#     print(nerrors_in,nerrors)
+    
     if ( mode==vec2dslice ):
         #map1/=1.e5
         #map2/=1.e5
@@ -256,6 +299,8 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                 else:
                     cbax2.set_axis_off()
         else:
+            if not debug_mode:
+                verboseprint(np.nanmin(map),np.nanmax(map))
 
             if ( dolog ):
                 map = np.log10(map)
@@ -277,6 +322,8 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
     #mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap) 
     #sp.axis('equal')
+    
+#     return nerrors
 
 def load_gadget(infile, plot_thing,
                         centredens=False):
@@ -308,6 +355,9 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("tdust")
         need_to_load.append("opac")
         need_to_load.append("dg")
+    if ( "facetemp" in need_to_load ):
+        need_to_load.append("tdust")
+        need_to_load.append("opac")
     if ( "vlos" in need_to_load or "vmag" in need_to_load ):
         need_to_load.append("vels")
     if ( "emit" in need_to_load ):
@@ -323,6 +373,10 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("nH")
         need_to_load.append("tau")
 
+#     if "nopac" in need_to_load:
+#         need_to_load.append("opac")
+#         need_to_load.append("nH")
+    
     if ( "vel_2d" in need_to_load or
          "vel_r" in need_to_load or
          "vel_x" in need_to_load or
@@ -349,6 +403,7 @@ def load_gadget(infile, plot_thing,
 
     if ( "rand" in need_to_load ):
         data.rand = np.random.random(n)
+        #data.rand = np.random.randint(n,size=n)
 
     
     if ( "temp" in need_to_load ):
@@ -395,21 +450,27 @@ def load_gadget(infile, plot_thing,
 
     if ( "table" in need_to_load ):
         if ( not chTab ):
-            print("Load dust tables")
-            chTab = tab_interp.CoolHeatTab(("../coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),("../coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"))
+            if not debugMode:
+                verboseprint("Load dust tables")
+            chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
+                                            )
             interpTabVec = np.vectorize(chTab.interpTab)
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
         data.flux_p*=1.989e+53/(3.086e21)**2/(3.08568e+16)
         
 
-        print("Calculating dust/cooling/heating properties from table")
+        verboseprint("Calculating dust/cooling/heating properties from table")
         tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.tau.astype(np.float64))
         
 
     if ( "tdust" in need_to_load ):
         data.dustTemp = map(lambda y: y.dustT, tabStructs)
         data.dustTemp = np.array(list(data.dustTemp))
-        data.dustTemp = data.dustTemp**4 # for test
+#         print(np.max(data.dustTemp),np.min(data.dustTemp))
+#         data.dustTemp = data.dustTemp**4 # for test
 
     if ( "dg" in need_to_load ):
         data.dg = map(lambda y: y.dg, tabStructs)
@@ -467,7 +528,8 @@ def makesph_trhoz_frame(infile,outfile,
                         centredens=False,
                         centrecom=False,
                         vorinoi=False,
-                        maxmode=False
+                        maxmode=False,
+                        dotmode=None
                         ):
     if version[0]=='2':
         raise Exception("Requires Python 3.X. Current version:"+version)
@@ -477,7 +539,9 @@ def makesph_trhoz_frame(infile,outfile,
     plot_thing = plot
     flatPlot = flat
     ringPlot = ring
-    width = scale*2.
+    
+    if dotmode!='max' and dotmode!='min':
+        dotmode = None
 
     if ( L%subsample!=0 ):
         raise Exception("subsample might divide evenly into L")
@@ -497,9 +561,9 @@ def makesph_trhoz_frame(infile,outfile,
 
     nrows = len(plot_thing)
 
-    print("Loading",infile)
+    verboseprint("Loading",infile)
     time,data = load_gadget(infile,plot_thing,centredens=centredens)
-    print("Plotting",infile,", t=%.4f Myr"% time)
+    verboseprint("Plotting",infile,", t=%.4f Myr"% time)
 
 
 
@@ -570,6 +634,7 @@ def makesph_trhoz_frame(infile,outfile,
 
     if ( visibleAxes ):
         fig.suptitle(r"$T="+("%.4f" % time)+"$ Myr")
+#         fig.suptitle(infile)
     if ( visibleAxes ):
         fw_inches = 5.*cols
     else:
@@ -584,31 +649,6 @@ def makesph_trhoz_frame(infile,outfile,
         rad2d = np.sqrt(x**2+y**2)
     else:   
         rad2d = x
-
-    # physical coordinates of region to plot, in pc
-    if centredens or centrecom :
-        if centredens and centrecom :
-            raise Exception("Can't set both centredens and centrecom")
-        if centredens:
-            i_maxdens = np.argmax(data.nH_p)
-            corners = [x[i_maxdens]-width/2,y[i_maxdens]-width/2.]
-            corners_side = [rad2d[i_maxdens]-width/2.,z[i_maxdens]-width/2.]
-        if centrecom:
-            x_com = np.mean(x)
-            y_com = np.mean(y)
-            corners = [x_com-width/2.,y_com-width/2.]
-            r2d_com = np.mean(rad2d)
-            z_com = np.mean(z)
-            corners_side = [r2d_com-width/2.,z_com-width/2.]
-    else:
-        # centre on 0,0
-        corners = [-width/2.,-width/2.]
-        if ( ringPlot ):
-            if ( not flatPlot ):
-                raise Exception("ring==true requires flat==true")
-            corners_side = [0.,-width/2.]
-        else:   
-            corners_side = corners
 
     deep_face = z
     deep_side = y
@@ -663,11 +703,12 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["vel_a"] = r"$v_{\theta}$"
     plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
     plotLabel["AGNI"] = r"Unextinced $I_{AGN}$ (log erg/s/cm^2)"
-    plotLabel["tau"] = r"$\tau$"
+    plotLabel["tau"] = r"$\log_{10}\tau$"
     plotLabel["list"] = r"$i$"
     plotLabel["rand"] = r"$q$"
     plotLabel["opac"] = r"$\kappa$"
     plotLabel["smooth"] = r"$h_p$"
+    plotLabel["facetemp"] = r"$\log_{10}T_d$ (K)"
 
     plotRanges = dict()
     plotRanges["temp"] = [.999,4.]*2
@@ -678,9 +719,10 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["dens"] = drange+drange_s
     plotRanges["depth"] = [0.,1.e3]*2
     plotRanges["vels"] = [0.,3.]*2
-    #plotRanges["tdust"] = [1.,3.]*2
+    plotRanges["tdust"] = [1.,2.4]*2
+#     plotRanges["tdust"] = [1.,3.]*2
     #plotRanges["tdust"] = [1.3,2.2]*2
-    plotRanges["tdust"] = [4.,8.]*2
+#     plotRanges["tdust"] = [4.,8.]*2
     plotRanges["dg"] = [0.00635,.006363]*2
     plotRanges["dust"] = drange+drange_s
     plotRanges["view"] = [0.,4.]*2
@@ -696,12 +738,15 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["vel_a"] = [-100.,100.]*2
     plotRanges["arad"] = [-9.,-3.]*2
     plotRanges["AGNI"] = [-9.,-3.]*2
-    plotRanges["tau"] = [0.,5.]*2
+#    plotRanges["tau"] = [0.,5.]*2
+#     plotRanges["tau"] = [-2,3.]*2
+    plotRanges["tau"] = [0.,250.]*2
     plotRanges["list"] = [0.,1.e6]*2
     plotRanges["rand"] = [0.,1.]*2
 #     plotRanges["opac"] = [-4.,-1.6]*2
     plotRanges["opac"] = [-2.,-1.]*2
     plotRanges["smooth"] = [-2.,2.]*2
+    plotRanges["facetemp"] = [0.,2.5]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -730,6 +775,8 @@ def makesph_trhoz_frame(infile,outfile,
     plotSliceTypes["list"] = quantslice
     plotSliceTypes["opac"] = quantslice
     plotSliceTypes["smooth"] = quantslice
+    plotSliceTypes["facetemp"] = viewslice
+    plotSliceTypes["rand"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -762,8 +809,9 @@ def makesph_trhoz_frame(infile,outfile,
     plotData["list"] = "list"
     plotData["rand"] = "rand"
     plotData["smooth"] = "h_p"
+    plotData["facetemp"] = ["dustTemp","opac","dustTemp","opac"]
     
-    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad","AGNI","opac","smooth"]
+    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad","AGNI","opac","smooth","facetemp"]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
@@ -777,7 +825,8 @@ def makesph_trhoz_frame(infile,outfile,
     customCmaps2["heat"] = 'Blues'
 
     
-    
+    # nerrors=0
+
     # do all subplots, calculating the full SPH smoothing each time
     for irow in range(nrows):
         # Process the tables we just made
@@ -798,7 +847,43 @@ def makesph_trhoz_frame(infile,outfile,
             raise Exception(errstr)
         thisPlotLabel = plotLabel[plot_thing[irow]]
         thisPlotRanges = plotRanges[plot_thing[irow]]
-        if maxmode:
+
+
+
+        # physical coordinates of region to plot, in pc
+        if isinstance(scale,list):
+            width = scale[irow]*2.
+        else:
+            width = scale*2.
+        if centredens or centrecom :
+            if centredens and centrecom :
+                raise Exception("Can't set both centredens and centrecom")
+            if centredens:
+                i_maxdens = np.argmax(data.nH_p)
+                corners = [x[i_maxdens]-width/2,y[i_maxdens]-width/2.]
+                corners_side = [rad2d[i_maxdens]-width/2.,z[i_maxdens]-width/2.]
+            if centrecom:
+                x_com = np.mean(x)
+                y_com = np.mean(y)
+                corners = [x_com-width/2.,y_com-width/2.]
+                r2d_com = np.mean(rad2d)
+                z_com = np.mean(z)
+                corners_side = [r2d_com-width/2.,z_com-width/2.]
+        else:
+            # centre on 0,0
+            corners = [-width/2.,-width/2.]
+            if ( ringPlot ):
+                if ( not flatPlot ):
+                    raise Exception("ring==true requires flat==true")
+                corners_side = [0.,-width/2.]
+            else:   
+                corners_side = corners
+
+        if dotmode=='max':
+            thisSliceType = maxdotslice
+        elif dotmode=='min':
+            thisSliceType = mindotslice
+        elif maxmode:
             thisSliceType = mslice
         elif vorinoi:
             thisSliceType = vslice
@@ -824,14 +909,15 @@ def makesph_trhoz_frame(infile,outfile,
                 thisPlotQuantitySide = thisPlotQuantityFace
             elif ( type(plotCommand) is list ):
                 if ( len(plotCommand)!=4 ):
-                    raise Exception("{} must have length 4".format(plotCommand))
+                    raiseprint("{} must have length 4".format(plotCommand))
                 thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
                 thisPlotQuantitySide = [data.__dict__[plotCommand[2]],data.__dict__[plotCommand[3]]]
             else:
-                raise Exception("{} is not a valid plot format".format(plotCommand))
+                raiseprint("{} is not a valid plot format".format(plotCommand))
         else:
             thisPlotQuantityFace = None
             thisPlotQuantitySide = None
+#             raiseprint("{} data type not found! - {}".format(plot_thing[irow],infile))
         
         cbar2_axes = [None,None]
         if ( plot_thing[irow] in extraBarTypes ):
@@ -882,6 +968,8 @@ def makesph_trhoz_frame(infile,outfile,
             this_ax.yaxis.set_label_position("left")
     else:
         P.axis('off')
+
+#     print(infile,nerrors)
 
     if ( visibleAxes ):
         if (nrows==2):
