@@ -21,12 +21,123 @@ import gizmo_tools
 
 G_kms_pc_msun = 0.0043022682
 
+labels = dict()
+dolog = dict()
+ranges = dict()
+
+labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
+dolog['nH_p'] = True
+ranges['nH_p'] = [-4,12]
+
+labels['flux_p'] = r"$\log \Phi$ (erg/cm$^{-2}$/s)"
+dolog['flux_p'] = True
+#ranges['flux_p'] = [3.,8.]
+ranges['flux_p'] = [0.,8.]
+
+labels['depth_p'] = r"$\log N_H$ (cm$^{-2}$)"
+dolog['depth_p'] = True
+ranges['depth_p'] = [16,27]
+
+labels['TK_p'] = r"$\log T_g$ (K)"
+dolog['TK_p'] = True
+ranges['TK_p'] = [1,6]
+
+labels['rad2d_p'] = r"$R$ (pc)"
+dolog['rad2d_p'] = False
+#ranges['rad2d_p'] = [0,150.]
+ranges['rad2d_p'] = None
+
+labels['z_p'] = r"$|z|$ (pc)"
+dolog['z_p'] = False
+ranges['z_p'] = [0,20.]
+
+labels['dustTemp'] = r"$T_d$ (K)"
+dolog['dustTemp'] = False
+ranges['dustTemp'] = [0,200]
+
+labels['radrad_p'] = r"$a_{rad}$ (cm/s/s)"
+dolog['radrad_p'] = True
+ranges['radrad_p'] = None
+
+labels['dHeat'] = r"$H$"
+dolog['dHeat'] = False
+ranges['dHeat'] = None
+
+labels['dt_heat'] = r"dt$_H$"
+dolog['dt_heat'] = True
+ranges['dt_heat'] = None
+
+
+labels['vrad'] = r"$v_{rad}$ (km/s)"
+dolog['vrad'] = False
+#ranges['vrad'] = [-300,300]
+#ranges['vrad'] = [-300,1.e3]
+ranges['vrad'] = [-50,300.]
+
+
+labels['vcirc'] = r"$v_{circ}$ km/s"
+dolog['vcirc'] = False
+ranges['vcirc'] = [-20.,120.]
+
+labels['vel'] = r"$v$ km/s"
+dolog['vel'] = False
+ranges['vel'] = [0.,300.]
+
+labels['rad_p'] = r"$\log R$ (pc)"
+dolog['rad_p'] = True
+#ranges['rad_p'] = [-.5,2.]
+ranges['rad_p'] = [-1.,1.9]
+
+labels['mJ_p'] = r"$M_\mathrm{J}$ (M$_\odot$)"
+dolog['mJ_p'] = True
+#ranges['mJ_p'] = None
+ranges['mJ_p'] = [-2.,8.]
+
+labels['p_p'] = r"$P$ (dyne/cm$^{-2}$)"
+dolog['p_p'] = True
+ranges['p_p'] = None
+
+labels['dt_p'] = r"dt (yr)"
+dolog['dt_p'] = True
+ranges['dt_p'] = [-1.5,3.]
+
+labels['cs_p'] = r"$c_s$ (cm/s)"
+dolog['cs_p'] = True
+ranges['cs_p'] = None
+
+labels['h_p'] = r"$h$ (pc)"
+dolog['h_p'] = True
+ranges['h_p'] = None
+
+#labels['prat'] = r"$\log_{10} p/p$"
+#dolog['prat'] = True
+#ranges['prat'] = [-.5,3.]
+labels['prat'] = r"$\log_{10} [(p_p/p_g)(M_p/M_J)^{2/3}]$"
+dolog['prat'] = True
+#ranges['prat'] = [1.,3.]
+ranges['prat'] = None
+
+labels['hz_rat'] = r"$h/z$"
+dolog['hz_rat'] = False
+ranges['hz_rat'] = [0.,2.]
+
+labels['tsf'] = r"$t_{sf}$"
+dolog['tsf'] = True
+ranges['tsf'] = [3.,8.]
+
+labels['agn_heat_p'] = r"$H$ (erg/s/g)"
+dolog['agn_heat_p'] = False
+#ranges['agn_heat_p'] = None
+ranges['agn_heat_p'] = [-300.,300.]
+
+labels['cool_p'] = r"$H$ (erg/s/g)"
+dolog['cool_p'] = True
+ranges['cool_p'] = None
+
 def v_esc(r,m_bh,m_hern,a_hern):
     return np.sqrt(2*G_kms_pc_msun*(m_bh/r + m_hern/(a_hern+r)))
 
-
-def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
-    print("plotting:"+"".join([run_id,output_dir,snap_str,"".join(includedVals)]))
+def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     gizmoDir = gizmo_tools.getGizmoDir()
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     f = h5py.File(fullDir+"/snapshot_"+snap_str+".hdf5","r")
@@ -213,6 +324,13 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
     if ( "tsf" in requiredVals ):
         values["tsf"] = 1./np.sqrt(values["rho_p"]*G)/yr
 
+    return time,values
+
+def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
+    print("plotting:"+"".join([run_id,output_dir,snap_str,"".join(includedVals)]))
+    
+    time,values = loadvalues(run_id,output_dir,snap_str,includedVals,rcut)
+    
     #nH_p = 10.**((4.-np.log10(TK_p))**2)
 
     # values = [nH_p,flux_p,TK_p,depth_p]
@@ -229,118 +347,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
     #ranges = [None,None,None,None,None,None,None,None]
     #ranges = [None]*4
 
-    labels = dict()
-    dolog = dict()
-    ranges = dict()
 
-    labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
-    dolog['nH_p'] = True
-    ranges['nH_p'] = [-4,12]
-
-    labels['flux_p'] = r"$\log \Phi$ (erg/cm$^{-2}$/s)"
-    dolog['flux_p'] = True
-    #ranges['flux_p'] = [3.,8.]
-    ranges['flux_p'] = [0.,8.]
-
-    labels['depth_p'] = r"$\log N_H$ (cm$^{-2}$)"
-    dolog['depth_p'] = True
-    ranges['depth_p'] = [16,27]
-
-    labels['TK_p'] = r"$\log T_g$ (K)"
-    dolog['TK_p'] = True
-    ranges['TK_p'] = [1,6]
-
-    labels['rad2d_p'] = r"$R$ (pc)"
-    dolog['rad2d_p'] = False
-    #ranges['rad2d_p'] = [0,150.]
-    ranges['rad2d_p'] = None
-
-    labels['z_p'] = r"$|z|$ (pc)"
-    dolog['z_p'] = False
-    ranges['z_p'] = [0,20.]
-
-    labels['dustTemp'] = r"$T_d$ (K)"
-    dolog['dustTemp'] = False
-    ranges['dustTemp'] = [0,200]
-
-    labels['radrad_p'] = r"$a_{rad}$ (cm/s/s)"
-    dolog['radrad_p'] = True
-    ranges['radrad_p'] = None
-
-    labels['dHeat'] = r"$H$"
-    dolog['dHeat'] = False
-    ranges['dHeat'] = None
-
-    labels['dt_heat'] = r"dt$_H$"
-    dolog['dt_heat'] = True
-    ranges['dt_heat'] = None
-
-
-    labels['vrad'] = r"$v_{rad}$ (km/s)"
-    dolog['vrad'] = False
-    #ranges['vrad'] = [-300,300]
-    #ranges['vrad'] = [-300,1.e3]
-    ranges['vrad'] = [-50,300.]
-
-
-    labels['vcirc'] = r"$v_{circ}$ km/s"
-    dolog['vcirc'] = False
-    ranges['vcirc'] = [-20.,120.]
-
-    labels['vel'] = r"$v$ km/s"
-    dolog['vel'] = False
-    ranges['vel'] = [0.,300.]
-
-    labels['rad_p'] = r"$\log R$ (pc)"
-    dolog['rad_p'] = True
-    #ranges['rad_p'] = [-.5,2.]
-    ranges['rad_p'] = [-1.,1.9]
-
-    labels['mJ_p'] = r"$M_\mathrm{J}$ (M$_\odot$)"
-    dolog['mJ_p'] = True
-    #ranges['mJ_p'] = None
-    ranges['mJ_p'] = [-2.,8.]
-
-    labels['p_p'] = r"$P$ (dyne/cm$^{-2}$)"
-    dolog['p_p'] = True
-    ranges['p_p'] = None
-
-    labels['dt_p'] = r"dt (yr)"
-    dolog['dt_p'] = True
-    ranges['dt_p'] = [-1.5,3.]
-
-    labels['cs_p'] = r"$c_s$ (cm/s)"
-    dolog['cs_p'] = True
-    ranges['cs_p'] = None
-
-    labels['h_p'] = r"$h$ (pc)"
-    dolog['h_p'] = True
-    ranges['h_p'] = None
-
-    #labels['prat'] = r"$\log_{10} p/p$"
-    #dolog['prat'] = True
-    #ranges['prat'] = [-.5,3.]
-    labels['prat'] = r"$\log_{10} [(p_p/p_g)(M_p/M_J)^{2/3}]$"
-    dolog['prat'] = True
-    #ranges['prat'] = [1.,3.]
-    ranges['prat'] = None
-
-    labels['hz_rat'] = r"$h/z$"
-    dolog['hz_rat'] = False
-    ranges['hz_rat'] = [0.,2.]
-
-    labels['tsf'] = r"$t_{sf}$"
-    dolog['tsf'] = True
-    ranges['tsf'] = [3.,8.]
-
-    labels['agn_heat_p'] = r"$H$ (erg/s/g)"
-    dolog['agn_heat_p'] = False
-    #ranges['agn_heat_p'] = None
-    ranges['agn_heat_p'] = [-300.,300.]
-
-    labels['cool_p'] = r"$H$ (erg/s/g)"
-    dolog['cool_p'] = True
-    ranges['cool_p'] = None
 
 
     #labels["nH_p"] = 
@@ -442,7 +449,7 @@ if __name__ == '__main__':
 
 
     #includedVals = ["rad_p","radrad_p"]
-    includedVals = ["nH_p","TK_p"]
+    includedVals = ["nH_p","TK_p","vel"]
     #includedVals = ["TK_p","agn_heat_p"]
 #     includedVals = ["rad_p","vel"]
     #includedVals = ["TK_p","vrad"]
