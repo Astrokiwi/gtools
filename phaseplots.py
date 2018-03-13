@@ -326,56 +326,61 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
 
     return time,values
 
+# assumes that values are already loaded
+def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False):
+
+    bigslice = (values["dt_p"]>0.)
+
+    sp.set_xlabel(labels[iv])
+    sp.set_ylabel(labels[jv])
+    if ( dolog[iv] ):
+        vx = np.log10(values[iv])
+    else:
+        vx = values[iv]
+    if ( dolog[jv] ):
+        vy = np.log10(values[jv])
+    else:
+        vy = values[jv]
+    notnans = ((np.isfinite(vx)) & (np.isfinite(vy))) & bigslice
+    if ( not noranges and not (ranges[iv] is None) ):
+        notnans = notnans & (vx>=ranges[iv][0]) & (vx<=ranges[iv][1])
+    if ( not noranges and not (ranges[jv] is None) ):
+        notnans = notnans & (vy>=ranges[jv][0]) & (vy<=ranges[jv][1])
+    if rcut is not None:
+        notnans = notnans & (values["rad_p"]<rcut)
+    vx = vx[notnans]
+    vy = vy[notnans]
+    # CHECK FOR RANGES
+    if ( not (ranges[iv] is None) and not (ranges[jv] is None) and not noranges ):
+        H,xedges,yedges = np.histogram2d(vx,vy,bins=(150,150),range=[ranges[iv],ranges[jv]])
+    else:
+        H,xedges,yedges = np.histogram2d(vx,vy,bins=(150,150))
+    H*=values["m_p"][0]
+    with np.errstate(divide='ignore'):
+        H = np.log10(H).T
+
+    mappablePlot = sp.pcolormesh(xedges,yedges,H,cmap='plasma',vmin=-1.4,vmax=2.1) #,norm=colors.LogNorm()
+    if iv == "rad_p" and jv == "vel":
+        # plot escape velocities
+#                 print("PLOTTING ESCAPE VELOCITY")
+        y = v_esc(10.**xedges,1.e6,1.e9,250.)
+        sp.plot(xedges,y)
+    sp.set_xlim(xedges[0],xedges[-1])
+    sp.set_ylim(yedges[0],yedges[-1])
+    sp.tick_params(which='both',direction="out")
+    
+    return mappablePlot
+
+
 def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
     print("plotting:"+"".join([run_id,output_dir,snap_str,"".join(includedVals)]))
     
     time,values = loadvalues(run_id,output_dir,snap_str,includedVals,rcut)
     
-    #nH_p = 10.**((4.-np.log10(TK_p))**2)
-
-    # values = [nH_p,flux_p,TK_p,depth_p]
-    # titles = ["nH","flux","TK","col"]
-    # labels = [r"$\log n_H$ (cm$^{-3}$)",r"$\log \Phi$ (erg/cm$^{-2}$/s)",r"$\log T$ (K)",r"$\log N_H$ (cm$^{-2}$)"]
-
-    # oldvalues = [nH_p,flux_p,depth_p,TK_p,rad2d_p,z_p,dustTemp,radrad_p,vrad,rad_p,mJ_p,p_p,dt_p]
-    #values = [nH_p,flux_p,depth_p,TK_p]
-    #titles = ["nH","flux","col","Tg","r","z","Td","arad","vrad","rad","mJ","p","dt"]
-    # labels = [r"$\log n_H$ (cm$^{-3}$)",r"$\log \Phi$ (erg/cm$^{-2}$/s)",r"$\log N_H$ (cm$^{-2}$)",r"$\log T_g$ (K)",r"$R$ (kpc)",r"$|z|$ (kpc)",r"$T_d$ (K)",r"$a_{rad}$ (cm/s/s)",r"v_{rad}$ km/s",r"$R$ (kpc)",r"$M_\mathrm{J}$ (M$_\odot$)",r"$P$ (dyne/cm$^{-2}$)",r"dt (yr)"]
-    # dolog = [True,True,True,True,False,False,False,True,False,False,True,True,True]
-    # ranges = [[0,12],None,None,[1,5],[0,.02],[0.,.02],[0,200],None,[-500,500],None,None,None,None]
-    #ranges = [None,None,None,None,[0,.02],[0.,.02],None,None]
-    #ranges = [None,None,None,None,None,None,None,None]
-    #ranges = [None]*4
-
-
-
-
-    #labels["nH_p"] = 
-
-    #includedVals = [0,1,2,3,4,5,6,7]
-    #includedVals = [0,3]
-    #includedVals = [0,11]
-    #includedVals = [0,1,2,3]
-
-
-    # if ( not depth_exists ):
-    #     nv = len(values)-1
-    # else:
-    #     nv = len(values)
+    
     nv = len(values)
 
-    #bigslice = (dustTemp>235.) & (dustTemp<245.) & (depth_p<1.e15)
-    #bigslice = (TK_p>1.e6)
-    #bigslice = (agn_heat_p<-1.e6)
-    #bigslice = (dt_p<1.e-10)
-    #bigslice = (TK_p>10.**3.5) & (TK_p<10.**4.) & (depth_p>10.**22.) & (depth_p<10.**23.2)
-    #bigslice = (TK_p==10.)
-
-    bigslice = (values["dt_p"]>0.)
-    #bigslice = (np.log10(values["dt_p"])<1.8)
-    #bigslice = (values["depth_p"]>10.**(24.5)) & (values["radrad_p"]>1.e-4)
-
-    noranges = False
+#     noranges = False
 
     outfiles = []
 
@@ -387,55 +392,20 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
     #    for jv in [7]:
             fname = "pics/"+run_id+output_dir+iv+jv+snap_str+".png"
             outfiles.append(fname)
-            P.figure()
-            P.xlabel(labels[iv])
-            P.ylabel(labels[jv])
-            if ( dolog[iv] ):
-                vx = np.log10(values[iv])
-            else:
-                vx = values[iv]
-            if ( dolog[jv] ):
-                vy = np.log10(values[jv])
-            else:
-                vy = values[jv]
-            notnans = ((np.isfinite(vx)) & (np.isfinite(vy))) & bigslice
-            if ( not noranges and not (ranges[iv] is None) ):
-                notnans = notnans & (vx>=ranges[iv][0]) & (vx<=ranges[iv][1])
-            if ( not noranges and not (ranges[jv] is None) ):
-                notnans = notnans & (vy>=ranges[jv][0]) & (vy<=ranges[jv][1])
-            if rcut is not None:
-                notnans = notnans & (values["rad_p"]<rcut)
-            vx = vx[notnans]
-            vy = vy[notnans]
-            # CHECK FOR RANGES
-            if ( not (ranges[iv] is None) and not (ranges[jv] is None) and not noranges ):
-                H,xedges,yedges = np.histogram2d(vx,vy,bins=(150,150),range=[ranges[iv],ranges[jv]])
-            else:
-                H,xedges,yedges = np.histogram2d(vx,vy,bins=(150,150))
-            H*=values["m_p"][0]
-            with np.errstate(divide='ignore'):
-                H = np.log10(H).T
-            #H = H.T
-            #P.pcolormesh(xedges,yedges,H,cmap='plasma',vmin=np.min(H[np.isfinite(H)]),vmax=np.max(H[np.isfinite(H)])) #,norm=colors.LogNorm()
-            #P.pcolormesh(xedges,yedges,H,cmap='viridis',vmin=0.,vmax=10.) #,norm=colors.LogNorm()
-            P.pcolormesh(xedges,yedges,H,cmap='plasma',vmin=-1.4,vmax=2.1) #,norm=colors.LogNorm()
-            if iv == "rad_p" and jv == "vel":
-                # plot escape velocities
-#                 print("PLOTTING ESCAPE VELOCITY")
-                y = v_esc(10.**xedges,1.e6,1.e9,250.)
-                P.plot(xedges,y)
-            P.xlim(xedges[0],xedges[-1])
-            P.ylim(yedges[0],yedges[-1])
-            ax = P.gca()
+            fig,sp = P.subplots(1,1)
+            
+            mappablePlot = plot_phaseplot(sp,values,iv,jv,rcut)
+            
+#             ax = P.gca()
             #ax.xaxis.set_minor_locator(ticker.MultipleLocator(1.))
             #ax.yaxis.set_minor_locator(ticker.MultipleLocator(1.))
-            P.tick_params(which='both',direction="out")
 #             P.colorbar(label=r"$\log$ count")
-            P.colorbar(label=r"$\log M$ (M$_\odot$)")
+            fig.colorbar(mappablePlot,label=r"$\log M$ (M$_\odot$)")
             #P.colorbar(label=r"count")
             #P.colorbar(label=r"count (capped)")
-            P.suptitle(r"$t="+("%.4f" % time)+"$ Myr")
-            P.savefig(fname,dpi=150)
+            fig.suptitle(r"$t="+("%.4f" % time)+"$ Myr")
+            fig.savefig(fname,dpi=150)
+            
             P.close()
     return outfiles
 
