@@ -19,7 +19,13 @@ import gizmo_tools
 
 # luminosity = 6.2849e42 # erg/s
 
-def savephaseplots(run_id,output_dir,snap_str,includedVals):
+G_kms_pc_msun = 0.0043022682
+
+def v_esc(r,m_bh,m_hern,a_hern):
+    return np.sqrt(2*G_kms_pc_msun*(m_bh/r + m_hern/(a_hern+r)))
+
+
+def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
     print("plotting:"+"".join([run_id,output_dir,snap_str,"".join(includedVals)]))
     gizmoDir = gizmo_tools.getGizmoDir()
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
@@ -48,6 +54,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
     preqs["mJ_p"] = ["cs_p"]
     preqs["prat"] = ["p_p","nH_p","TK_p","mJ_p","m_p"]
     preqs["hz_rat"] = ["h_p","z_p"]
+    preqs["vcirc"] = ["rad2d_p"]
 
     iVal = 0
     while ( iVal<len(requiredVals) ):
@@ -57,6 +64,9 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
                 if ( preq not in requiredVals ):
                     requiredVals.append(preq)
         iVal+=1
+        
+    if not rcut is None and not "rad_p" in requiredVals:
+        requiredVals.append("rad_p")
 
     values = dict()
 
@@ -75,6 +85,12 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
 
     values["z_p"] = np.abs(xyz[:,2])
     values["z_p"]*=1.e3 # to pc
+    
+    if "vcirc" in requiredVals:
+        values["vcirc"] = (vel_p[:,0]*xyz[:,1]-vel_p[:,1]*xyz[:,0])*1.e3/values["rad2d_p"]
+
+    if "vel" in requiredVals:
+        values["vel"] = np.sqrt(np.sum(vel_p**2,axis=1))
 
     if ( "u_p" in requiredVals ):
         values["u_p"] = np.array(f["/PartType0/InternalEnergy"])
@@ -90,6 +106,10 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
     if ( "agn_heat_p" in requiredVals ):
         values["agn_heat_p"] = np.array(f["/PartType0/AGNHeat"])
         values["agn_heat_p"]*=1e10/3.08568e+16# to erg/s/g
+
+    if ( "cool_p" in requiredVals ):
+        values["cool_p"] = np.array(f["/PartType0/AGNHeat"])
+        values["cool_p"]*=-1e10/3.08568e+16# to erg/s/g
 
     if ( "dt_p" in requiredVals ):
         values["dt_p"] = np.array(f["/PartType0/TimeStep"])
@@ -180,8 +200,8 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
         values["mJ_p"] = 2./3.*(np.pi)**2.5 * values["cs_p"]**3/G_Jeansterm/np.sqrt(values["rho_p"])
     #mJ_p/=1.989e33 # g to msun
 
-    if ( "m_p" in requiredVals ):
-        values["m_p"] = np.array(f["/PartType0/Masses"])*1.e10
+#     if ( "m_p" in requiredVals ):
+    values["m_p"] = np.array(f["/PartType0/Masses"])*1.e10
     # ratio between ideal gas pressure and actual pressure
     if ( "prat" in requiredVals ):
         values["prat"] = values["p_p"]/(values["nH_p"]*values["TK_p"]*boltzmann_cgs)*(values["mJ_p"]/values["m_p"])**(2./3.)
@@ -215,7 +235,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
 
     labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
     dolog['nH_p'] = True
-    ranges['nH_p'] = [0,12]
+    ranges['nH_p'] = [-4,12]
 
     labels['flux_p'] = r"$\log \Phi$ (erg/cm$^{-2}$/s)"
     dolog['flux_p'] = True
@@ -232,7 +252,8 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
 
     labels['rad2d_p'] = r"$R$ (pc)"
     dolog['rad2d_p'] = False
-    ranges['rad2d_p'] = [0,20.]
+    #ranges['rad2d_p'] = [0,150.]
+    ranges['rad2d_p'] = None
 
     labels['z_p'] = r"$|z|$ (pc)"
     dolog['z_p'] = False
@@ -244,7 +265,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
 
     labels['radrad_p'] = r"$a_{rad}$ (cm/s/s)"
     dolog['radrad_p'] = True
-    ranges['radrad_p'] = [-11,-3]
+    ranges['radrad_p'] = None
 
     labels['dHeat'] = r"$H$"
     dolog['dHeat'] = False
@@ -255,15 +276,25 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
     ranges['dt_heat'] = None
 
 
-    labels['vrad'] = r"$v_{rad}$ km/s"
+    labels['vrad'] = r"$v_{rad}$ (km/s)"
     dolog['vrad'] = False
     #ranges['vrad'] = [-300,300]
-    ranges['vrad'] = [-300,1.e3]
+    #ranges['vrad'] = [-300,1.e3]
+    ranges['vrad'] = [-50,300.]
+
+
+    labels['vcirc'] = r"$v_{circ}$ km/s"
+    dolog['vcirc'] = False
+    ranges['vcirc'] = [-20.,120.]
+
+    labels['vel'] = r"$v$ km/s"
+    dolog['vel'] = False
+    ranges['vel'] = [0.,300.]
 
     labels['rad_p'] = r"$\log R$ (pc)"
     dolog['rad_p'] = True
     #ranges['rad_p'] = [-.5,2.]
-    ranges['rad_p'] = [-1.,2.]
+    ranges['rad_p'] = [-1.,1.9]
 
     labels['mJ_p'] = r"$M_\mathrm{J}$ (M$_\odot$)"
     dolog['mJ_p'] = True
@@ -276,7 +307,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
 
     labels['dt_p'] = r"dt (yr)"
     dolog['dt_p'] = True
-    ranges['dt_p'] = None
+    ranges['dt_p'] = [-1.5,3.]
 
     labels['cs_p'] = r"$c_s$ (cm/s)"
     dolog['cs_p'] = True
@@ -301,6 +332,16 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
     labels['tsf'] = r"$t_{sf}$"
     dolog['tsf'] = True
     ranges['tsf'] = [3.,8.]
+
+    labels['agn_heat_p'] = r"$H$ (erg/s/g)"
+    dolog['agn_heat_p'] = False
+    #ranges['agn_heat_p'] = None
+    ranges['agn_heat_p'] = [-300.,300.]
+
+    labels['cool_p'] = r"$H$ (erg/s/g)"
+    dolog['cool_p'] = True
+    ranges['cool_p'] = None
+
 
     #labels["nH_p"] = 
 
@@ -355,6 +396,8 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
                 notnans = notnans & (vx>=ranges[iv][0]) & (vx<=ranges[iv][1])
             if ( not noranges and not (ranges[jv] is None) ):
                 notnans = notnans & (vy>=ranges[jv][0]) & (vy<=ranges[jv][1])
+            if rcut is not None:
+                notnans = notnans & (values["rad_p"]<rcut)
             vx = vx[notnans]
             vy = vy[notnans]
             # CHECK FOR RANGES
@@ -362,19 +405,26 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals):
                 H,xedges,yedges = np.histogram2d(vx,vy,bins=(150,150),range=[ranges[iv],ranges[jv]])
             else:
                 H,xedges,yedges = np.histogram2d(vx,vy,bins=(150,150))
+            H*=values["m_p"][0]
             with np.errstate(divide='ignore'):
                 H = np.log10(H).T
             #H = H.T
             #P.pcolormesh(xedges,yedges,H,cmap='plasma',vmin=np.min(H[np.isfinite(H)]),vmax=np.max(H[np.isfinite(H)])) #,norm=colors.LogNorm()
             #P.pcolormesh(xedges,yedges,H,cmap='viridis',vmin=0.,vmax=10.) #,norm=colors.LogNorm()
-            P.pcolormesh(xedges,yedges,H,cmap='plasma',vmin=0.,vmax=3.5) #,norm=colors.LogNorm()
+            P.pcolormesh(xedges,yedges,H,cmap='plasma',vmin=-1.4,vmax=2.1) #,norm=colors.LogNorm()
+            if iv == "rad_p" and jv == "vel":
+                # plot escape velocities
+#                 print("PLOTTING ESCAPE VELOCITY")
+                y = v_esc(10.**xedges,1.e6,1.e9,250.)
+                P.plot(xedges,y)
             P.xlim(xedges[0],xedges[-1])
             P.ylim(yedges[0],yedges[-1])
             ax = P.gca()
             #ax.xaxis.set_minor_locator(ticker.MultipleLocator(1.))
             #ax.yaxis.set_minor_locator(ticker.MultipleLocator(1.))
             P.tick_params(which='both',direction="out")
-            P.colorbar(label=r"$\log$ count")
+#             P.colorbar(label=r"$\log$ count")
+            P.colorbar(label=r"$\log M$ (M$_\odot$)")
             #P.colorbar(label=r"count")
             #P.colorbar(label=r"count (capped)")
             P.suptitle(r"$t="+("%.4f" % time)+"$ Myr")
@@ -391,25 +441,12 @@ if __name__ == '__main__':
     print("Running")
 
 
-    #includedVals = ["dt_p","nH_p","TK_p","rad2d_p","z_p","vrad","dHeat","dt_heat"]
-    #includedVals = ["nH_p","TK_p","rad2d_p","z_p","vrad"]
-    #includedVals = ["mJ_p","nH_p","TK_p","p_p"]
-    includedVals = ["mJ_p","p_p"]
-    #includedVals = ["mJ_p","nH_p","TK_p","p_p"]
-    #includedVals = ["rad2d_p","hz_rat"]
-    #includedVals = ["mJ_p","nH_p","TK_p"]
-    #includedVals = ["tsf","mJ_p"]
-    #includedVals = ["prat"]
-    #includedVals = ["TK_p","dustTemp"]
-    #includedVals = ["h_p","nH_p"]
-    #includedVals = ["radrad_p","rad_p"]
-    #includedVals = ["mJ_p","prat"]
-    #includedVals = ["cs_p","h_p"]
-    #includedVals = ["nH_p","TK_p"]
-    #includedVals = ["rad_p","dustTemp"]
-    #includedVals = ["depth_p","TK_p","nH_p","radrad_p"]
-    #includedVals = ["rad_p","vrad"]
+    #includedVals = ["rad_p","radrad_p"]
+    includedVals = ["nH_p","TK_p"]
+    #includedVals = ["TK_p","agn_heat_p"]
+#     includedVals = ["rad_p","vel"]
+    #includedVals = ["TK_p","vrad"]
     
-    x = savephaseplots(run_id,output_dir,snap_str,includedVals)
+    x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.)
     print(x)
 

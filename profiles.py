@@ -11,7 +11,13 @@ import tab_interp
 
 print("Loading table (short form)")
 #chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_031117.dat"),("coolheat_tab_marta/shrunk_table_031117.dat"))
-chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_171117tau.dat"),("coolheat_tab_marta/shrunk_table_171117tau.dat"))
+# chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_171117tau.dat"),("coolheat_tab_marta/shrunk_table_171117tau.dat"))
+chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
+                                ("coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
+                                ("coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
+                                ("coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
+                                )
+
 interpTabVec = np.vectorize(chTab.interpTab)
 
 print("Running")
@@ -29,7 +35,7 @@ luminosity = 6.2849e42 # erg/s, DEPENDS ON EACH RUN!
 #f = h5py.File("/export/1/djw/gizmos/1003/control_test/snapshot_"+snap_str+".hdf5","r")
 #f = h5py.File("/export/1/djw/gizmos/1003/tree_tests/snapshot_"+snap_str+".hdf5","r")
 #f = h5py.File("/export/1/djw/gizmos/1003/isotropic_test/snapshot_"+snap_str+".hdf5","r")
-f = h5py.File("/export/1/djw/gizmos/"+run_id+"/"+output_dir+"/snapshot_"+snap_str+".hdf5","r")
+f = h5py.File("/srv/djw1g16/gizmos/"+run_id+"/"+output_dir+"/snapshot_"+snap_str+".hdf5","r")
 
 xyz = np.array(f["/PartType0/Coordinates"])
 rad_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2+xyz[:,2]**2)

@@ -7,11 +7,17 @@ import sys
 
 from sys import path
 path.append("src/")
-import tab_interp
 
-print("Loading table (short form)")
-chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_080517.dat"),("coolheat_tab_marta/shrunk_table_080517.dat"))
-interpTabVec = np.vectorize(chTab.interpTab)
+import gizmo_tools
+
+def bin_func(val_p,slice,bin_indices,nbins,func):
+    bin_func_val = np.zeros((nbins))
+    for ibin in range(nbins):
+        if np.sum(bin_indices==ibin)>0:
+            bin_func_val[ibin] = func((val_p[slice])[bin_indices==ibin])
+        else:
+            bin_func_val[ibin] = 0.
+    return bin_func_val
 
 print("Running")
 
@@ -22,57 +28,84 @@ snap_str = sys.argv[3]
 
 Nbins = 50
 
-f = h5py.File("/export/1/djw/gizmos/"+run_id+"/"+output_dir+"/snapshot_"+snap_str+".hdf5","r")
+gizmoDir = gizmo_tools.getGizmoDir()
+fullDir = gizmoDir+"/"+run_id+"/"+output_dir
+
+
+f = h5py.File(fullDir+"/snapshot_"+snap_str+".hdf5","r")
 
 xyz = np.array(f["/PartType0/Coordinates"])
-rad_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2+xyz[:,2]**2)
-rad2d_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2)
-z_p = np.abs(xyz[:,2])
 
-N_part = rad_p.size
 
 u_p = np.array(f["/PartType0/InternalEnergy"])
 rho_p = np.array(f["/PartType0/Density"])
 vel_p = np.array(f["/PartType0/Velocities"])
-a_p = np.array(f["/PartType0/Acceleration"])
-h_p = np.array(f["/PartType0/SmoothingLength"])
 m_p = np.array(f["/PartType0/Masses"])
-dt_p = np.array(f["/PartType0/TimeStep"])
 
 
+
+xyz*=1.e3 # from kpc to pc
 rho_p*=6.77e-22 # to g/cm**3
 u_p*=1.e10 # to erg/g
-rad_p*=1. # already in kpc
-vel_p*=1. # in km/s
-h_p*=1. # already in kpc
+vel_p*=1.e5 # to cm/s
 m_p*=1.989e+43 # 10^10 solar masses to g
-radaccel_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
-a_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
-#dt_p*=3.08568e+16 # to seconds
 
 G = 6.67259e-8 # in cgs
-cs_p = np.sqrt(u_p)
-#a_p*=# 
+cs_p = np.sqrt(10.*u_p/9.) # cm/s, assuming gamma=5/3
+
+rad_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2+xyz[:,2]**2)
+rad2d_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2)
+z_p = np.abs(xyz[:,2])
 
 vrad_p = (xyz[:,0]*vel_p[:,0]+xyz[:,1]*vel_p[:,1]+xyz[:,2]*vel_p[:,2])/rad_p
 vcirc_p = (xyz[:,1]*vel_p[:,0]-xyz[:,0]*vel_p[:,1])/rad2d_p
 
-# in km/s/Gyr, roughly
-arad_p = (xyz[:,0]*a_p[:,0]+xyz[:,1]*a_p[:,1]+xyz[:,2]*a_p[:,2])/rad_p
-radrad_p = (xyz[:,0]*radaccel_p[:,0]+xyz[:,1]*radaccel_p[:,1]+xyz[:,2]*radaccel_p[:,2])/rad_p
-acirc_p = (xyz[:,1]*a_p[:,0]-xyz[:,0]*a_p[:,1])/rad2d_p
+omega_p = vcirc_p/(rad2d_p*3.085678e18)
 
-lambda_cool = 1.e-24 # for testing
+N_part = rad_p.size
 
-molecular_mass = 4./(1.+3.*.76)
-proton_mass_cgs = 1.6726e-24
-gamma_minus_one = 5./3.-1.
-boltzmann_cgs = 1.38066e-16
 
-depth_p/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
+print(np.min(u_p))
+print(np.min(cs_p))
 
-mJ_p = np.pi**(2.5)*cs_p**3*G**(-1.5)*rho_p**(-.5)/6.
+r_cut = 50. # in pc
+vrad_cut = 50. # in km/s
+low_u = 4.e9 # about 30 K
 
-nH_p = rho_p/(molecular_mass*proton_mass_cgs)
+disc_slice = (vrad_p<vrad_cut) & (rad_p<r_cut)
+ndisc = np.sum(disc_slice)
 
-TK_p = gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*u_p
+rad2d_p = rad2d_p[disc_slice]
+
+nbins = 100
+rbins = np.sort(rad2d_p)[::ndisc//(nbins+1)]
+
+bin_indices = np.digitize(rad2d_p,rbins)-1
+
+cs_bin = bin_func(cs_p,disc_slice,bin_indices,nbins,np.mean)
+omega_bin = bin_func(omega_p,disc_slice,bin_indices,nbins,np.mean)
+vcirc_bin = bin_func(vcirc_p,disc_slice,bin_indices,nbins,np.mean)
+rad2d_bin = bin_func(rad2d_p,[True]*ndisc,bin_indices,nbins,np.mean)
+mass_bin = bin_func(m_p,disc_slice,bin_indices,nbins,np.sum)
+area_bin = np.pi*(rbins[1:nbins+1]**2-rbins[:nbins]**2)*3.085678e18**2
+surface_density_bin = mass_bin/area_bin
+
+omega2_bin = omega_bin**2
+omega2diff_bin = np.gradient(omega2_bin)/np.gradient(rad2d_bin)
+
+kappa_bin = np.sqrt(rad2d_bin*omega2diff_bin+4.*omega2_bin)
+
+
+Q_bin = cs_bin*kappa_bin/(np.pi*G*surface_density_bin)
+Q_lowtemp = np.sqrt(10./9.*low_u)*kappa_bin/(np.pi*G*surface_density_bin)
+
+output_data = [rad2d_bin,Q_bin,Q_lowtemp,cs_bin,kappa_bin,surface_density_bin]
+output_data = np.array(output_data).T
+
+np.savetxt("data/toomreqprof"+run_id+output_dir+snap_str+".dat",output_data)
+
+
+
+
+
+

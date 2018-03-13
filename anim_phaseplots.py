@@ -35,22 +35,29 @@ if __name__ == '__main__':
     #includedVals = ["mJ_p","TK_p"]
     #includedVals = ["rad2d_p","hz_rat"]
     #includedVals = ["mJ_p","nH_p","TK_p"]
-    #includedVals = ["rad_p","vrad"]
+    includedVals = ["rad_p","vel"]
     #includedVals = ["flux_p","radrad_p"]
-    includedVals = ["nH_p","TK_p"]
+#     includedVals = ["nH_p","TK_p"]
+    #includedVals = ["p_p","nH_p"]
+    #includedVals = ["rad2d_p","nH_p"]
     #includedVals = ["rad_p","nH_p"]
     #includedVals = ["depth_p","radrad_p"]
-    #includedVals = ["dt_p","TK_p"]
+#     includedVals = ["dt_p","TK_p"]
+#     includedVals = ["TK_p","agn_heat_p"]
+#    includedVals = ["rad_p","vel"]
     #includedVals = ["prat"]
     #includedVals = ["nH_p","p_p"]
     #includedVals = ["h_p","nH_p"]
     #includedVals = ["mJ_p","prat"]
-    #includedVals = ["cs_p","h_p"]
+    #includedVals = ["vcirc","vrad"]
+    
+    rcut = 80.
 
 #     snapi = 0
 
     snapi = 0
     snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
+    
     movieDir = gizmo_tools.getMovieDir()
 
 #     fnames = os.listdir(fullDir)
@@ -74,14 +81,14 @@ if __name__ == '__main__':
     n_anim = (l*(l-1))//2
     animstrs = np.empty((snapf),dtype=object)
     
-    snap_strs = ["%03d" % i for i in range(snapf)]
+    snap_strs = ["%03d" % i for i in range(snapf+1)]
     anim_names = []
     for i in range(l):
         for j in range(i+1,l):
             anim_names.append(includedVals[i]+includedVals[j])
     
     pool = Pool(processes=80)
-    animstrs = pool.starmap(phaseplots.savephaseplots,zip(it.repeat(run_id),it.repeat(output_dir),snap_strs,it.repeat(includedVals)))
+    animstrs = pool.starmap(phaseplots.savephaseplots,zip(it.repeat(run_id),it.repeat(output_dir),snap_strs,it.repeat(includedVals),it.repeat(rcut)))
     pool.close()
     animstrs = np.vstack(animstrs)
 

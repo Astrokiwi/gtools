@@ -14,6 +14,7 @@ path.append("visualisation/")
 from sph_plotter import sph_plotter
 
 import itertools as it
+import gizmo_tools
 
 
 molecular_mass = 4./(1.+3.*.76)
@@ -25,16 +26,16 @@ sigma_convert = msun_g/(molecular_mass*proton_mass_cgs)/(3.086e+18)**2
 
 # P.figure()
 
-if __name__ == '__main__':
+def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
+    nrun = len(run_ids)
+    if not (len(run_ids)==len(output_dirs)==len(snap_strs)):
+        raise Exception("All arrays must be same length")
 
-    print("Running")
+    print(run_ids)
+    print(output_dirs)
+    print(snap_strs)
+    print(outpFile)
 
-    nruns = len(sys.argv)-2
-    if ( nruns%3!=0 ):
-        raise Exception("python sigma_angle folder1 subdir1 dump1 folder2 subdir2 dump2 [etc] outputfile")
-    nruns = nruns//3
-
-    outpFile = sys.argv[-1]
 
     nray_phi = 40
     #nray_phi = 1
@@ -57,14 +58,19 @@ if __name__ == '__main__':
     outp = np.zeros((nray_phi,nruns*3+1))
     outp[:,0] = phis_basis
 
+    gizmoDir = gizmo_tools.getGizmoDir()
+
     for irun in range(nruns):
-        run_id = sys.argv[1+irun*3]
-        output_dir = sys.argv[2+irun*3]
-        snap_str = sys.argv[3+irun*3]
+        run_id = run_ids[irun]
+        output_dir = output_dirs[irun]
+        snap_str = snap_strs[irun]
+#         run_id = sys.argv[1+irun*3]
+#         output_dir = sys.argv[2+irun*3]
+#         snap_str = sys.argv[3+irun*3]
     
         print("Run:",run_id+output_dir+snap_str)
 
-        f = h5py.File("/export/1/djw/gizmos/"+run_id+"/"+output_dir+"/snapshot_"+snap_str+".hdf5","r")
+        f = h5py.File(gizmoDir+"/"+run_id+"/"+output_dir+"/snapshot_"+snap_str+".hdf5","r")
 
         xyz = np.array(f["/PartType0/Coordinates"])
         xyz*=1.e3 # to pc
@@ -115,3 +121,32 @@ if __name__ == '__main__':
     # P.close()
 
     np.savetxt(outpFile,outp)
+
+
+if __name__ == '__main__':
+
+    print("Running")
+
+    if len(sys.argv)>1:
+        nruns = len(sys.argv)-2
+        if ( nruns%3!=0 ):
+            raise Exception("python sigma_angle.py folder1 subdir1 dump1 folder2 subdir2 dump2 [etc] outputfile")
+        nruns = nruns//3
+
+        outpFile = sys.argv[-1]
+    
+        run_ids = sys.argv[1:-1:3]
+        output_dirs = sys.argv[2:-1:3]
+        snap_strs = sys.argv[3:-1:3]
+        
+        calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile)
+    else:
+        for snap in ["100","200","500","1000"]:
+            outpFile = "data/2014q2redo_sigangle_"+snap+".dat"
+            output_dirs=["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
+            nruns = len(output_dirs)
+            run_ids = ["2014"]*nruns
+            snap_strs = [snap]*nruns
+
+            calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile)
+

@@ -3,6 +3,12 @@ import os
 import numpy as np
 import re
 
+molecular_mass = 4./(1.+3.*.76)
+proton_mass_cgs = 1.6726e-24
+gamma_minus_one = 5./3.-1.
+boltzmann_cgs = 1.38066e-16
+msun_g = 1.989e33
+
 def sort_nicely( l ):
     """ Sort the given list in the way that humans expect.
     """
@@ -42,12 +48,15 @@ def lastConsecutiveSnapshot(run_id,output_dir):
     snapshotfilebools = np.array([x.startswith("snapshot") for x in fnames])
     snapshotfiles = fnames[snapshotfilebools]
     
-    print(snapshotfiles)
+#     print(snapshotfiles)
+    
+    snapf = 0
 
     ctime = os.path.getmtime(fullDir+"/snapshot_000.hdf5")
     for fname in snapshotfiles[1:]:
         new_snapf = int(fname[9:len(fname)-5])
         new_ctime = os.path.getmtime(fullDir+"/"+fname)
+#         print(ctime,new_ctime)
         if ( new_ctime>ctime ) :
             ctime = new_ctime
             snapf = new_snapf

@@ -2,6 +2,9 @@ import numpy as np
 import StringIO
 import sys
 
+import gizmo_tools
+
+
 def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
@@ -15,7 +18,12 @@ t_in_yr = 0.9778e9
 run_id = sys.argv[1]
 output_dir = sys.argv[2]
 
-filename = "/export/1/djw/gizmos/"+run_id+"/"+output_dir+"/info.txt"
+gizmoDir = gizmo_tools.getGizmoDir()
+movieDir = gizmo_tools.getMovieDir()
+fullDir = gizmoDir+"/"+run_id+"/"+output_dir
+
+
+filename = fullDir+"/info.txt"
 
 s = open(filename).read().replace(',',' ')
 
@@ -27,16 +35,18 @@ time = data[:,3].astype(float) * t_in_yr
 
 n_active = data[:,6].astype(float)
 
-n_smooth = moving_average(n_active,n=5000)
+dt = data[:,8].astype(float) * t_in_yr
+
+n_smooth = moving_average(n_active,n=4096)
+dt_smooth = moving_average(dt,n=4096)
 
 dn = n_active.size-n_smooth.size
 dn_before = dn/2
 dn_after = dn-dn_before
 
 n_smooth = np.lib.pad(n_smooth,(dn_before,dn_after),'constant',constant_values=(0,0))
+dt_smooth = np.lib.pad(dt_smooth,(dn_before,dn_after),'constant',constant_values=(0,0))
 
-dt = data[:,8].astype(float) * t_in_yr
-
-out_data = np.array([sync_point,time,n_active,dt,n_smooth]).T
+out_data = np.array([sync_point,time,n_active,dt,n_smooth,dt_smooth]).T
 
 np.savetxt("data/info_plotable_"+run_id+output_dir+".dat",out_data)
