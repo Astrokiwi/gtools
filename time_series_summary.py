@@ -11,7 +11,7 @@ if __name__ == '__main__':
     
     nsp = 4
 
-    fig,sp = P.subplots(nsp,1,figsize=(8,2.7*nsp),sharex=True)
+    fig,sp = P.subplots(nsp,1,figsize=(4,2.*nsp),sharex=True)
 
     for irun,output_dir in enumerate(runs):
         print("Plotting: ",output_dir)
@@ -37,5 +37,6 @@ if __name__ == '__main__':
     sp[nsp-1].set_xlabel("$t$ (Myr)")
     sp[2].legend(loc='best',fontsize='xx-small')
     
-    P.savefig("../figures/timeseries_summary_q2.png",dpi=200)
+    P.tight_layout()
+    P.savefig("../figures/timeseries_summary_q2.pdf")
     P.close()
