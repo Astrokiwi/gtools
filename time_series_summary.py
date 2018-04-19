@@ -5,8 +5,9 @@ import matplotlib.pyplot as P
 
 if __name__ == '__main__':
     run_id = "2014"
-    runs = ["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
-    edd = [.05,.1,.1,.1,.2,.01]
+    runs = ["q2redo","q2edd05redo","q2edd10_aniso1redo","q2edd10redo","q2edd10_aniso3redo","q2edd20redo"]
+    edd = [.01,.05,.1,.1,.1,.2]
+    names = ["A","B","C1","C2","C3","D"]
     
     
     nsp = 4
@@ -20,7 +21,7 @@ if __name__ == '__main__':
         
         wind_data = np.loadtxt("data/windangle_evolution"+run_id+output_dir+".dat")
         sp[1].plot(wind_data[:,1],wind_data[:,2])
-        sp[2].plot(wind_data[:,1],wind_data[:,4],label=runs[irun])
+        sp[2].plot(wind_data[:,1],wind_data[:,4],label=names[irun])
         sp[3].plot(wind_data[:,1],wind_data[:,4]/edd[irun])
     
     sp[0].set_ylabel(r"SFR (M$_\odot$/yr)")
