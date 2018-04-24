@@ -242,7 +242,8 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         step = width/L
         xmids = np.arange(corner[0]+step,corner[0]+width+step,step)
         ymids = np.arange(corner[1]+step,corner[1]+width+step,step)
-        sp.set_axis_bgcolor('black')
+        #sp.set_axis_bgcolor('black') # deprecated apparently?
+        sp.set_facecolor('black')
         norm_map = np.log10(norm_map)
         #qv = sp.quiver(xmids,ymids,map1,map2,norm_map,headwidth=10.,pivot='mid',cmap=this_cmap,clim=[clow,chigh])
         xedges = np.arange(corner[0],corner[0]+width,width/L)
@@ -261,11 +262,11 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #         sp.set_xmargin(0)
 #         sp.set_ymargin(0)
     else:
-        xedges = np.arange(corner[0],corner[0]+width,width/L)
-        yedges = np.arange(corner[1],corner[1]+width,width/L)
-#         step = width/L
-#         xedges = np.arange(corner[0]+step,corner[0]+width+step,step)
-#         yedges = np.arange(corner[1]+step,corner[1]+width+step,step)
+#         xedges = np.arange(corner[0],corner[0]+width,width/L)
+#         yedges = np.arange(corner[1],corner[1]+width,width/L)
+        step = width/L
+        xedges = np.arange(corner[0]+step/2.,corner[0]+width+step/2.,step)
+        yedges = np.arange(corner[1]+step/2.,corner[1]+width+step/2.,step)
         if ( planenorm ):
             #iy0 = np.argmin(np.abs(yedges))
             #map[:,:]=(map[:,:].T/map[:,iy0]).T
@@ -450,8 +451,7 @@ def load_gadget(infile, plot_thing,
 
     if ( "table" in need_to_load ):
         if ( not chTab ):
-            if not debugMode:
-                verboseprint("Load dust tables")
+            verboseprint("Load dust tables")
             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
                                             ("../coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
                                             ("../coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
@@ -508,150 +508,15 @@ def load_gadget(infile, plot_thing,
     
 #     if ( 'agn_heat_p' in globals() ):
 #         depth_p = agn_heat_p*rho_p*h_p*(16./3./np.pi)
-
+    if "rad0" in need_to_load:
+        data.id_p = np.array(f["/PartType0/ParticleIDs"]).astype(int)
+        data.id_p-=1
+        data.rad0 = np.load("rad0.npy")
+        data.rad0 = data.rad0[data.id_p]
     
     return time,data
 
-def makesph_trhoz_frame(infile,outfile,
-                        scale = 20.,
-                        cmap="viridis",
-                        L=256,
-                        ring=False,
-                        flat=False,
-                        planenorm=False,
-                        visibleAxes=True,
-                        subsample=1,
-                        pixsize=None,
-                        plot=['dens','temp'],
-                        rot=[0.,0.],
-                        views=['face','side'],
-                        centredens=False,
-                        centrecom=False,
-                        vorinoi=False,
-                        maxmode=False,
-                        dotmode=None
-                        ):
-    if version[0]=='2':
-        raise Exception("Requires Python 3.X. Current version:"+version)
-
-    #cmap_r = cmap+"_r"
-    #cmap_d = "coolwarm"
-    plot_thing = plot
-    flatPlot = flat
-    ringPlot = ring
-    
-    if dotmode!='max' and dotmode!='min':
-        dotmode = None
-
-    if ( L%subsample!=0 ):
-        raise Exception("subsample might divide evenly into L")
-
-    if ( not pixsize ):
-        pixsize = subsample
-
-    if (len(rot)!=2):
-        raise Exception("rot needs to be [theta,phi]")
-        
-    if ( not all(view=='face' or view=='side' for view in views) ):
-        raise Exception("Views must be an array of size one or two containing only 'face' or 'side'")
-    
-    cols = len(views)
-    if ( cols!=1 and cols!=2 ):
-        raise Exception("len(views)=1 or =2")
-
-    nrows = len(plot_thing)
-
-    verboseprint("Loading",infile)
-    time,data = load_gadget(infile,plot_thing,centredens=centredens)
-    verboseprint("Plotting",infile,", t=%.4f Myr"% time)
-
-
-
-    n = data.h_p.size
-        
-    # convert to pc
-    x = data.xyz[:,0]*1.e3
-    y = data.xyz[:,1]*1.e3
-    z = data.xyz[:,2]*1.e3
-    data.h_p*=1.e3
-    
-    # rotate
-    if ( rot[0]!=0. or rot[1]!=0. ):
-        xr = x*np.cos(rot[0]) - y*np.sin(rot[0])
-        yr = x*np.sin(rot[0]) + y*np.cos(rot[0])
-        x = xr
-        
-        y = yr*np.cos(rot[1]) - z*np.sin(rot[1])
-        z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
-    
-    
-    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a"]) ):
-        #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
-        data.vel2d = (x*data.vels[:,0]+y*data.vels[:,1])/np.sqrt(x**2+y**2)
-        data.vel_a = (-x*data.vels[:,1]+y*data.vels[:,0])/np.sqrt(x**2+y**2)
-        data.velr = (x*data.vels[:,0]+y*data.vels[:,1]+z*data.vels[:,2])/np.sqrt(x**2+y**2+z**2)
-        data.vel_x = data.vels[:,0]
-        data.vel_y = data.vels[:,1]
-        data.vel_z = data.vels[:,2]
-
-    # mask out non-gas - currently everything is gas
-    mask = np.full(n,True,dtype=bool)
-    
-    # flat weighting - dummy value required for some functions because I'm not qwarging properly yet
-    n_ones = np.ones(n)
-
-    if ( visibleAxes ):
-        # figure properties
-        if ( "heat" in plot_thing ):
-            fig, ax = P.subplots(nrows,3*cols, gridspec_kw = {'width_ratios':([1, 1, 16,16,1, 1])[0:3*cols]})
-            if ( nrows<2 ):
-                ax = np.resize(ax, (3,6)) # because 1D arrays have different syntax, we have to pretend it's 3D
-            cbax2left_index = 0
-            cbaxleft_index = 1
-            spleft_index = 2
-            spright_index = 3
-            cbaxright_index = 4
-            cbax2right_index = 5
-        
-        else:
-            fig, ax = P.subplots(nrows,2*cols, gridspec_kw = {'width_ratios':([1, 16,16,1])[0:2*cols]})
-            if ( nrows<2 ):
-                ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
-            cbaxleft_index = 0
-            spleft_index = 1
-            spright_index = 2
-            cbaxright_index = 3
-    else:
-        fig, ax = P.subplots(nrows,cols)
-        if ( nrows<2 ):
-            ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
-        cbaxleft_index = 0
-        spleft_index = 0
-        spright_index = 1
-        cbaxright_index = 1
-        
-        
-
-    if ( visibleAxes ):
-        fig.suptitle(r"$T="+("%.4f" % time)+"$ Myr")
-#         fig.suptitle(infile)
-    if ( visibleAxes ):
-        fw_inches = 5.*cols
-    else:
-        fw_inches = 4.*cols
-    fig.set_figwidth(fw_inches)
-    fig.set_figheight(4.*nrows)
-
-    # set x coordinate - cartesian or cylindrical ("ringplot")
-    if ( ringPlot ):
-        if ( not flatPlot ):
-            raise Exception("ring==true requires flat==true")
-        rad2d = np.sqrt(x**2+y**2)
-    else:   
-        rad2d = x
-
-    deep_face = z
-    deep_side = y
+def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     if ( flatPlot ):
         quantslice = weightslice
         dslice = densslice
@@ -676,7 +541,8 @@ def makesph_trhoz_frame(infile,outfile,
         drange = [-4.5,0.]
     else:
         drange_s = drange
-    
+
+
     # Pack the dictionaries!
     # We could do this with a bunch of if/endif statements, but
     # data-driven is better
@@ -691,7 +557,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["tdust"] = r"$\log_{10} T_d$ (K)"
     plotLabel["dg"] = r"$f_d$"
     plotLabel["dust"] = rhounit
-    plotLabel["view"] = r"$\log_{10} F$"
+    plotLabel["view"] = r"$\log_{10} F$ (arbitrary units)"
     plotLabel["vlos"] = r"$v_{LOS}$"
     plotLabel["emit"] = r"$\log_{10} F$"
     plotLabel["dt"] = r"$\log_{10}$ dt"
@@ -709,6 +575,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotLabel["opac"] = r"$\kappa$"
     plotLabel["smooth"] = r"$h_p$"
     plotLabel["facetemp"] = r"$\log_{10}T_d$ (K)"
+    plotLabel["rad0"] = r"$R_0$ (pc)"
 
     plotRanges = dict()
     plotRanges["temp"] = [.999,4.]*2
@@ -747,6 +614,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotRanges["opac"] = [-2.,-1.]*2
     plotRanges["smooth"] = [-2.,2.]*2
     plotRanges["facetemp"] = [0.,2.5]*2
+    plotRanges["rad0"] = [0.,4.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -777,6 +645,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotSliceTypes["smooth"] = quantslice
     plotSliceTypes["facetemp"] = viewslice
     plotSliceTypes["rand"] = quantslice
+    plotSliceTypes["rad0"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -809,6 +678,7 @@ def makesph_trhoz_frame(infile,outfile,
     plotData["list"] = "list"
     plotData["rand"] = "rand"
     plotData["smooth"] = "h_p"
+    plotData["rad0"] = "rad0"
     plotData["facetemp"] = ["dustTemp","opac","dustTemp","opac"]
     
     logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad","AGNI","opac","smooth","facetemp"]
@@ -823,12 +693,182 @@ def makesph_trhoz_frame(infile,outfile,
 
     customCmaps2 = dict()
     customCmaps2["heat"] = 'Blues'
-
     
+    
+    return plotLabel, plotRanges, plotSliceTypes, plotCustomMass, plotData, logSliceTypes, extraBarTypes, plusMinusTypes, divergingTypes, customCmaps, customCmaps2
+
+def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,ringPlot=False,flatPlot=False,maskbounds=None):
+    need_to_load = list(plot_thing)
+    if maskbounds:
+        need_to_load.append(maskbounds[0])
+
+    time,data = load_gadget(infile,need_to_load,centredens=centredens)
+
+    n = data.h_p.size
+        
+    # convert to pc
+    x = data.xyz[:,0]*1.e3
+    y = data.xyz[:,1]*1.e3
+    z = data.xyz[:,2]*1.e3
+    data.h_p*=1.e3
+    
+    # rotate
+    if ( rot[0]!=0. or rot[1]!=0. ):
+        xr = x*np.cos(rot[0]) - y*np.sin(rot[0])
+        yr = x*np.sin(rot[0]) + y*np.cos(rot[0])
+        x = xr
+        
+        y = yr*np.cos(rot[1]) - z*np.sin(rot[1])
+        z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
+    
+    
+    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a"]) ):
+        #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
+        data.vel2d = (x*data.vels[:,0]+y*data.vels[:,1])/np.sqrt(x**2+y**2)
+        data.vel_a = (-x*data.vels[:,1]+y*data.vels[:,0])/np.sqrt(x**2+y**2)
+        data.velr = (x*data.vels[:,0]+y*data.vels[:,1]+z*data.vels[:,2])/np.sqrt(x**2+y**2+z**2)
+        data.vel_x = data.vels[:,0]
+        data.vel_y = data.vels[:,1]
+        data.vel_z = data.vels[:,2]
+
+
+    # set x coordinate - cartesian or cylindrical ("ringplot")
+    if ( ringPlot ):
+        if ( not flatPlot ):
+            raise Exception("ring==true requires flat==true")
+        rad2d = np.sqrt(x**2+y**2)
+    else:   
+        rad2d = x
+
+    deep_face = z
+    deep_side = y
+    
+    if maskbounds:
+        if maskbounds[0] in plotData:
+            v=data.__dict__[plotData[maskbounds[0]]]
+            mask = (v>maskbounds[1]) & (v<maskbounds[2])
+        else:
+            raise Exception("mask value {} not found in plotData".format(maskbounds[0]))
+    else:
+        # mask out non-gas - currently everything is gas
+        mask = np.full(n,True,dtype=bool)
+        
+    # flat weighting - dummy value required for some functions because I'm not qwarging properly yet
+    n_ones = np.ones(n)
+
+    return time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones
+
+def makesph_trhoz_frame(infile,outfile,
+                        scale = 20.,
+                        cmap="viridis",
+                        L=256,
+                        ring=False,
+                        flat=False,
+                        planenorm=False,
+                        visibleAxes=True,
+                        subsample=1,
+                        pixsize=None,
+                        plot=['dens','temp'],
+                        rot=[0.,0.],
+                        views=['face','side'],
+                        centredens=False,
+                        centrecom=False,
+                        vorinoi=False,
+                        maxmode=False,
+                        dotmode=None,
+                        titlesuffix="",
+                        maskbounds=None
+                        ):
+    if version[0]=='2':
+        raise Exception("Requires Python 3.X. Current version:"+version)
+
+    #cmap_r = cmap+"_r"
+    #cmap_d = "coolwarm"
+    plot_thing = plot
+    flatPlot = flat
+    ringPlot = ring
+    
+    if dotmode!='max' and dotmode!='min':
+        dotmode = None
+
+    if ( L%subsample!=0 ):
+        raise Exception("subsample might divide evenly into L")
+
+    if ( not pixsize ):
+        pixsize = subsample
+
+    if (len(rot)!=2):
+        raise Exception("rot needs to be [theta,phi]")
+        
+    if ( not all(view=='face' or view=='side' for view in views) ):
+        raise Exception("Views must be an array of size one or two containing only 'face' or 'side'")
+    
+    cols = len(views)
+    if ( cols!=1 and cols!=2 ):
+        raise Exception("len(views)=1 or =2")
+
+    plotLabel, plotRanges, plotSliceTypes, plotCustomMass, plotData, logSliceTypes, extraBarTypes, plusMinusTypes, divergingTypes, customCmaps, customCmaps2 = pack_dicts(flatPlot,planenorm,cmap)
+
+    nrows = len(plot_thing)
+
+    if ( visibleAxes ):
+        # figure properties
+        if ( "heat" in plot_thing ):
+            fig, ax = P.subplots(nrows,3*cols, gridspec_kw = {'width_ratios':([1, 1, 16,16,1, 1])[0:3*cols]})
+            if ( nrows<2 ):
+                ax = np.resize(ax, (3,6)) # because 1D arrays have different syntax, we have to pretend it's 3D
+            cbax2left_index = 0
+            cbaxleft_index = 1
+            spleft_index = 2
+            spright_index = 3
+            cbaxright_index = 4
+            cbax2right_index = 5
+        
+        else:
+            fig, ax = P.subplots(nrows,2*cols, gridspec_kw = {'width_ratios':([1, 16,16,1])[0:2*cols]})
+            if ( nrows<2 ):
+                ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
+            cbaxleft_index = 0
+            spleft_index = 1
+            spright_index = 2
+            cbaxright_index = 3
+    else:
+        fig, ax = P.subplots(nrows,cols)
+        if ( nrows<2 ):
+            ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
+        cbaxleft_index = 0
+        spleft_index = 0
+        spright_index = 1
+        cbaxright_index = 1
+        
+    if not isinstance(infile,list):
+        verboseprint("Loading",infile)
+        time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)
+#         time,data = load_gadget(infile,need_to_load,centredens=centredens)
+        verboseprint("Plotting",infile,", t=%.4f Myr"% time)
+
+        if ( visibleAxes ):
+            fig.suptitle(r"$T="+("%.4f" % time)+"$ Myr"+titlesuffix)
+#         fig.suptitle(infile)
+
+    if ( visibleAxes ):
+        fw_inches = 5.*cols
+    else:
+        fw_inches = 4.*cols
+    fig.set_figwidth(fw_inches)
+    fig.set_figheight(4.*nrows)
+
     # nerrors=0
 
     # do all subplots, calculating the full SPH smoothing each time
     for irow in range(nrows):
+        
+        if isinstance(infile,list):
+            thisfile = infile[irow]
+            verboseprint("Loading",thisfile)
+            time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(thisfile,need_to_load,centredens,rot,plot_thing,plotData,ringPlot,flatPlot,maskbounds)
+            verboseprint("Plotting",thisfile,", t=%.4f Myr"% time)
+
         # Process the tables we just made
         # Believe it or not, this is clearer than writing out each
         # plot command by hand - there's less repetition
@@ -847,8 +887,6 @@ def makesph_trhoz_frame(infile,outfile,
             raise Exception(errstr)
         thisPlotLabel = plotLabel[plot_thing[irow]]
         thisPlotRanges = plotRanges[plot_thing[irow]]
-
-
 
         # physical coordinates of region to plot, in pc
         if isinstance(scale,list):
@@ -956,16 +994,32 @@ def makesph_trhoz_frame(infile,outfile,
                 visax.axes.get_yaxis().set_visible(False)
                 visax.axes.get_xaxis().set_visible(False)
 
-    if ( visibleAxes ):
-        for iax in range(nrows):
-            this_ax = ax[iax,1]
-            this_ax.yaxis.tick_right()
-            this_ax.yaxis.set_visible(False)
 
-        for iax in range(nrows):
-            this_ax = ax[iax,0]
-            this_ax.yaxis.tick_left()
-            this_ax.yaxis.set_label_position("left")
+    if ( visibleAxes ):
+        if cols==2:
+            for iax in range(nrows):
+                this_ax = ax[iax,1]
+                this_ax.yaxis.tick_right()
+                this_ax.yaxis.set_visible(False)
+            for iax in range(nrows):
+                this_ax = ax[iax,0]
+                this_ax.yaxis.tick_left()
+                this_ax.yaxis.set_label_position("left")
+
+        else:
+            for iax in range(nrows):
+                this_ax = ax[iax,0]
+                this_ax.yaxis.tick_left()
+                this_ax.yaxis.set_label_position("left")
+            for iax in range(nrows):
+                this_ax = ax[iax,1]
+                this_ax.yaxis.tick_right()
+                this_ax.yaxis.set_label_position("right")
+#                 this_ax.set_ylabel('pc')
+# 
+#                 this_ax.set_xlabel('pc')
+#                 this_ax.yaxis.set_visible(False)
+
     else:
         P.axis('off')
 
@@ -975,7 +1029,8 @@ def makesph_trhoz_frame(infile,outfile,
         if (nrows==2):
             fig.subplots_adjust(left=0.07,hspace=.07,bottom=.05,top=.95)
         else:
-            fig.subplots_adjust(left=0.07,hspace=.07,bottom=.05,top=.9)
+#             fig.subplots_adjust(left=0.07,hspace=.07,bottom=.05,top=.9)
+            fig.subplots_adjust(left=0.12,hspace=.12,bottom=.1,top=.9)
     else:
         fig.subplots_adjust(left=0.0,hspace=.0,top=1.,bottom=.0,right=1.,wspace=0.)
         

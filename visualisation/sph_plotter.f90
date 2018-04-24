@@ -458,6 +458,73 @@ module sph_plotter
         
     end function norm2crossp
 
+
+    ! histogram along some radial ray
+    function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,nbins,nray,n) result(rayhist)
+        implicit none
+        
+        integer :: n,nray,nbins
+        
+        real(kind=8), dimension(n,3) :: xyz ! particle positions
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! value to sum along ray
+
+        
+        real(kind=8), dimension(nray,3) :: xyzray_in ! Ray from 0,0 in these directions
+        real(kind=8), dimension(nray,3) :: xyzray ! Ray from 0,0 in these directions - normalised
+        
+        real(kind=8) :: vmin,vmax
+        
+        real(kind=8), dimension(nbins,nray) :: rayhist ! ray value along los (surface density)
+
+        real(kind=8) :: ray_norm, impact_pram, dotprod
+        real(kind=8) :: h2 ! h squared to avoid square roots later
+        real(kind=8) :: weight
+        
+        real(kind=8) :: bin_width
+
+        logical, dimension(n) :: f ! mask
+
+        
+        integer :: iray,ip,ibin
+
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+        
+        ! 
+        do iray=1,nray
+            ray_norm = sqrt(sum(xyzray_in(iray,:)**2))
+            xyzray(iray,:) = xyzray_in(iray,:)/ray_norm
+        end do
+        
+        rayhist = 0.d0
+        bin_width = (vmax-vmin)/nbins
+        
+        do ip=1,n
+            if ( f(ip) ) then
+                h2 = h(ip)**2
+                do iray=1,nray
+                    dotprod = sum(xyzray(iray,:)*xyz(ip,:))
+                    if ( dotprod>0. ) then
+                        impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
+                        if ( impact_pram<h2 ) then
+                            ibin = floor((v(ip)-vmin)/bin_width+1)
+                            if ( ibin>=1 .and. ibin<=nbins ) then
+                    
+                                impact_pram = sqrt(impact_pram)
+                                weight = m(ip)*fkern(impact_pram/h(ip))/h2
+                        
+                                rayhist(ibin,iray) = rayhist(ibin,iray) + weight
+                            endif
+                        endif
+                    endif
+                end do
+            endif
+        end do
+        
+    end function
+
     ! surface density along some radial ray
     function sph_ray_integrate(xyz,m,h,xyzray_in,nray,n) result(rw)
         implicit none
@@ -466,7 +533,6 @@ module sph_plotter
         
         real(kind=8), dimension(n,3) :: xyz ! particle positions
         real(kind=8), dimension(n) :: m,h ! mass, smoothing
-        real(kind=8), dimension(n) :: v ! value to sum along ray
 
         
         real(kind=8), dimension(nray,3) :: xyzray_in ! Ray from 0,0 in these directions
@@ -499,7 +565,7 @@ module sph_plotter
                     impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
                     if ( impact_pram<h2 ) then
                         impact_pram = sqrt(impact_pram)
-                        weight = fkern(impact_pram/h(ip))/h2
+                        weight = m(ip)*fkern(impact_pram/h(ip))/h2
                         
                         rw(iray) = rw(iray) + weight
                     endif
@@ -528,8 +594,6 @@ module sph_plotter
         integer :: ix,iy ! grid position of particle
         
         real(kind=8) :: r_cell, area_cell
-        
-        real(kind=8) :: rdist
 
         if ( .not. kernel_initialized ) then
             call kernel_init

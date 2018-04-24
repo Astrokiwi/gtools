@@ -25,6 +25,20 @@ def doop(*args):
 #     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
 #     l.sort( key=alphanum_key )
 
+def dump_rad0(infile):
+    import h5py
+    with h5py.File(infile,"r") as f:
+        xyz_p = np.array(f["/PartType0/Coordinates"]) # kpc
+        id_p = np.array(f["/PartType0/ParticleIDs"]).astype(int)
+    id_p-=1
+    rad_p = np.sqrt(xyz_p[:,0]**2+xyz_p[:,1]**2+xyz_p[:,2]**2)*1.e3
+    rad_out = np.zeros_like(rad_p)
+    rad_out[id_p] = rad_p
+    np.save("rad0.npy",rad_out)
+#     sys.exit()
+    
+
+
 if __name__ == '__main__':
     default_values = dict()
     default_values["nprocs"]=8
@@ -169,6 +183,9 @@ if __name__ == '__main__':
     
     infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in range(snapi,snapf+1)]
     outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in range(snapi,snapf+1)]
+    
+    if "rad0" in toplot:
+        dump_rad0(infiles[0])
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
     Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad,views=toview,rot=[theta,phi],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode) for i in range(snapi,snapf+1))
