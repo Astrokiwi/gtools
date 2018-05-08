@@ -36,10 +36,10 @@ else:
 print(infile)
 
 
-snapx = [1,101,201,501,1001]
-infile = [fullDir+"/snapshot_"+("%03d" % x)+".hdf5" for x in snapx]
-outfile = "../pics/nHevolve2014q2.png"
-sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['nH','nH','nH','nH','nH'],L=800,scale=4.)
+# snapx = [1,101,201,501,1001]
+# infile = [fullDir+"/snapshot_"+("%03d" % x)+".hdf5" for x in snapx]
+# outfile = "../pics/nHevolve2014q2.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['nH','nH','nH','nH','nH'],L=800,scale=4.)
 
 #outfile = "../pics/georgia_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 #outfile = "../pics/pretty_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
@@ -47,6 +47,9 @@ sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,p
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['vels','dens'],L=400,scale=20.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['vels'],L=600,scale=20.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['dens'],L=800,scale=40.,cols=1)
+
+sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',plot=['dt'],L=400,scale=4.,dotmode='max')
+
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens'],views=['side'],L=400,scale=2.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['view'],L=400,scale=2.)
@@ -70,10 +73,26 @@ sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,p
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',views=['face'],flat=True,ring=True,plot=['temp'],L=800,scale=1.e4)
 
-# outfile = "../pics/warmvels.png"
-# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['vels','temp'],L=400,scale=6.,maskbounds=['temp',10.**2.,10.**3.])
-# outfile = "../pics/hotvels.png"
-# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['vels','temp'],L=400,scale=6.,maskbounds=['temp',10.**3.,10.**4.])
+# outfile = "../pics/coolgasvels.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['vels','temp'],L=400,scale=6.,maskbounds=['temp',10.**0.,10.**2.5])
+# outfile = "../pics/warmgasvels.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['vels','temp'],L=400,scale=6.,maskbounds=['temp',10.**2.5,10.**4.])
+# outfile = "../pics/cooldustvels.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['vels','tdust'],L=400,scale=6.,maskbounds=['tdust',1.,50.])
+# outfile = "../pics/warmdustvels.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['vels','tdust'],L=400,scale=6.,maskbounds=['tdust',50.,150.])
+
+# outfile = "../pics/outphase1.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['temp'],L=400,scale=50.,maskbounds=['tdust',50.,150.],dotmode='min')
+# 
+# outfile = "../pics/outphase2.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['temp'],L=400,scale=50.,maskbounds=['temp',5000.,7000.],dotmode='min')
+# 
+# outfile = "../pics/outphase3.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['temp'],L=400,scale=50.,maskbounds=['temp',300.,5000.],dotmode='min')
+
+# outfile = "../pics/outphase4.png"
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['vel_r','vel_a','temp','tdust'],L=400,scale=50.,maskbounds=['vel_r',10.,1000.])
 
 
 # outfile = "../pics/warmdustvels.png"

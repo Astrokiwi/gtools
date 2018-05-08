@@ -40,13 +40,19 @@ tunit = 0.9778e9 # years
 # #             raise StopIteration()
 
 if __name__ == '__main__':
-    run_id = "2014"
-    runs = ["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
+#     run_id = "2014"
+#     runs = ["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
+
+#     run_ids     = ["2014","2015","2015","2014","2014","2014"]
+#     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
+    run_ids     = ["2015","2015"]
+    runs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
+
     
 #     fig = P.figure()
 
     gizmoDir = gizmo_tools.getGizmoDir()
-    for irun,output_dir in enumerate(runs):
+    for irun,(run_id,output_dir) in enumerate(zip(run_ids,runs)):
         print("Plotting: ",output_dir)
         fullDir = gizmoDir+"/"+run_id+"/"+output_dir
         infilename = fullDir+"/info.txt"

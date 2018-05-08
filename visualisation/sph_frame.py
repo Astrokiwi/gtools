@@ -607,11 +607,12 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["AGNI"] = [-9.,-3.]*2
 #    plotRanges["tau"] = [0.,5.]*2
 #     plotRanges["tau"] = [-2,3.]*2
-    plotRanges["tau"] = [0.,250.]*2
+#     plotRanges["tau"] = [0.,250.]*2
+    plotRanges["tau"] = [0.,50.]*2
     plotRanges["list"] = [0.,1.e6]*2
     plotRanges["rand"] = [0.,1.]*2
-#     plotRanges["opac"] = [-4.,-1.6]*2
-    plotRanges["opac"] = [-2.,-1.]*2
+    plotRanges["opac"] = [-4.,-1.6]*2
+#     plotRanges["opac"] = [-2.,-1.]*2
     plotRanges["smooth"] = [-2.,2.]*2
     plotRanges["facetemp"] = [0.,2.5]*2
     plotRanges["rad0"] = [0.,4.]*2

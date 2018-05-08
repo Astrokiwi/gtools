@@ -55,7 +55,7 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
     xyzray[:,1] = np.cos(phis)*np.sin(thetas)
     xyzray[:,2] = np.sin(phis)
 
-    outp = np.zeros((nray_phi,nruns*3+1))
+    outp = np.zeros((nray_phi,nruns*4+1))
     outp[:,0] = phis_basis
 
     gizmoDir = gizmo_tools.getGizmoDir()
@@ -82,6 +82,10 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
         h_p = np.array(f["/PartType0/SmoothingLength"]) # kpc
         h_p*=1.e3 # to pc
 
+        opac_p = np.array(f["/PartType0/AGNOpacity"]) # internal units: kpc**2/1e10 solar mass
+        opac_p = 1.e-4 # to pc**2/solar mass
+
+
     #     u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
     #     u_p*=1.e10 # to erg/g
     #     TK_p = (gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*u_p)
@@ -95,6 +99,9 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
         sigma_low = np.min(sigma_all.reshape(-1,nray_theta),axis=1)
         sigma_high = np.max(sigma_all.reshape(-1,nray_theta),axis=1)
 
+        tau_all = sph_plotter.sph_ray_integrate(xyz,m_p*opac_p,h_p,xyzray,nray,n)
+        tau = np.mean(tau_all.reshape(-1,nray_theta),axis=1)
+
     #    phideg = phis_basis/(2.*np.pi)*360
 
     #     molecular_mass = 4./(1.+3.*.76)
@@ -105,9 +112,10 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
         sigma_low*=sigma_convert
         sigma_high*=sigma_convert
     
-        outp[:,irun*3+1] = sigma
-        outp[:,irun*3+2] = sigma_low
-        outp[:,irun*3+3] = sigma_high
+        outp[:,irun*4+1] = sigma
+        outp[:,irun*4+2] = sigma_low
+        outp[:,irun*4+3] = sigma_high
+        outp[:,irun*4+4] = tau
 
     #     print("Plotting")
     #     P.plot(phideg,sigma,label=run_id+output_dir+snap_str)

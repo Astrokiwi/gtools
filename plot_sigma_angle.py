@@ -8,24 +8,42 @@ mpl.use('Agg')
 
 import matplotlib.pyplot as P
 
-titlegroups = [[r"$f_{edd}=0.01$, $f_{a}=10^{2}$",r"$f_{edd}=0.05$, $f_{a}=10^{2}$",r"$f_{edd}=0.1$, $f_{a}=10^{2}$",r"$f_{edd}=0.2$, $f_{a}=10^{2}$"],[r"$f_{edd}=0.1$, $f_{a}=10^{1}$",r"$f_{edd}=0.1$, $f_{a}=10^{2}$",r"$f_{edd}=0.1$, $f_{a}=10^{3}$"]]
+# titlegroups = [[r"$f_{edd}=0.01$, $f_{a}=10^{2}$",r"$f_{edd}=0.05$, $f_{a}=10^{2}$",r"$f_{edd}=0.1$, $f_{a}=10^{2}$",r"$f_{edd}=0.2$, $f_{a}=10^{2}$"],[r"$f_{edd}=0.1$, $f_{a}=10^{1}$",r"$f_{edd}=0.1$, $f_{a}=10^{2}$",r"$f_{edd}=0.1$, $f_{a}=10^{3}$"]]
+titlegroups = [["A","B","C2","D"],["C1","C2","C3"]]
+colourgroups = [[0,1,3,5],[2,3,4]]
+irungroups = ["sigma_angle_many_edd_","sigma_angle_many_aniso_"]
 
-itimes = [100,200,500,1000]
+# itimes = [100,200,500,1000]
+# itimes = [1000]
+itimes = [200]
 
 time_between_dump = 1.e-6
 conversion_to_Myr= 0.9778e9/1.e6
 
 times = np.array(itimes)*time_between_dump*conversion_to_Myr
 
+# singleFile = None # print out one figure per input
+singleFile = "../figures/sigma_angle_many_many_2014.pdf"
+
+if singleFile:
+    fig,subplorts = P.subplots(len(itimes),len(irungroups),sharex=True,sharey=True,figsize=(12,len(itimes)*4.))
+    if subplorts.ndim==2:
+        sp = subplorts
+    else:
+        sp = np.empty((1,subplorts.shape[0]),dtype=object)
+        sp[0,:] = subplorts
+
 for time_index,itime in enumerate(itimes):
-    for irungroup,prefix in enumerate(["sigma_angle_many_edd_","sigma_angle_many_aniso_"]):
+    for irungroup,prefix in enumerate(irungroups):
 
         infile = "data/"+prefix+str(itime)+".dat"
         titles = titlegroups[irungroup]
         time = times[time_index]
-        outp = "../figures/"+prefix+str(itime)+".png"
+#         outp = "../figures/"+prefix+str(itime)+".png"
+        if not singleFile:
+            outp = "../figures/"+prefix+str(itime)+".pdf"
 
-        print(outp,time)
+        print(infile,time)
 
         #infile = "data/sigma_angle_sfnograv.dat"
         #infile = "data/sigma_angle_sdev.out"
@@ -69,29 +87,50 @@ for time_index,itime in enumerate(itimes):
         degs = data[:,0]/(2.*np.pi)*360
 
         #colors=['brown','blue','yellow','purple']
-        colors = ['#0072b2', '#009e73', '#d55e00', '#56b4e9']
+#         colors = ['#0072b2', '#009e73', '#d55e00', '#56b4e9']
+        colors = P.rcParams['axes.color_cycle']
 
 
-        P.figure()
-        P.suptitle(r"t=%5.3f Myr"%time)
+        
+        if singleFile:
+            cur_sp = sp[time_index,irungroup]
+        else:
+            fig,cur_sp = P.subplots(1,1)
+        
 
-        P.xlim([0.,45.])
+        cur_sp.set_xlim([0.,45.])
 
         for icol,title in enumerate(titles):
         #    if icol in [0,1,3]:
-            denses = data[:,icol*3+1]
+            denses = data[:,icol*4+1]
             #P.plot(degs,denses,color='black')
-            P.plot(degs,denses,color=colors[icol],label=title)
-            lows = data[:,icol*3+2]
-            highs = data[:,icol*3+3]
+            cur_sp.plot(degs,denses,color=colors[colourgroups[irungroup][icol]],label=title)
+            lows = data[:,icol*4+2]
+            highs = data[:,icol*4+3]
 #             P.fill_between(degs,lows,highs,facecolor=colors[icol],alpha=.5)
-            P.errorbar(degs,denses,yerr=[denses-lows,highs-denses],color=colors[icol],capsize=2)
+            cur_sp.errorbar(degs,denses,yerr=[denses-lows,highs-denses],color=colors[colourgroups[irungroup][icol]],capsize=2)
+#             print(title,time_index,icol,colourgroups[time_index][icol],colors[colourgroups[irungroup][icol]])
 
-        P.legend()
-        P.yscale('log')
-        P.ylim([1.e11,1.e27])
-        P.xlabel(r"$\phi$ ($^\degree$)")
+        cur_sp.legend(fontsize='x-small')
+        cur_sp.set_yscale('log')
+        cur_sp.set_ylim([1.e11,1.e27])
+        if time_index==len(itimes)-1:
+            cur_sp.set_xlabel(r"$\phi$ ($^\degree$)")
         #P.ylabel(r"$\Sigma$ ($M_\odot$/pc$^2$)")
-        P.ylabel(r"$\Sigma$ (cm$^{-2}$)")
-        P.savefig(outp,dpi=200)
-        P.close()
+        if irungroup==0:
+            cur_sp.set_ylabel(r"$N_\mathrm{H}$ (cm$^{-2}$)")
+        if irungroup==len(irungroups)-1:
+            cur_sp.yaxis.set_label_position("right")
+            cur_sp.set_ylabel(r"t=%5.3f Myr"%time)
+
+#         P.savefig(outp,dpi=200)
+        
+        if not singleFile:
+            fig.savefig(outp)
+            P.close()
+
+if singleFile:
+    fig.tight_layout()
+    fig.savefig(singleFile)
+    P.close()
+
