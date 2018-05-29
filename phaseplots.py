@@ -38,12 +38,14 @@ labels['depth_p'] = r"$\log N_H$ (cm$^{-2}$)"
 dolog['depth_p'] = True
 ranges['depth_p'] = [16,27]
 
-# labels['TK_p'] = r"$\log T_g$ (K)"
+labels['TK_p'] = r"$\log T_g$ (K)"
 # dolog['TK_p'] = True
 # ranges['TK_p'] = [1,6]
-labels['TK_p'] = r"$T_g$ (K)"
-dolog['TK_p'] = False
-ranges['TK_p'] = [0,1e4]
+# labels['TK_p'] = r"$T_g$ (K)"
+# dolog['TK_p'] = False
+# ranges['TK_p'] = [0,1e4]
+dolog['TK_p'] = True
+ranges['TK_p'] = [1.,7.]
 
 labels['rad2d_p'] = r"$R$ (pc)"
 dolog['rad2d_p'] = False
@@ -56,7 +58,7 @@ ranges['z_p'] = [0,20.]
 
 labels['dustTemp'] = r"$T_d$ (K)"
 dolog['dustTemp'] = False
-ranges['dustTemp'] = [0,200]
+ranges['dustTemp'] = [0,150]
 
 labels['radrad_p'] = r"$a_{rad,r}$ (cm/s/s)"
 dolog['radrad_p'] = False
@@ -79,7 +81,8 @@ labels['vrad'] = r"$v_{rad}$ (km/s)"
 dolog['vrad'] = False
 #ranges['vrad'] = [-300,300]
 #ranges['vrad'] = [-300,1.e3]
-ranges['vrad'] = [-50,300.]
+# ranges['vrad'] = [-50,300.]
+ranges['vrad'] = [-50,600.]
 
 
 labels['vcirc'] = r"$v_{circ}$ km/s"
@@ -305,7 +308,7 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
             values["p_p"] = values["nH_p"]*values["TK_p"]*boltzmann_cgs
 
     if ( "dustTemp" in requiredVals or "dHeat" in requiredVals ):
-        #print("Loading table (short form)")
+        print("Loading table and extracting values")
         chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
                                             ("coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
                                             ("coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
@@ -356,7 +359,7 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     return time,values
 
 # assumes that values are already loaded
-def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma'):
+def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma',bins=(150,150)):
 
     bigslice = (values["dt_p"]>0.)
 
@@ -371,6 +374,9 @@ def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma'):
     else:
         vy = values[jv]
     notnans = ((np.isfinite(vx)) & (np.isfinite(vy))) & bigslice
+    
+    print(np.nanmin(vx),np.nanmax(vx),np.nanmin(vy),np.nanmax(vy))
+    
     if ( not noranges and not (ranges[iv] is None) ):
         notnans = notnans & (vx>=ranges[iv][0]) & (vx<=ranges[iv][1])
     if ( not noranges and not (ranges[jv] is None) ):
@@ -381,9 +387,9 @@ def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma'):
     vy = vy[notnans]
     # CHECK FOR RANGES
     if ( not (ranges[iv] is None) and not (ranges[jv] is None) and not noranges ):
-        H,xedges,yedges = np.histogram2d(vx,vy,bins=(150,150),range=[ranges[iv],ranges[jv]])
+        H,xedges,yedges = np.histogram2d(vx,vy,bins=bins,range=[ranges[iv],ranges[jv]])
     else:
-        H,xedges,yedges = np.histogram2d(vx,vy,bins=(150,150))
+        H,xedges,yedges = np.histogram2d(vx,vy,bins=bins)
     H*=values["m_p"][0]
     with np.errstate(divide='ignore'):
         H = np.log10(H).T
@@ -455,7 +461,8 @@ if __name__ == '__main__':
 #     includedVals = ["arad_p","radrad_p"]
 #     includedVals = ["TK_p","dustTemp","vrad"]
 #     includedVals = ["TK_p","dustTemp","nH_p"]
-    includedVals = ["rad_p","opac"]
+#     includedVals = ["rad_p","opac"]
+    includedVals = ["TK_p","dustTemp","nH_p"]
     
     x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.)
     print(x)
