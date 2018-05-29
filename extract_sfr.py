@@ -45,9 +45,19 @@ if __name__ == '__main__':
 
 #     run_ids     = ["2014","2015","2015","2014","2014","2014"]
 #     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
-    run_ids     = ["2015","2015"]
-    runs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
+#     run_ids     = ["2015","2015"]
+#     runs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
+#     run_ids     = ["1055","1055"]
+#     runs = ["q2_SN","q2_SN_slow"]
 
+#     run_ids     = ["2014","2015","2015","2014","2014","2014","2015","2015","1055","1055"]
+#     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2_SN","q2_SN_slow"]
+#     run_ids = ["2018"]
+#     runs = ["treetest"]
+    run_ids = ["2019"]*5
+    runs = ["restest0m"+x for x in ["02","04","06","08","1"]]
+    print(run_ids)
+    print(runs)
     
 #     fig = P.figure()
 
@@ -62,18 +72,47 @@ if __name__ == '__main__':
 #         sf_data_str = np.loadtxt(LineSkipper(open(infilename)),delimiter=",",dtype=str)
 #         exit()
         nskip = 1000
+        timeskip = 0.01*1.e6/tunit
+        
+        print(sf_data_str.shape)
+        
         sf_data_str = sf_data_str[::nskip,:]
-        
+    
         times = np.loadtxt(sf_data_str[:,0],usecols=[1])
-        sf_cumulative = np.loadtxt(sf_data_str[:,1],usecols=[1])
+        dt = np.gradient(times)
+        good_dt = dt>0.
+        times = times[good_dt]
+    
+        final_time = times[-1]
+        first_time = times[0]
+        sample_times = np.arange(first_time,final_time,timeskip)
+        sample_locs = np.searchsorted(times,sample_times)
+    
+#         print(sample_times)
+#         
+#         
+#         print(sample_locs)
+    
+        sf_data_str = sf_data_str[good_dt,:][sample_locs,:]
         
-        times *= tunit
-        sf_cumulative *= munit
-
-        sfr = np.gradient(sf_cumulative)/np.gradient(times)
+        if sf_data_str.shape[0]>3:
         
-        times /= 1e6 # Myr for plot
-        print("Plotting")
+            times = np.loadtxt(sf_data_str[:,0],usecols=[1])
+            sf_cumulative = np.loadtxt(sf_data_str[:,1],usecols=[1])
+        
+            times *= tunit
+            sf_cumulative *= munit
+        
+    #         times = times[good_dt]
+    #         sf_cumulative = sf_cumulative[good_dt]
+            sfr = np.gradient(sf_cumulative)/np.gradient(times)
+            
+            times /= 1e6 # Myr for plot
+        else:
+            times = [0,0]
+            sf_cumulative = [0,0]
+            sfr = [0,0]
+        print("Dumping")
 #         P.plot(times,sfr,label=runs[irun])
         
         output_data = np.vstack((times,sf_cumulative,sfr)).T

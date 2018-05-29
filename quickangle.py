@@ -250,13 +250,20 @@ if __name__ == '__main__':
         else:
 #             run_id = "2014"
 #             output_dirs = ["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
-            run_ids     = ["2014","2015","2015","2014","2014","2014"]
-            output_dirs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
+#             run_ids     = ["2014","2015","2015","2014","2014","2014"]
+#             output_dirs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
+#             run_ids     = ["1055","1055"]
+#             output_dirs = ["q2_SN","q2_SN_slow"]
 #             run_ids     = ["2015","2015"]
 #             output_dirs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
 #             run_ids     = ["2015"]
 #             output_dirs = ["q2edd10_aniso1fixed"]
-
+#             run_ids = ["2018"]
+#             output_dirs = ["treetest"]
+            run_ids = ["2019"]*5
+            output_dirs = ["restest0m"+x for x in ["02","04","06","08","1"]]
+            print(run_ids)
+            print(output_dirs)
     
         for run_id,output_dir in zip(run_ids,output_dirs):
             print("Dumping full evolution",run_id,output_dir)
@@ -277,7 +284,7 @@ if __name__ == '__main__':
 
             snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
 #             step = 10
-            step = 10
+            step = 1
             snapi = step
     #         snapf = 999
 #             snap_strs = ["%03d" % i for i in range(0,snapf,step)]

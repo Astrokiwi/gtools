@@ -57,7 +57,7 @@ def lastConsecutiveSnapshot(run_id,output_dir):
         new_snapf = int(fname[9:len(fname)-5])
         new_ctime = os.path.getmtime(fullDir+"/"+fname)
 #         print(ctime,new_ctime)
-        if ( new_ctime>ctime ) :
+        if new_ctime>ctime and snapf==new_snapf-1 :
             ctime = new_ctime
             snapf = new_snapf
     
