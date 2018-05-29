@@ -5,10 +5,17 @@ import matplotlib.pyplot as P
 
 if __name__ == '__main__':
 #     run_id = "2014"
-    run_ids     = ["2014","2014","2015","2014","2015","2014"]
-    runs = ["q2redo","q2edd05redo","q2edd10_aniso1fixed","q2edd10redo","q2edd10_aniso3fixed","q2edd20redo"]
-#     edd = [.01,.05,.1,.1,.1,.2] # incorrect anyway
-    names = ["A","B","C1","C2","C3","D"]
+#     run_ids     = ["2014","2014","2015","2014","2015","2014"]
+#     runs = ["q2redo","q2edd05redo","q2edd10_aniso1fixed","q2edd10redo","q2edd10_aniso3fixed","q2edd20redo"]
+# #     edd = [.01,.05,.1,.1,.1,.2] # incorrect anyway
+#     names = ["A","B","C1","C2","C3","D"]
+
+#     run_ids     = ["1055","1055"]
+#     runs = ["q2_SN","q2_SN_slow"]
+#     names = ["ASS","AS"]
+    run_ids     = ["1058","1058"]
+    runs = ["restest0m02","restest0m04"]
+    names = ["0m02","0m04"]
     
     
     nsp = 3
@@ -43,11 +50,14 @@ if __name__ == '__main__':
     
     sp[0].set_ylim([1.e-5,.2])
     sp[1].set_ylim([1.e-5,.2])
+    sp[2].set_ylim([0.,14.])
 
     sp[nsp-1].set_xlabel("$t$ (Myr)")
 #     sp[0].legend(loc='best',fontsize='xx-small')
     sp[0].legend(loc='best')
     
     P.tight_layout()
-    P.savefig("../figures/timeseries_summary_q2.pdf")
+#     P.savefig("../figures/timeseries_summary_q2.pdf")
+#     P.savefig("../figures/timeseries_summary_SN.pdf")
+    P.savefig("../figures/timeseries_summary_res_fast.pdf")
     P.close()

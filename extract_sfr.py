@@ -45,8 +45,13 @@ if __name__ == '__main__':
 
 #     run_ids     = ["2014","2015","2015","2014","2014","2014"]
 #     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
-    run_ids     = ["2015","2015"]
-    runs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
+#     run_ids     = ["2015","2015"]
+#     runs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
+
+#     run_ids     = ["1055","1055"]
+#     runs = ["q2_SN","q2_SN_slow"]
+    run_ids     = ["1058"]*2
+    runs = ["restest0m02","restest0m04"]
 
     
 #     fig = P.figure()

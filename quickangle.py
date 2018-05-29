@@ -245,17 +245,19 @@ if __name__ == '__main__':
         np.savetxt("data/quickangle"+run_id+output_dir+snap_str+".dat",output_data)
     else:
         if len(sys.argv)>1:
-            run_id = sys.argv[1]
+            run_ids = [sys.argv[1]]
             output_dirs = [sys.argv[2]]
         else:
 #             run_id = "2014"
 #             output_dirs = ["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
-            run_ids     = ["2014","2015","2015","2014","2014","2014"]
-            output_dirs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
+#             run_ids     = ["2014","2015","2015","2014","2014","2014"]
+#             output_dirs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
 #             run_ids     = ["2015","2015"]
 #             output_dirs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
 #             run_ids     = ["2015"]
 #             output_dirs = ["q2edd10_aniso1fixed"]
+            run_ids     = ["1058"]*2
+            output_dirs = ["restest0m02","restest0m04"]
 
     
         for run_id,output_dir in zip(run_ids,output_dirs):
