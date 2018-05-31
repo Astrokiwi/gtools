@@ -80,7 +80,7 @@ for output_dir in runs:
         sph_frame.makesph_plot(fig,sp[irow,4],cb_sp_temp,rad2d,z,deep_side,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} T_g$ (K)",0.,4.,temp_cmap,sph_frame.weightslice)
         
         sp[irow,4].yaxis.set_label_position("right")
-        sp[irow,4].set_ylabel("t={0:.4f} Myr".format(time))
+        sp[irow,4].set_ylabel("t={0:.4f} Myr".format(time),size='x-large')
 
     for isp in range(1,ntimes):
         sp[isp,0].remove()

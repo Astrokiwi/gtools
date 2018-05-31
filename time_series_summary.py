@@ -20,10 +20,10 @@ if __name__ == '__main__':
 #     run_ids     = ["1055","1055"]
 #     runs = ["q2_SN","q2_SN_slow"]
 #     names = ["ASS","AS"]
-    run_ids     = ["1058","1058"]
-    runs = ["restest0m02","restest0m04"]
-    names = ["0m02","0m04"]
-    outfile = "../figures/timeseries_summary_res.pdf"
+#     run_ids     = ["1058","1058"]
+#     runs = ["restest0m02","restest0m04"]
+#     names = ["0m02","0m04"]
+#     outfile = "../figures/timeseries_summary_res_fast.pdf"
 
 #     run_ids     = ["2014","2014","2015","2014","2015","2014","1055","1055","2018"]
 #     runs = ["q2redo","q2edd05redo","q2edd10_aniso1fixed","q2edd10redo","q2edd10_aniso3fixed","q2edd20redo","q2_SN_slow","q2_SN","treetest"]
@@ -32,10 +32,10 @@ if __name__ == '__main__':
 #     sfr_split = [["A","B","D","X"],[r"A$_*$",r"A$_{**}$"],["C1","C2","C3"]]
 #     outfile = "../figures/timeseries_summary_q2.pdf"
 
-#     names = ["02","04","06","08","1"]
-#     run_ids = ["2019"]*len(names)
-#     runs = ["restest0m"+x for x in names]
-#     outfile = "../figures/timeseries_summary_res_fast.pdf"
+    names = ["02","04","06","08","1"]
+    run_ids = ["2019"]*len(names)
+    runs = ["restest0m"+x for x in names]
+    outfile = "../figures/timeseries_summary_res.pdf"
     
     if sfr_split is not None:
         nsfr_plots = len(sfr_split)
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     
     sp[0].set_ylim([1.e-5,.2])
 #     sp[1+nsfr_plots].set_ylim([0.,14.])
-    sp[1+nsfr_plots].set_ylim([0.,None])
+    sp[1+nsfr_plots].set_ylim([0.,16.])
 
     sp[nsp-1].set_xlabel("$t$ (Myr)")
     sp[0].legend(loc='best',fontsize='xx-small')
