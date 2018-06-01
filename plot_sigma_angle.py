@@ -9,9 +9,10 @@ mpl.use('Agg')
 import matplotlib.pyplot as P
 
 # titlegroups = [[r"$f_{edd}=0.01$, $f_{a}=10^{2}$",r"$f_{edd}=0.05$, $f_{a}=10^{2}$",r"$f_{edd}=0.1$, $f_{a}=10^{2}$",r"$f_{edd}=0.2$, $f_{a}=10^{2}$"],[r"$f_{edd}=0.1$, $f_{a}=10^{1}$",r"$f_{edd}=0.1$, $f_{a}=10^{2}$",r"$f_{edd}=0.1$, $f_{a}=10^{3}$"]]
-titlegroups = [["A","B","C2","D"],["C1","C2","C3"]]
-colourgroups = [[0,1,3,5],[2,3,4]]
-irungroups = ["sigma_angle_many_edd_","sigma_angle_many_aniso_"]
+titlegroups = [["A","B","C2","D"],["C1","C2","C3"],["A",r"A$_*$",r"A$_{**}$"],["A",r"A$_*$",r"A$_{**}$"]]
+colourgroups = [[0,1,3,5],[2,3,4],[0,6,7],[0,6,7]]
+irungroups = ["sigma_angle_many_edd_","sigma_angle_many_aniso_","sigma_angle_many_sf_","sigma_angle_many_sf_"]
+angle_maxes = [45.,45.,45.,90.]
 
 # itimes = [100,200,500,1000]
 # itimes = [1000]
@@ -26,7 +27,7 @@ times = np.array(itimes)*time_between_dump*conversion_to_Myr
 singleFile = "../figures/sigma_angle_many_many_2014.pdf"
 
 if singleFile:
-    fig,subplorts = P.subplots(len(itimes),len(irungroups),sharex=True,sharey=True,figsize=(12,len(itimes)*4.))
+    fig,subplorts = P.subplots(len(itimes),len(irungroups),sharey=True,figsize=(12,len(itimes)*3.))
     if subplorts.ndim==2:
         sp = subplorts
     else:
@@ -98,7 +99,7 @@ for time_index,itime in enumerate(itimes):
             fig,cur_sp = P.subplots(1,1)
         
 
-        cur_sp.set_xlim([0.,45.])
+        cur_sp.set_xlim([0.,angle_maxes[irungroup]])
 
         for icol,title in enumerate(titles):
         #    if icol in [0,1,3]:
@@ -121,7 +122,7 @@ for time_index,itime in enumerate(itimes):
             cur_sp.set_ylabel(r"$N_\mathrm{H}$ (cm$^{-2}$)")
         if irungroup==len(irungroups)-1:
             cur_sp.yaxis.set_label_position("right")
-            cur_sp.set_ylabel(r"t=%5.3f Myr"%time)
+            cur_sp.set_ylabel(r"t=%5.3f Myr"%time,size='x-large')
 
 #         P.savefig(outp,dpi=200)
         
