@@ -19,7 +19,7 @@ print("Running")
 run_id = sys.argv[1]
 output_dir = sys.argv[2]
 
-gizmoDir = gizmo_tools.getGizmoDir()
+gizmoDir = gizmo_tools.getGizmoDir(run_id)
 movieDir = gizmo_tools.getMovieDir()
 fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 
@@ -42,19 +42,20 @@ print(infile)
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['nH','nH','nH','nH','nH'],L=800,scale=4.)
 
 #outfile = "../pics/georgia_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
-#outfile = "../pics/pretty_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
-#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',L=512,flat=True,ring=True,nrows=1)
+outfile = "../pics/pretty_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',L=512,flat=True,ring=True,nrows=1)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['vels','dens'],L=400,scale=20.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['vels'],L=600,scale=20.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['dens'],L=800,scale=40.,cols=1)
 
-sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',plot=['dt'],L=400,scale=4.,dotmode='max')
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',plot=['dt'],L=400,scale=4.,dotmode='max')
 
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens'],views=['side'],L=400,scale=2.)
-#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['view'],L=400,scale=2.)
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['view'],L=400,scale=2.,rot=[])
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='prism',flat=False,ring=False,vorinoi=True,plot=['rand'],L=1200,scale=30.)
-#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=True,plot=['view'],L=800,scale=3.,rot=[0,80./360.*2.*np.pi])
+sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['view'],L=800,scale=2.,rot=[0,70./360.*2.*np.pi],visibleAxes=False)
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['facetemp'],L=3200,scale=6.,rot=[0,70./360.*2.*np.pi],visibleAxes=False)
 
 
 # outfile = "../pics/sphviewplot"+run_id+output_dir+"%03d.png"%snapx
@@ -65,7 +66,7 @@ sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',plot=['dt'],L=400,sc
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=True,plot=['nH','temp','opac','tdust'],L=800,scale=1.,rot=[0,80./360.*2.*np.pi],maxmode=True)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=True,plot=['nH'],L=800,scale=1.,rot=[0,80./360.*2.*np.pi],maxmode=True)
 
-#sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens','temp'],L=400,scale=[30.,150.])
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens','tdust'],L=800,scale=4.)
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=False,ring=False,plot=['dens','tau'],L=400,scale=[.5,.5])
 
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=False,ring=False,plot=['temp'],L=400,scale=3.,dotmode='max')

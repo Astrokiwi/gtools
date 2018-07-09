@@ -57,8 +57,9 @@ if __name__ == '__main__':
     default_values["centrecom"]=False
     default_values["suffix"]=""
     default_values["dotmode"]=""
+    default_values["absurd"]=False
     
-    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode"]
+    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
@@ -79,6 +80,7 @@ if __name__ == '__main__':
     parser.add_argument('--centrecom',help="centre on centre of mass",action='store_true')
     parser.add_argument('--suffix',help="suffix on anim filename")
     parser.add_argument('--dotmode',help="max, min, or nothing - dot plot mode")
+    parser.add_argument('--absurd',help="I'll try spinning, that's a good trick",action='store_true')
     args = parser.parse_args()
     
 #     run_id = args.run_id
@@ -121,6 +123,7 @@ if __name__ == '__main__':
     
     phi*=2.*np.pi/360.
     theta*=2.*np.pi/360.
+    
     visibleAxes=not noaxes
     print("Running")
 
@@ -167,7 +170,7 @@ if __name__ == '__main__':
     snapi = 0
     snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
 
-    gizmoDir = gizmo_tools.getGizmoDir()
+    gizmoDir = gizmo_tools.getGizmoDir(run_id)
     movieDir = gizmo_tools.getMovieDir()
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     
@@ -184,11 +187,24 @@ if __name__ == '__main__':
     infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in range(snapi,snapf+1)]
     outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in range(snapi,snapf+1)]
     
+    nfiles = len(infiles)
+    if absurd:
+        period2 = 11
+        phis = np.linspace(0.,np.pi/period2*nfiles,nfiles)
+        thetas = np.linspace(0.,np.pi/period2*nfiles,nfiles)
+        period_alt = 10
+        ungles = np.linspace(0.,np.pi/period_alt*nfiles,nfiles)
+        rads = np.sin(ungles)*rad/2.+rad
+    else:
+        thetas = np.full(nfiles,theta)
+        phis = np.full(nfiles,phi)
+        rads = np.full(nfiles,rad)
+    
     if "rad0" in toplot:
         dump_rad0(infiles[0])
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad,views=toview,rot=[theta,phi],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode) for i in range(snapi,snapf+1))
+    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode) for i in range(snapi,snapf+1))
 
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))

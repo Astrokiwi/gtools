@@ -16,11 +16,27 @@ def sort_nicely( l ):
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
     l.sort( key=alphanum_key )
 
-def getGizmoDir():
+# def getGizmoDir():
+#     sname = socket.gethostname()
+# 
+#     if ( sname=="trillian" ):
+#         return "/export/1/djw/gizmos"
+#     elif ( sname=="srv01921" ):
+#         return "/srv/djw1g16/gizmos"
+#     
+#     raise Exception("Unknown server; add server and directory to gizmodatadir.py")
+
+
+def getGizmoDir(irun):
     sname = socket.gethostname()
 
     if ( sname=="trillian" ):
-        return "/export/1/djw/gizmos"
+        paths = ["/export/1/djw/gizmos","/export/2/djw/gizmos"]
+        for path in paths:
+            if os.path.isdir("{}/{}".format(path,irun)):
+                return path
+#         return "/export/1/djw/gizmos"
+        raise Exception("Directory not found on {}".format(sname))
     elif ( sname=="srv01921" ):
         return "/srv/djw1g16/gizmos"
     
@@ -37,7 +53,7 @@ def getMovieDir():
     raise Exception("Unknown server; add server and directory to gizmodatadir.py")
 
 def lastConsecutiveSnapshot(run_id,output_dir):
-    gizmoDir = getGizmoDir()
+    gizmoDir = getGizmoDir(run_id)
     movieDir = getMovieDir()
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 

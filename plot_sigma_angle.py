@@ -9,10 +9,15 @@ mpl.use('Agg')
 import matplotlib.pyplot as P
 
 # titlegroups = [[r"$f_{edd}=0.01$, $f_{a}=10^{2}$",r"$f_{edd}=0.05$, $f_{a}=10^{2}$",r"$f_{edd}=0.1$, $f_{a}=10^{2}$",r"$f_{edd}=0.2$, $f_{a}=10^{2}$"],[r"$f_{edd}=0.1$, $f_{a}=10^{1}$",r"$f_{edd}=0.1$, $f_{a}=10^{2}$",r"$f_{edd}=0.1$, $f_{a}=10^{3}$"]]
-titlegroups = [["A","B","C2","D"],["C1","C2","C3"],["A",r"A$_*$",r"A$_{**}$"],["A",r"A$_*$",r"A$_{**}$"]]
-colourgroups = [[0,1,3,5],[2,3,4],[0,6,7],[0,6,7]]
-irungroups = ["sigma_angle_many_edd_","sigma_angle_many_aniso_","sigma_angle_many_sf_","sigma_angle_many_sf_"]
-angle_maxes = [45.,45.,45.,90.]
+# titlegroups = [["A","B","C2","D"],["C1","C2","C3"],["A",r"A$_*$",r"A$_{**}$"],["A",r"A$_*$",r"A$_{**}$"]]
+# colourgroups = [[0,1,3,5],[2,3,4],[0,6,7],[0,6,7]]
+# irungroups = ["sigma_angle_many_edd_","sigma_angle_many_aniso_","sigma_angle_many_sf_","sigma_angle_many_sf_"]
+# angle_maxes = [45.,45.,45.,90.]
+
+titlegroups = [["No SNR","Low SNR","High SNR"]]
+colourgroups = [[0,6,7]]
+irungroups = ["sigma_angle_many_sf_"]
+angle_maxes = [90.]
 
 # itimes = [100,200,500,1000]
 # itimes = [1000]
@@ -24,15 +29,21 @@ conversion_to_Myr= 0.9778e9/1.e6
 times = np.array(itimes)*time_between_dump*conversion_to_Myr
 
 # singleFile = None # print out one figure per input
-singleFile = "../figures/sigma_angle_many_many_2014.pdf"
+# singleFile = "../figures/sigma_angle_many_many_2014.pdf"
+singleFile = "../figures/sigma_angle_many_sf.pdf"
 
 if singleFile:
-    fig,subplorts = P.subplots(len(itimes),len(irungroups),sharey=True,figsize=(12,len(itimes)*3.))
-    if subplorts.ndim==2:
-        sp = subplorts
+#     fig,subplorts = P.subplots(len(itimes),len(irungroups),sharey=True,figsize=(12,len(itimes)*3.))
+    fig,subplorts = P.subplots(len(itimes),len(irungroups),sharey=True,figsize=(3.,3.))
+    if isinstance(subplorts,np.ndarray):
+        if subplorts.ndim==2:
+            sp = subplorts
+        else:
+            sp = np.empty((1,subplorts.shape[0]),dtype=object)
+            sp[0,:] = subplorts
     else:
-        sp = np.empty((1,subplorts.shape[0]),dtype=object)
-        sp[0,:] = subplorts
+        sp = np.empty((1,1),dtype=object)
+        sp[0,0] = subplorts
 
 for time_index,itime in enumerate(itimes):
     for irungroup,prefix in enumerate(irungroups):
@@ -120,11 +131,14 @@ for time_index,itime in enumerate(itimes):
         #P.ylabel(r"$\Sigma$ ($M_\odot$/pc$^2$)")
         if irungroup==0:
             cur_sp.set_ylabel(r"$N_\mathrm{H}$ (cm$^{-2}$)")
-        if irungroup==len(irungroups)-1:
+        elif irungroup==len(irungroups)-1:
             cur_sp.yaxis.set_label_position("right")
             cur_sp.set_ylabel(r"t=%5.3f Myr"%time,size='x-large')
 
 #         P.savefig(outp,dpi=200)
+        
+        #hline for fun
+        cur_sp.axhline(1.e22,c='k',ls='--')
         
         if not singleFile:
             fig.savefig(outp)
