@@ -15,10 +15,16 @@ import gizmo_tools
 print("Loading table (short form)")
 #chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_031117.dat"),("coolheat_tab_marta/shrunk_table_031117.dat"))
 # chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_171117tau.dat"),("coolheat_tab_marta/shrunk_table_171117tau.dat"))
-chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
-                                ("coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
-                                ("coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
-                                ("coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
+# chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
+#                                 )
+
+chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_240518tau.dat"),
+                                ("coolheat_tab_marta/shrunk_table_140618_m0.01_hsmooth_tau.dat"),
+                                ("coolheat_tab_marta/shrunk_table_labels_240518taunodust.dat"),
+                                ("coolheat_tab_marta/shrunk_table_140618_m0.01_hsmooth_taunodust.dat")
                                 )
 
 interpTabVec = np.vectorize(chTab.interpTab)
@@ -39,6 +45,8 @@ xyz = np.array(f["/PartType0/Coordinates"])
 rad_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2+xyz[:,2]**2)
 rad2d_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2)
 z_p = np.abs(xyz[:,2])
+
+print(np.max(rad_p),np.max(rad2d_p))
 
 N_part = rad_p.size
 
@@ -174,6 +182,9 @@ tabStructs = interpTabVec(nH_p.astype(np.float64),TK_p.astype(np.float64),flux_p
 dustTemp = [y.dustT for y in tabStructs]
 dustTemp = np.array(dustTemp)
 
+dustFrac = [y.dg for y in tabStructs]
+dustFrac = np.array(dustFrac)
+
 # dustTemp = np.zeros(N_part)
 # #for ii in range(N_part):
 # for ii in [0]:
@@ -263,7 +274,7 @@ dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],vel_p[:,0],vel_p[:,1],vel_p[:,2
         agn_heat_p,depth_p,dustTemp,flux_p,dt_p,h_p,u_p,m_p,mJ_p,cs_p,
         radaccel_p[:,0],radaccel_p[:,1],radaccel_p[:,2],radrad_p,a_p[:,0],a_p[:,1],a_p[:,2],arad_p,cs_p,omega_p,
         surfs,vdisp_p,Q_approx_p,vcirc_p,vzdisp,id_p,ir_radaccel_p[:,0],ir_radaccel_p[:,1],ir_radaccel_p[:,2],ir_radrad_p,
-        ir_heat_p,p_p,rho_p,tau_p,opac_p]
+        ir_heat_p,p_p,rho_p,tau_p,opac_p,dustFrac]
 #dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],rho_p,TK_p,agn_heat_p,depth_p]
 
 #thinslice = (np.abs(xyz[:,2])<1.) & (rad2d_p<.02)
