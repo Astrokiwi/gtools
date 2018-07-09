@@ -39,33 +39,7 @@ tunit = 0.9778e9 # years
 # #         except StopIteration:
 # #             raise StopIteration()
 
-if __name__ == '__main__':
-#     run_id = "2014"
-#     runs = ["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
-
-#     run_ids     = ["2014","2015","2015","2014","2014","2014"]
-#     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
-#     run_ids     = ["2015","2015"]
-#     runs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
-
-#     run_ids     = ["1055","1055"]
-#     runs = ["q2_SN","q2_SN_slow"]
-    run_ids     = ["1058"]*2
-    runs = ["restest0m02","restest0m04"]
-     run_ids     = ["1055","1055"]
-#     runs = ["q2_SN","q2_SN_slow"]
-
-#     run_ids     = ["2014","2015","2015","2014","2014","2014","2015","2015","1055","1055"]
-#     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2_SN","q2_SN_slow"]
-#     run_ids = ["2018"]
-#     runs = ["treetest"]
-#     run_ids = ["2019"]*5
-#     runs = ["restest0m"+x for x in ["02","04","06","08","1"]]
-    print(run_ids)
-    print(runs)
-    
-#     fig = P.figure()
-
+def extract_sfr(run_ids,runs):
     gizmoDir = gizmo_tools.getGizmoDir()
     for irun,(run_id,output_dir) in enumerate(zip(run_ids,runs)):
         print("Plotting: ",output_dir)
@@ -129,3 +103,35 @@ if __name__ == '__main__':
 #     P.yscale('log')
 #     P.savefig("../figures/sfr_q2.png",dpi=200)
 #     P.close()
+if __name__ == '__main__':
+#     run_id = "2014"
+#     runs = ["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
+
+#     run_ids     = ["2014","2015","2015","2014","2014","2014"]
+#     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo"]
+#     run_ids     = ["2015","2015"]
+#     runs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
+
+#     run_ids     = ["1055","1055"]
+#     runs = ["q2_SN","q2_SN_slow"]
+#     run_ids     = ["2020"]*2
+#     runs = ["restest0m01_small","restest0m02_small"]
+#     run_ids     = ["2020"]*3
+#     runs = ["restest0m005_tiny","restest0m01_tiny","restest0m02_tiny"]
+#     runs = ["restest0m02","restest0m04"]
+#      run_ids     = ["1055","1055"]
+#     runs = ["q2_SN","q2_SN_slow"]
+
+#     run_ids     = ["2014","2015","2015","2014","2014","2014","2015","2015","1055","1055"]
+#     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2_SN","q2_SN_slow"]
+#     run_ids = ["2018"]
+#     runs = ["treetest"]
+#     run_ids = ["2019"]*5
+#     runs = ["restest0m"+x for x in ["02","04","06","08","1"]]
+    run_ids = ["2020"]*5
+    runs = ["aniso_"+x for x in ["0","1","2","3","4"]]
+    print(run_ids)
+    print(runs)
+    
+#     fig = P.figure()
+

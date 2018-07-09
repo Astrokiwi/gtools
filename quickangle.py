@@ -230,7 +230,56 @@ def calc_hist(run_id,output_dir,snap_id,dumpall,bins,step):
 #         return theta_cents,theta_histogram,smoothed,grad,gradgrad
 #     else:
 #         return time,wind_theta
+
+def dump_full_evolution(run_ids,output_dirs):
+    for run_id,output_dir in zip(run_ids,output_dirs):
+        print("Dumping full evolution",run_id,output_dir)
+        
+#             print("Loading and parsing info.txt")
+#             gizmoDir = gizmo_tools.getGizmoDir()
+#             fullDir = gizmoDir+"/"+run_id+"/"+output_dir
+#             info_filename = fullDir+"/info.txt"
+#             info_data_str = np.loadtxt(info_filename,delimiter=",",usecols=(0,1),dtype=str)
+#             info_syncpoints = np.loadtxt(info_data_str[:,0],usecols=[1])
+#             info_times = np.loadtxt(info_data_str[:,1],usecols=[1])
+#             info_times*=0.9778e9 # to yr
+#             info_times/=1.e6 # to Myr
+#             print(info_syncpoints)
+#             print(info_times)
+        
+        print("Reading and analysing angles")
+
+        snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
+#             step = 10
+        step = 1
+        snapi = step
+#         snapf = 999
+#             snap_strs = ["%03d" % i for i in range(0,snapf,step)]
+        snap_ids = range(snapi,snapf,step)
+        bins = np.arange(0.,91.,1.)
+        with Pool(processes=80) as pool:
+#             with Pool(processes=8) as pool:
+            output_data = pool.starmap(calc_hist,zip(it.repeat(run_id),it.repeat(output_dir),snap_ids,it.repeat(False),it.repeat(bins),it.repeat(step)))
+#         print(output_data)
+        output_data = np.array(output_data)
+        
+#             print(output_data[:,1])
+        
+#             output_time_ids = np.searchsorted(info_times,output_data[:,1])
+#             output_syncpoints = info_syncpoints[output_time_ids]
+#             output_data = np.vstack([output_data.T,output_syncpoints]).T
+        
+#             mdot = np.gradient(output_data[:,3])/np.gradient(output_data[:,1])
+#             mdot/=1.e6 # Msun/yr
+#             mdotdot = np.gradient(mdot)/np.gradient(output_data[:,1])#/mdot#/np.gradient(output_data[:,0])
+#             output_data = np.vstack([output_data.T,mdot,mdotdot]).T
+        np.savetxt("data/windangle_evolution"+run_id+output_dir+".dat",output_data)
     
+#         cut = (output_data[:,0]>324) & (mdotdot>33.5)
+#         t_jumps = output_data[cut,0]
+#         np.savetxt("data/t_jumps.dat",np.array([range(t_jumps.size),t_jumps]).T)
+
+ 
 if __name__ == '__main__':
     if len(sys.argv)>=4:
         print("Dumping one file")
@@ -258,60 +307,20 @@ if __name__ == '__main__':
 #             output_dirs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
 #             run_ids     = ["2015"]
 #             output_dirs = ["q2edd10_aniso1fixed"]
-            run_ids     = ["1058"]*2
-            output_dirs = ["restest0m02","restest0m04"]
+#             run_ids     = ["2020"]*2
+#             output_dirs = ["restest0m01_small","restest0m02_small"]
+#             run_ids     = ["2020"]*3
+#             output_dirs = ["restest0m005_tiny","restest0m01_tiny","restest0m02_tiny"]
+#             output_dirs = ["restest0m02","restest0m04"]
 #             run_ids = ["2018"]
 #             output_dirs = ["treetest"]
 #             run_ids = ["2019"]*5
 #             output_dirs = ["restest0m"+x for x in ["02","04","06","08","1"]]
+            run_ids = ["2020"]*5
+#             output_dirs = ["aniso_"+x for x in ["0","1","2","3","4"]]
+            output_dirs = ["aniso_4_biggerrad","aniso_4_bigrad"]
             print(run_ids)
             print(output_dirs)
+            dump_full_evolution(run_ids,output_dirs)
     
-        for run_id,output_dir in zip(run_ids,output_dirs):
-            print("Dumping full evolution",run_id,output_dir)
-            
-#             print("Loading and parsing info.txt")
-#             gizmoDir = gizmo_tools.getGizmoDir()
-#             fullDir = gizmoDir+"/"+run_id+"/"+output_dir
-#             info_filename = fullDir+"/info.txt"
-#             info_data_str = np.loadtxt(info_filename,delimiter=",",usecols=(0,1),dtype=str)
-#             info_syncpoints = np.loadtxt(info_data_str[:,0],usecols=[1])
-#             info_times = np.loadtxt(info_data_str[:,1],usecols=[1])
-#             info_times*=0.9778e9 # to yr
-#             info_times/=1.e6 # to Myr
-#             print(info_syncpoints)
-#             print(info_times)
-            
-            print("Reading and analysing angles")
-
-            snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
-#             step = 10
-            step = 1
-            snapi = step
-    #         snapf = 999
-#             snap_strs = ["%03d" % i for i in range(0,snapf,step)]
-            snap_ids = range(snapi,snapf,step)
-            bins = np.arange(0.,91.,1.)
-            with Pool(processes=80) as pool:
-#             with Pool(processes=8) as pool:
-                output_data = pool.starmap(calc_hist,zip(it.repeat(run_id),it.repeat(output_dir),snap_ids,it.repeat(False),it.repeat(bins),it.repeat(step)))
-    #         print(output_data)
-            output_data = np.array(output_data)
-            
-#             print(output_data[:,1])
-            
-#             output_time_ids = np.searchsorted(info_times,output_data[:,1])
-#             output_syncpoints = info_syncpoints[output_time_ids]
-#             output_data = np.vstack([output_data.T,output_syncpoints]).T
-            
-#             mdot = np.gradient(output_data[:,3])/np.gradient(output_data[:,1])
-#             mdot/=1.e6 # Msun/yr
-#             mdotdot = np.gradient(mdot)/np.gradient(output_data[:,1])#/mdot#/np.gradient(output_data[:,0])
-#             output_data = np.vstack([output_data.T,mdot,mdotdot]).T
-            np.savetxt("data/windangle_evolution"+run_id+output_dir+".dat",output_data)
-        
-    #         cut = (output_data[:,0]>324) & (mdotdot>33.5)
-    #         t_jumps = output_data[cut,0]
-    #         np.savetxt("data/t_jumps.dat",np.array([range(t_jumps.size),t_jumps]).T)
-
 

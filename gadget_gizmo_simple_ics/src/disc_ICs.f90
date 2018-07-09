@@ -13,7 +13,7 @@ module IC_parameters
     
     real(kind=8) :: hernquist_mass,hernquist_scale
     
-    real(kind=8) :: Q_target, rho_target
+    real(kind=8) :: Q_target, rho_target, surf_target
     
     integer :: pot_type
     integer, parameter :: FLAT_POT=0, HERNQUIST_POT=1
@@ -83,6 +83,7 @@ program disc_ICs
     
     Q_target = -1 ! i.e. don't fit Q
     rho_target = -1 ! i.e. don't fit density
+    surf_target = -1 ! i.e. don't fit surface density
     constant_surf = .false. ! if true, Q_target is *minimum* Q, and try to make surface density & 3d density constant 
     
     position_file = "" ! generate positions randomly
@@ -165,6 +166,8 @@ program disc_ICs
                     constant_surf = .true.
                 case("nH")
                     read(invalue,*) rho_target
+                case("surf")
+                    read(invalue,*) surf_target
                 
                 case("flat")
                     pot_type = FLAT_POT
@@ -544,15 +547,25 @@ subroutine disc_locs(tproffile)
         else
             if ( constant_surf ) then
                 if ( Q_target<=0. ) then
-                    print *,"Need to set Q_target to have constant surf"
+                    print *,"Need to set Q_target to have constant_surf."
+                    print *," To set surface manually, turn off constant_surf and use 'surf [x]' instead"
                     stop
                 endif
                 
                 call calc_max_q_surf_profile
             endif
+            
+            if ( surf_target>0. ) then
+                disc_rad=sqrt(disc_inner_rad**2+mtot/pi/surf_target)
+                print *,"Outer radius set to ",disc_rad
+            endif
+            
             ! radius - for power-law density
             rans(:,1) = (  rans(:,1)*(disc_rad**(dense_index+2.d0)-disc_inner_rad**(dense_index+2.d0)) &
                         +disc_inner_rad**(dense_index+2.d0)   )**(1./(dense_index+2.d0))  
+            if ( dense_index==0.d0 ) then
+                print *,"Surface density:",mtot/pi/(disc_rad**2-disc_inner_rad**2)
+            endif
         endif
 
 
@@ -635,7 +648,7 @@ subroutine disc_locs(tproffile)
         else
             vcircs = v0*(rads/v0rad)**v_index
         endif
-    
+        print *,"vcirc - min,max",minval(vcircs),maxval(vcircs)
     else
         call temp_profile(tproffile,rads,vcircs)
     endif 
@@ -675,7 +688,7 @@ subroutine disc_locs(tproffile)
 
     !vcircs = dsqrt(G*mtot*rads/disc_rad**2)
     !print *,vcircs*runit_cgs/tunit_cgs*1.e-5
-    print *,p_data%v_p(:,1),p_data%r_p(:,1)
+!     print *,p_data%v_p(:,1),p_data%r_p(:,1)
 
     
     ! convert to cartesian

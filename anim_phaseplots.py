@@ -30,18 +30,18 @@ if __name__ == '__main__':
 
 
     #includedVals = ["dt_p","nH_p","TK_p","rad2d_p","z_p","vrad","dHeat","dt_heat"]
-    #includedVals = ["nH_p","TK_p","rad2d_p","z_p","vrad"]
+#     includedVals = ["rho_p","TK_p"]
     #includedVals = ["mJ_p","nH_p","TK_p","p_p"]
     #includedVals = ["mJ_p","TK_p"]
     #includedVals = ["rad2d_p","hz_rat"]
     #includedVals = ["mJ_p","nH_p","TK_p"]
-    includedVals = ["arad_p","radrad_p"]
+#     includedVals = ["arad_p","radrad_p"]
 #     includedVals = ["vrad","z_p"]
     #includedVals = ["flux_p","radrad_p"]
-#     includedVals = ["nH_p","TK_p"]
+    includedVals = ["nH_p","TK_p"]
     #includedVals = ["p_p","nH_p"]
     #includedVals = ["rad2d_p","nH_p"]
-    #includedVals = ["rad_p","nH_p"]
+#     includedVals = ["dt_p","rad_p","nH_p","TK_p"]
     #includedVals = ["depth_p","radrad_p"]
 #     includedVals = ["dt_p","TK_p"]
 #     includedVals = ["TK_p","agn_heat_p"]
@@ -52,7 +52,8 @@ if __name__ == '__main__':
     #includedVals = ["mJ_p","prat"]
     #includedVals = ["vcirc","vrad"]
     
-    rcut = 80.
+#     rcut = 80.
+    rcut = 1.e9
 
 #     snapi = 0
 

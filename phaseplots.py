@@ -29,6 +29,10 @@ labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
 dolog['nH_p'] = True
 ranges['nH_p'] = [-4,12]
 
+labels['rho_p'] = r"$\log \rho$ (g/cm$^{-3}$)"
+dolog['rho_p'] = True
+ranges['rho_p'] = [-27,-11]
+
 labels['flux_p'] = r"$\log \Phi$ (erg/cm$^{-2}$/s)"
 dolog['flux_p'] = True
 #ranges['flux_p'] = [3.,8.]
@@ -97,9 +101,12 @@ ranges['vel'] = [0.,300.]
 # dolog['rad_p'] = True
 # ranges['rad_p'] = [-1.,1.9]
 
-labels['rad_p'] = r"$R$ (pc)"
-dolog['rad_p'] = False
-ranges['rad_p'] = [0.,5.]
+# labels['rad_p'] = r"$R$ (pc)"
+# dolog['rad_p'] = False
+# ranges['rad_p'] = [0.,5.]
+labels['rad_p'] = r"$\log R$ (pc)"
+dolog['rad_p'] = True
+ranges['rad_p'] = [-2.,3.]
 
 labels['mJ_p'] = r"$M_\mathrm{J}$ (M$_\odot$)"
 dolog['mJ_p'] = True
