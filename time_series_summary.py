@@ -9,7 +9,14 @@ def moving_average(a, n=3) :
     return ret[n - 1:] / n
 
 if __name__ == '__main__':
+    # default parameters
     sfr_split = None
+    plotDWind = True
+    plotSFR = True
+    plotAngle = True
+    landscape = False
+    
+    skiprate = 1
 
 #     run_id = "2014"
 #     run_ids     = ["2014","2014","2015","2014","2015","2014"]
@@ -32,22 +39,43 @@ if __name__ == '__main__':
 #     sfr_split = [["A","B","D","X"],[r"A$_*$",r"A$_{**}$"],["C1","C2","C3"]]
 #     outfile = "../figures/timeseries_summary_q2.pdf"
 
-    run_ids     = ["2014","2014","2015","2014","2015","2014","1055","1055"]
-    runs = ["q2redo","q2edd05redo","q2edd10_aniso1fixed","q2edd10redo","q2edd10_aniso3fixed","q2edd20redo","q2_SN_slow","q2_SN"]
-#     edd = [.01,.05,.1,.1,.1,.2] # incorrect anyway
-    names = ["A","B","C1","C2","C3","D",r"A$_*$",r"A$_{**}$"]
-    sfr_split = [["A","B","D","X"],[r"A$_*$",r"A$_{**}$"],["C1","C2","C3"]]
-#     sfr_split = None
-    outfile = "../figures/timeseries_summary_q2.pdf"
-    
-    plotDWind = False
-    plotSFR = True
-    plotAngle = False
+#     run_ids     = ["2014","2014","2015","2014","2015","2014","1055","1055"]
+#     runs = ["q2redo","q2edd05redo","q2edd10_aniso1fixed","q2edd10redo","q2edd10_aniso3fixed","q2edd20redo","q2_SN_slow","q2_SN"]
+#     names = ["A","B","C1","C2","C3","D",r"A$_*$",r"A$_{**}$"]
+#     sfr_split = [["A","B","D","X"],[r"A$_*$",r"A$_{**}$"],["C1","C2","C3"]]
+#     plotDWind = False
+#     plotSFR = True
+#     plotAngle = False
+#     landscape = True
+#     outfile = "../figures/sfr_summary_q2.pdf"
 
-#     names = ["02","04","06","08","1"]
+#     run_ids     = ["2014","2014","2014","2014","1055","1055"]
+#     runs = ["q2redo","q2edd05redo","q2edd10redo","q2edd20redo","q2_SN_slow","q2_SN"]
+#     names = [r"Lowest $L$",r"Low $L$",r"Medium $L$, Standard Anisotropy","Large $L$",r"Lowest $L$, low SNR",r"Lowest $L$, high SNR"]
+#     sfr_split = None #[["A","B","D","X"],[r"A$_*$",r"A$_{**}$"],["C1","C2","C3"]]
+#     plotDWind = False
+#     plotSFR = True
+#     plotAngle = False
+#     landscape = True
+#     outfile = "../figures/sfr_summary_q2.pdf"
+
+#     run_ids     = ["2014","2014","2015","2014","2015","2014"]
+#     runs = ["q2redo","q2edd05redo","q2edd10_aniso1fixed","q2edd10redo","q2edd10_aniso3fixed","q2edd20redo"]
+#     names = [r"Lowest $L$",r"Low $L$",r"Medium $L$, Low Anisotropy",r"Medium $L$, Standard Anisotropy","Medium $L$, High Anisotropy","Large $L$"]
+#     sfr_split = None
+#     plotDWind = False
+#     plotSFR = False
+#     plotAngle = True
+#     landscape = True
+#     outfile = "../figures/wind_summary_aniso.pdf"
+
+    
+
+    names = ["02","04","06","08","1"]
 #     run_ids = ["2019"]*len(names)
-#     runs = ["restest0m"+x for x in names]
-#     outfile = "../figures/timeseries_summary_res_fast.pdf"
+    run_ids = ["2020","2020","1060","1060","1060"]
+    runs = ["restest0m"+x for x in names]
+    outfile = "../figures/timeseries_summary_res_fast.pdf"
     
     if sfr_split is not None:
         nsfr_plots = len(sfr_split)
@@ -66,11 +94,13 @@ if __name__ == '__main__':
 #     nsp = 5
 #     nsp = 3
 
-    fig,sp = P.subplots(nsp,1,figsize=(5,2.*nsp),sharex=True)
+    if landscape:
+#         fig,sp = P.subplots(1,nsp,figsize=(12,3.),sharex=True)
+        fig,sp = P.subplots(1,nsp,figsize=(3.,3.),sharex=True)
+    else:
+        fig,sp = P.subplots(nsp,1,figsize=(5,2.*nsp),sharex=True)
     if not isinstance(sp,np.ndarray):
         sp = np.array([sp,None])
-    
-    skiprate = 19
     
     linewidth = 1.5
 
@@ -94,11 +124,12 @@ if __name__ == '__main__':
             sp[0].plot(wind_data[good_slice,1][::skiprate],wind_data[good_slice,4][::skiprate],label=names[irun],lw=linewidth)
 #         sp[3].plot(wind_data[:,1],wind_data[:,4]/edd[irun])
     
-    for isp in range(sf_sp_offset,sf_sp_offset+nsfr_plots):
-        sp[isp].set_ylabel(r"SFR (M$_\odot$/yr)")
-        sp[isp].set_yscale('log')
-        sp[isp].set_ylim([1.e-5,1.])
-        sp[isp].set_yticks([1e-5,1e-4,1e-3,1e-2,1e-1])
+    if plotSFR:
+        for isp in range(sf_sp_offset,sf_sp_offset+nsfr_plots):
+            sp[isp].set_ylabel(r"SFR (M$_\odot$/yr)")
+            sp[isp].set_yscale('log')
+            sp[isp].set_ylim([1.e-5,1.])
+            sp[isp].set_yticks([1e-5,1e-4,1e-3,1e-2,1e-1])
 
     if plotAngle:
         sp[angle_sp_offset].set_ylabel(r"Wind angle ($^\circ$)")
@@ -111,8 +142,8 @@ if __name__ == '__main__':
 #     sp[3].set_yscale('log')
     
     for this_sp in sp[0:nsp]:
-        this_sp.set_xlim([0.,1.2])
-#         this_sp.set_xlim([0.,0.2])
+#         this_sp.set_xlim([0.,1.2])
+        this_sp.set_xlim([0.,0.2])
     
     if plotDWind:
         sp[0].set_ylim([1.e-5,.2])
@@ -120,7 +151,11 @@ if __name__ == '__main__':
     if plotAngle:
         sp[angle_sp_offset].set_ylim([0.,16.])
 
-    sp[nsp-1].set_xlabel("$t$ (Myr)")
+    if landscape:
+        for this_sp in sp[0:nsp]:
+            this_sp.set_xlabel("$t$ (Myr)")
+    else:
+        sp[nsp-1].set_xlabel("$t$ (Myr)")
     if plotDWind:
         sp[0].legend(loc='best',fontsize='xx-small')
     else:

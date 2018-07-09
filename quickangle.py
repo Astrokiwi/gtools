@@ -50,7 +50,7 @@ def smooth(x,y,width):
 #     return smoothed
 
 def load_gizmo_get_outflow(run_id,output_dir,snap_id):
-    gizmoDir = gizmo_tools.getGizmoDir()
+    gizmoDir = gizmo_tools.getGizmoDir(run_id)
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     snap_str = "%03d" % snap_id
     f = h5py.File(fullDir+"/snapshot_"+snap_str+".hdf5","r")
@@ -258,12 +258,12 @@ if __name__ == '__main__':
 #             output_dirs = ["q2edd10_aniso1fixed","q2edd10_aniso3fixed"]
 #             run_ids     = ["2015"]
 #             output_dirs = ["q2edd10_aniso1fixed"]
-            run_ids     = ["1058"]*2
-            output_dirs = ["restest0m02","restest0m04"]
+#             run_ids     = ["1058"]*2
+#             output_dirs = ["restest0m02","restest0m04"]
 #             run_ids = ["2018"]
 #             output_dirs = ["treetest"]
-#             run_ids = ["2019"]*5
-#             output_dirs = ["restest0m"+x for x in ["02","04","06","08","1"]]
+            run_ids = ["2020","2020","1060","1060","1060"]
+            output_dirs = ["restest0m"+x for x in ["02","04","06","08","1"]]
             print(run_ids)
             print(output_dirs)
     

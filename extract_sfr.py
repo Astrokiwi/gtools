@@ -50,25 +50,25 @@ if __name__ == '__main__':
 
 #     run_ids     = ["1055","1055"]
 #     runs = ["q2_SN","q2_SN_slow"]
-    run_ids     = ["1058"]*2
-    runs = ["restest0m02","restest0m04"]
-     run_ids     = ["1055","1055"]
+#     run_ids     = ["1058"]*2
+#     runs = ["restest0m02","restest0m04"]
+#      run_ids     = ["1055","1055"]
 #     runs = ["q2_SN","q2_SN_slow"]
 
 #     run_ids     = ["2014","2015","2015","2014","2014","2014","2015","2015","1055","1055"]
 #     runs = ["q2edd05redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2edd10redo","q2edd20redo","q2redo","q2edd10_aniso1fixed","q2edd10_aniso3fixed","q2_SN","q2_SN_slow"]
 #     run_ids = ["2018"]
 #     runs = ["treetest"]
-#     run_ids = ["2019"]*5
-#     runs = ["restest0m"+x for x in ["02","04","06","08","1"]]
+    run_ids = ["2020","2020","1060","1060","1060"]
+    runs = ["restest0m"+x for x in ["02","04","06","08","1"]]
     print(run_ids)
     print(runs)
     
 #     fig = P.figure()
 
-    gizmoDir = gizmo_tools.getGizmoDir()
     for irun,(run_id,output_dir) in enumerate(zip(run_ids,runs)):
         print("Plotting: ",output_dir)
+        gizmoDir = gizmo_tools.getGizmoDir(run_id)
         fullDir = gizmoDir+"/"+run_id+"/"+output_dir
         infilename = fullDir+"/info.txt"
         print("Loading and parsing")
@@ -76,8 +76,10 @@ if __name__ == '__main__':
 #         sf_data_str = np.loadtxt(LineSkipper(open(infilename)),delimiter=",",usecols=(1,4),dtype=str)
 #         sf_data_str = np.loadtxt(LineSkipper(open(infilename)),delimiter=",",dtype=str)
 #         exit()
-        nskip = 1000
-        timeskip = 0.01*1.e6/tunit
+#         nskip = 1000
+        nskip = 10
+#         timeskip = 0.01*1.e6/tunit
+        timeskip = 0.001*1.e6/tunit
         
         print(sf_data_str.shape)
         
@@ -117,6 +119,7 @@ if __name__ == '__main__':
             times = [0,0]
             sf_cumulative = [0,0]
             sfr = [0,0]
+            print("No times")
         print("Dumping")
 #         P.plot(times,sfr,label=runs[irun])
         

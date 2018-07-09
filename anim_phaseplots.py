@@ -30,12 +30,12 @@ if __name__ == '__main__':
 
 
     #includedVals = ["dt_p","nH_p","TK_p","rad2d_p","z_p","vrad","dHeat","dt_heat"]
-    #includedVals = ["nH_p","TK_p","rad2d_p","z_p","vrad"]
+    includedVals = ["nH_p","TK_p"]
     #includedVals = ["mJ_p","nH_p","TK_p","p_p"]
     #includedVals = ["mJ_p","TK_p"]
     #includedVals = ["rad2d_p","hz_rat"]
     #includedVals = ["mJ_p","nH_p","TK_p"]
-    includedVals = ["arad_p","radrad_p"]
+#     includedVals = ["arad_p","radrad_p"]
 #     includedVals = ["vrad","z_p"]
     #includedVals = ["flux_p","radrad_p"]
 #     includedVals = ["nH_p","TK_p"]

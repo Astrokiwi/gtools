@@ -9,6 +9,9 @@ from sys import path
 path.append("src/")
 import tab_interp
 
+import gizmo_tools
+
+
 print("Loading table (short form)")
 #chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_031117.dat"),("coolheat_tab_marta/shrunk_table_031117.dat"))
 # chTab = tab_interp.CoolHeatTab(("coolheat_tab_marta/shrunk_table_labels_171117tau.dat"),("coolheat_tab_marta/shrunk_table_171117tau.dat"))
@@ -29,13 +32,8 @@ snap_str = sys.argv[3]
 
 luminosity = 6.2849e42 # erg/s, DEPENDS ON EACH RUN!
 
-
-#f = h5py.File("/export/1/djw/gizmo_public/disc_sf_out/snapshot_"+snap_str+".hdf5","r")
-#f = h5py.File("/export/1/djw/gizmos/1003/rearranged_test/snapshot_"+snap_str+".hdf5","r")
-#f = h5py.File("/export/1/djw/gizmos/1003/control_test/snapshot_"+snap_str+".hdf5","r")
-#f = h5py.File("/export/1/djw/gizmos/1003/tree_tests/snapshot_"+snap_str+".hdf5","r")
-#f = h5py.File("/export/1/djw/gizmos/1003/isotropic_test/snapshot_"+snap_str+".hdf5","r")
-f = h5py.File("/srv/djw1g16/gizmos/"+run_id+"/"+output_dir+"/snapshot_"+snap_str+".hdf5","r")
+gizmoDir = gizmo_tools.getGizmoDir(run_id)
+f = h5py.File(gizmoDir+"/"+run_id+"/"+output_dir+"/snapshot_"+snap_str+".hdf5","r")
 
 xyz = np.array(f["/PartType0/Coordinates"])
 rad_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2+xyz[:,2]**2)
