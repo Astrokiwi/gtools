@@ -28,6 +28,7 @@ ranges = dict()
 labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
 dolog['nH_p'] = True
 ranges['nH_p'] = [-4,12]
+# ranges['nH_p'] = [6,9]
 
 labels['rho_p'] = r"$\log \rho$ (g/cm$^{-3}$)"
 dolog['rho_p'] = True
@@ -148,7 +149,7 @@ ranges['tsf'] = [3.,8.]
 labels['agn_heat_p'] = r"$H$ (erg/s/g)"
 dolog['agn_heat_p'] = False
 #ranges['agn_heat_p'] = None
-ranges['agn_heat_p'] = [-300.,300.]
+ranges['agn_heat_p'] = [-1.e3,1.e3]
 
 labels['cool_p'] = r"$H$ (erg/s/g)"
 dolog['cool_p'] = True
@@ -156,13 +157,13 @@ ranges['cool_p'] = None
 
 labels['opac'] = r"$\kappa$ (pc$^2$/M$_\odot$)"
 dolog['opac'] = True
-ranges['opac'] = [-4.,-1.]
+ranges['opac'] = [-5.,-1.]
 
 def v_esc(r,m_bh,m_hern,a_hern):
     return np.sqrt(2*G_kms_pc_msun*(m_bh/r + m_hern/(a_hern+r)))
 
 def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
-    gizmoDir = gizmo_tools.getGizmoDir()
+    gizmoDir = gizmo_tools.getGizmoDir(run_id)
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     f = h5py.File(fullDir+"/snapshot_"+snap_str+".hdf5","r")
 
@@ -401,7 +402,9 @@ def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma',bins=(
     with np.errstate(divide='ignore'):
         H = np.log10(H).T
 
-    mappablePlot = sp.pcolormesh(xedges,yedges,H,cmap=cmap,vmin=-1.4,vmax=2.1) #,norm=colors.LogNorm()
+    vmin = np.log10(values["m_p"][0]/2.)
+    vmax = np.log10(np.sum(values["m_p"]))
+    mappablePlot = sp.pcolormesh(xedges,yedges,H,cmap=cmap,vmin=vmin,vmax=vmax) #,norm=colors.LogNorm()
     if iv == "rad_p" and jv == "vel":
         # plot escape velocities
 #                 print("PLOTTING ESCAPE VELOCITY")
@@ -469,7 +472,9 @@ if __name__ == '__main__':
 #     includedVals = ["TK_p","dustTemp","vrad"]
 #     includedVals = ["TK_p","dustTemp","nH_p"]
 #     includedVals = ["rad_p","opac"]
-    includedVals = ["TK_p","dustTemp","nH_p"]
+#     includedVals = ["TK_p","dustTemp","nH_p"]
+    includedVals = ["nH_p","agn_heat_p"]
+#     includedVals = ["nH_p","TK_p"]
     
     x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.)
     print(x)
