@@ -29,10 +29,6 @@ labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
 dolog['nH_p'] = True
 ranges['nH_p'] = [-4,12]
 
-labels['rho_p'] = r"$\log \rho$ (g/cm$^{-3}$)"
-dolog['rho_p'] = True
-ranges['rho_p'] = [-27,-11]
-
 labels['flux_p'] = r"$\log \Phi$ (erg/cm$^{-2}$/s)"
 dolog['flux_p'] = True
 #ranges['flux_p'] = [3.,8.]
@@ -101,12 +97,9 @@ ranges['vel'] = [0.,300.]
 # dolog['rad_p'] = True
 # ranges['rad_p'] = [-1.,1.9]
 
-# labels['rad_p'] = r"$R$ (pc)"
-# dolog['rad_p'] = False
-# ranges['rad_p'] = [0.,5.]
-labels['rad_p'] = r"$\log R$ (pc)"
-dolog['rad_p'] = True
-ranges['rad_p'] = [-2.,3.]
+labels['rad_p'] = r"$R$ (pc)"
+dolog['rad_p'] = False
+ranges['rad_p'] = [0.,5.]
 
 labels['mJ_p'] = r"$M_\mathrm{J}$ (M$_\odot$)"
 dolog['mJ_p'] = True
@@ -119,7 +112,8 @@ ranges['p_p'] = None
 
 labels['dt_p'] = r"dt (yr)"
 dolog['dt_p'] = True
-ranges['dt_p'] = [-1.5,3.]
+# ranges['dt_p'] = [-1.5,3.]
+ranges['dt_p'] = [0.,3.]
 
 labels['cs_p'] = r"$c_s$ (cm/s)"
 dolog['cs_p'] = True
@@ -162,7 +156,7 @@ def v_esc(r,m_bh,m_hern,a_hern):
     return np.sqrt(2*G_kms_pc_msun*(m_bh/r + m_hern/(a_hern+r)))
 
 def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
-    gizmoDir = gizmo_tools.getGizmoDir()
+    gizmoDir = gizmo_tools.getGizmoDir(run_id)
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     f = h5py.File(fullDir+"/snapshot_"+snap_str+".hdf5","r")
 
@@ -469,7 +463,8 @@ if __name__ == '__main__':
 #     includedVals = ["TK_p","dustTemp","vrad"]
 #     includedVals = ["TK_p","dustTemp","nH_p"]
 #     includedVals = ["rad_p","opac"]
-    includedVals = ["TK_p","dustTemp","nH_p"]
+#     includedVals = ["TK_p","dustTemp","nH_p"]
+    includedVals = ["dt_p","TK_p","nH_p","vrad","rad_p","agn_heat_p","cool_p","h_p"]
     
     x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.)
     print(x)
