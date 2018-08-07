@@ -419,7 +419,7 @@ def load_gadget(infile, plot_thing,
     # doesn't work well
     if ( "dt" in need_to_load ):
         data.dt_p = np.array(f["/PartType0/TimeStep"])
-        data.dt_p*=0.9778e9 # to yr
+#         data.dt_p*=0.9778e9 # to yr
 
     # doesn't work well
     if ( "heat" in need_to_load ):
@@ -578,7 +578,8 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotLabel["rad0"] = r"$R_0$ (pc)"
 
     plotRanges = dict()
-    plotRanges["temp"] = [.999,4.]*2
+#     plotRanges["temp"] = [.999,4.]*2
+    plotRanges["temp"] = [.999,5.]*2
     #plotRanges["temp"] = [3.,4.]*2
     plotRanges["col"] = [18.,25.]*2
     plotRanges["nH"] = [0.,8.]*2
@@ -595,7 +596,8 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["view"] = [0.,4.]*2
     plotRanges["vlos"] = [-1.2e2,1.2e2]*2
     plotRanges["emit"] = [0.,6.]*2
-    plotRanges["dt"] = [1.,3.]*2
+#     plotRanges["dt"] = [1.,3.]*2
+    plotRanges["dt"] = [-14.,-7.]*2
     #plotRanges["vel_2d"] = [-25.,25.]*2
     plotRanges["vel_2d"] = [-250.,250.]*2
     plotRanges["vel_r"] = [-25.,25.]*2
@@ -611,7 +613,8 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["tau"] = [0.,50.]*2
     plotRanges["list"] = [0.,1.e6]*2
     plotRanges["rand"] = [0.,1.]*2
-    plotRanges["opac"] = [-4.,-1.6]*2
+#     plotRanges["opac"] = [-4.,-1.6]*2
+    plotRanges["opac"] = [-6.,-1.6]*2
 #     plotRanges["opac"] = [-2.,-1.]*2
     plotRanges["smooth"] = [-2.,2.]*2
     plotRanges["facetemp"] = [0.,2.5]*2
@@ -846,10 +849,10 @@ def makesph_trhoz_frame(infile,outfile,
         verboseprint("Loading",infile)
         time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)
 #         time,data = load_gadget(infile,need_to_load,centredens=centredens)
-        verboseprint("Plotting",infile,", t=%.4f Myr"% time)
+        verboseprint("Plotting",infile,", t=%.6f Myr"% time)
 
         if ( visibleAxes ):
-            fig.suptitle(r"$T="+("%.4f" % time)+"$ Myr"+titlesuffix)
+            fig.suptitle(r"$T="+("%.6f" % time)+"$ Myr"+titlesuffix)
 #         fig.suptitle(infile)
 
     if ( visibleAxes ):
@@ -1034,10 +1037,14 @@ def makesph_trhoz_frame(infile,outfile,
             fig.subplots_adjust(left=0.12,hspace=.12,bottom=.1,top=.9)
     else:
         fig.subplots_adjust(left=0.0,hspace=.0,top=1.,bottom=.0,right=1.,wspace=0.)
-        
-    pos = ax[0,1].get_position()
+    
+    if plot_thing[0] in extraBarTypes:
+        pos = ax[0,2].get_position()
+    else:
+        pos = ax[0,1].get_position()
     lpixx = (L/(pos.x1-pos.x0))
     my_dpi = int(np.floor(lpixx/fw_inches))*pixsize
+#     print(L,pixsize,fw_inches,lpixx,my_dpi,pos)
     
     fig.savefig(outfile,dpi=my_dpi)
     P.close()
