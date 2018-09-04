@@ -60,7 +60,8 @@ os.system("rm ../pics/sphrotplot"+run_id+output_dir+"%03d"%snapx+"_???.png")
 
 # Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infile,outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['view'],L=32,views=['face'],rot=[0.,phi],scale=6.,pixsize=64,titlesuffix=titlesuffixes[irot]) for irot,phi in enumerate(rots))
 # pretty plot for talks etc
-Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infile,outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['view'],L=800,views=['face'],rot=[0.,phi],scale=.5,visibleAxes=False) for irot,phi in enumerate(rots))
+Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infile,outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['view'],L=32,pixsize=16,views=['face'],rot=[0.,phi],scale=.4,visibleAxes=True) for irot,phi in enumerate(rots))
+# Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infile,outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['faceTemp'],L=800,views=['face'],rot=[0.,phi],scale=.2,visibleAxes=True) for irot,phi in enumerate(rots))
 # Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infile,outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['temp'],L=800,views=['face'],rot=[0.,phi],scale=1.6,visibleAxes=False) for irot,phi in enumerate(rots))
 cmd = "ffmpeg -y -r 24 -i ../pics/sphrotplot"+run_id+output_dir+"%03d_"%snapx+"%03d.png -c:v mpeg4 -q:v 1 ../../movies/rotateview_"+run_id+"_"+output_dir+"_%03d"%snapx+".mp4"
 

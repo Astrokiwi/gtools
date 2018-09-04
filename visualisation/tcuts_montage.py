@@ -18,31 +18,48 @@ import matplotlib.pyplot as P
 
 print("Running")
 
-output_dir = "q2redo"
-run_id = "2014"
+# output_dir = "q2redo"
+# run_id = "2014"
+# 
+# snap_str = "1000"
 
-snap_str = "1000"
+output_dir = "run_a2_e01"
+run_id = "2022"
 
-cuts = [    ['temp',10.**0.,10.**2.5],
-            ['temp',10.**2.5,10.**4.],
-            ['tdust',1.,30.],
-            ['tdust',30.,150.]
+snap_str = "020"
+
+
+cuts = [    ['temp',10.**0.,10.**3.],
+            ['temp',10.**3.,10.**5.],
+            ['tdust',10.,10.**2.],
+            ['tdust',10.**2.,10.**4]
             ]
+
+# cuts = [    ['temp',10.**0.,10.**2.5],
+#             ['temp',10.**2.5,10.**4.],
+#             ['tdust',1.,30.],
+#             ['tdust',30.,150.]
+#             ]
 # cuts = [    ['temp',10.**0.,10.**2.5],
 #             ['temp',10.**2.5,10.**4.],
 #             ['temp',10.**0.,10.**2.5],
 #             ['temp',10.**2.5,10.**4.]
 #             ]
 
-labels = [  r'$\log T_g\leq2.5$ (K)',
-            r'$\log T_g\geq2.5$ (K)',
-            r'$T_d\leq30.$ K',
-            r'$T_d\geq30.$ K'
+# labels = [  r'$\log T_g\leq2.5$ (K)',
+#             r'$\log T_g\geq2.5$ (K)',
+#             r'$T_d\leq30.$ K',
+#             r'$T_d\geq30.$ K'
+#             ]
+labels = [  r'$\log T_g\leq3$ (K)',
+            r'$\log T_g\geq3$ (K)',
+            r'$\log T_d\leq2$ (K)',
+            r'$\log T_d\geq2$ (K)'
             ]
 
 ncuts = len(cuts)
 
-gizmoDir = gizmo_tools.getGizmoDir()
+gizmoDir = gizmo_tools.getGizmoDir(run_id)
 movieDir = gizmo_tools.getMovieDir()
 
 flattenedPlot = True
@@ -51,7 +68,8 @@ plot_thing = ['vels']
 load_things = ['vels','tdust','temp']
 # load_things = ['vels','temp']
 L=256
-width = 8.
+# width = 8.
+width = .6
 corners_face = [-width/2.,-width/2.]
 corners_side = [0.,-width/2.]
 
@@ -64,6 +82,7 @@ infile = fullDir+"/snapshot_"+snap_str+".hdf5"
 plotLabel, plotRanges, plotSliceTypes, plotCustomMass, plotData, logSliceTypes, extraBarTypes, plusMinusTypes, divergingTypes, customCmaps, customCmaps2 = sph_frame.pack_dicts()
 time,data,x,y,z,rad2d,deep_face,deep_side,mask_default,n,n_ones = sph_frame.load_process_gadget_data(infile,rot,load_things,plotData,ringPlot=flattenedPlot,flatPlot=flattenedPlot)
 
+print("time=",time)
 
 fig,sp = P.subplots(ncuts,3,figsize=(6.,10.), gridspec_kw = {'width_ratios':[1,16,16],'height_ratios':[16]*ncuts})
 cb_sp = sp[0,0]

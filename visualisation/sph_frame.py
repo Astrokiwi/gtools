@@ -406,6 +406,8 @@ def load_gadget(infile, plot_thing,
         data.rand = np.random.random(n)
         #data.rand = np.random.randint(n,size=n)
 
+    if ( "nneigh" in need_to_load ):
+        data.nneigh = np.array(f["/PartType0/TrueNumberOfNeighbours"])
     
     if ( "temp" in need_to_load ):
         data.u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
@@ -419,7 +421,7 @@ def load_gadget(infile, plot_thing,
     # doesn't work well
     if ( "dt" in need_to_load ):
         data.dt_p = np.array(f["/PartType0/TimeStep"])
-#         data.dt_p*=0.9778e9 # to yr
+        data.dt_p*=0.9778e9 # to yr
 
     # doesn't work well
     if ( "heat" in need_to_load ):
@@ -452,10 +454,12 @@ def load_gadget(infile, plot_thing,
     if ( "table" in need_to_load ):
         if ( not chTab ):
             verboseprint("Load dust tables")
-            chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
+            chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_090818tau.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_tau.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_labels_090818taunodust.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taunodust.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_labels_090818taudense.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taudense.dat")
                                             )
             interpTabVec = np.vectorize(chTab.interpTab)
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
@@ -469,6 +473,7 @@ def load_gadget(infile, plot_thing,
     if ( "tdust" in need_to_load ):
         data.dustTemp = map(lambda y: y.dustT, tabStructs)
         data.dustTemp = np.array(list(data.dustTemp))
+        data.dustTemp = 10.**data.dustTemp
 #         print(np.max(data.dustTemp),np.min(data.dustTemp))
 #         data.dustTemp = data.dustTemp**4 # for test
 
@@ -485,15 +490,23 @@ def load_gadget(infile, plot_thing,
     if ( "opac" in need_to_load ):
         data.opac = np.array(f["/PartType0/AGNOpacity"]) # internal units: kpc**2/1e10 solar mass
         data.opac*= 1.e-4 # to pc**2/solar mass
+        print("faking opacity")
+        opacity = 65.2 # cm^2/g, somewhat arbitrary
+        opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
+        data.opac = np.full((n),opacity)
 
     if ( "view" in need_to_load or "vlos" in need_to_load ):
         if ( "view" in need_to_load ):
             data.brightness = 5.67e-5 * data.dustTemp**4. * data.dg/np.nanmax(data.dg) # erg/s/cm^2
         #opacity = 652. # cm^2/g, somewhat arbitrary
         #opacity = 1. # cm^2/g, somewhat arbitrary
-        #opacity = 65.2 # cm^2/g, somewhat arbitrary
-        #opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
-        #data.opac = np.full((n),opacity)
+
+        # we want infrared opacity, not the flux-weighted opacity
+        print("faking opacity")
+        opacity = 65.2 # cm^2/g, somewhat arbitrary
+        opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
+        data.opac = np.full((n),opacity)
+        data.opac*=data.dg/np.nanmax(data.dg) # take into account dust fraction
         
         if ( "view" in need_to_load ):
             #sputtered = (data.dustTemp>2.5e3) # or something, super arbitrary
@@ -576,49 +589,57 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotLabel["smooth"] = r"$h_p$"
     plotLabel["facetemp"] = r"$\log_{10}T_d$ (K)"
     plotLabel["rad0"] = r"$R_0$ (pc)"
+    plotLabel["nneigh"] = r"$N_n$"
 
     plotRanges = dict()
 #     plotRanges["temp"] = [.999,4.]*2
-    plotRanges["temp"] = [.999,5.]*2
+    plotRanges["temp"] = [.999,6.]*2
     #plotRanges["temp"] = [3.,4.]*2
     plotRanges["col"] = [18.,25.]*2
-    plotRanges["nH"] = [0.,8.]*2
+#     plotRanges["nH"] = [0.,8.]*2 # standard
+#     plotRanges["nH"] = [5.,7.]*2
+#     plotRanges["nH"] = [-1.,7.]*2
+    plotRanges["nH"] = [-7.,7.]*2
     plotRanges["heat"] = [1e-2,1.e10]*2
     plotRanges["dens"] = drange+drange_s
     plotRanges["depth"] = [0.,1.e3]*2
     plotRanges["vels"] = [0.,3.]*2
-    plotRanges["tdust"] = [1.,2.4]*2
+    plotRanges["tdust"] = [1.,3.]*2
 #     plotRanges["tdust"] = [1.,3.]*2
     #plotRanges["tdust"] = [1.3,2.2]*2
 #     plotRanges["tdust"] = [4.,8.]*2
-    plotRanges["dg"] = [0.00635,.006363]*2
+#     plotRanges["dg"] = [0.00635,.006363]*2
+    plotRanges["dg"] = [0.0,.000234]*2
     plotRanges["dust"] = drange+drange_s
-    plotRanges["view"] = [0.,4.]*2
+#     plotRanges["view"] = [0.,4.]*2
+    plotRanges["view"] = [1.,7.]*2
     plotRanges["vlos"] = [-1.2e2,1.2e2]*2
     plotRanges["emit"] = [0.,6.]*2
-#     plotRanges["dt"] = [1.,3.]*2
-    plotRanges["dt"] = [-14.,-7.]*2
+    plotRanges["dt"] = [1.,3.]*2
     #plotRanges["vel_2d"] = [-25.,25.]*2
     plotRanges["vel_2d"] = [-250.,250.]*2
     plotRanges["vel_r"] = [-25.,25.]*2
     plotRanges["vel_x"] = [-200.,200.]*2
     plotRanges["vel_y"] = [-200.,200.]*2
-    plotRanges["vel_z"] = [-25.,25.]*2
+#     plotRanges["vel_z"] = [-25.,25.]*2
+    plotRanges["vel_z"] = [-2000.,2000.]*2
     plotRanges["vel_a"] = [-100.,100.]*2
-    plotRanges["arad"] = [-9.,-3.]*2
+    plotRanges["arad"] = [-9.,0.]*2
     plotRanges["AGNI"] = [-9.,-3.]*2
-#    plotRanges["tau"] = [0.,5.]*2
+#     plotRanges["tau"] = [0.,5.]*2
+#     plotRanges["tau"] = [0.,7.]*2
+    plotRanges["tau"] = [0.,1.]*2
 #     plotRanges["tau"] = [-2,3.]*2
 #     plotRanges["tau"] = [0.,250.]*2
-    plotRanges["tau"] = [0.,50.]*2
+#     plotRanges["tau"] = [0.,50.]*2
     plotRanges["list"] = [0.,1.e6]*2
     plotRanges["rand"] = [0.,1.]*2
-#     plotRanges["opac"] = [-4.,-1.6]*2
-    plotRanges["opac"] = [-6.,-1.6]*2
+    plotRanges["opac"] = [-7.,-1.6]*2
 #     plotRanges["opac"] = [-2.,-1.]*2
     plotRanges["smooth"] = [-2.,2.]*2
-    plotRanges["facetemp"] = [0.,2.5]*2
+    plotRanges["facetemp"] = [0.,5.]*2
     plotRanges["rad0"] = [0.,4.]*2
+    plotRanges["nneigh"] = [0,50]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -650,6 +671,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotSliceTypes["facetemp"] = viewslice
     plotSliceTypes["rand"] = quantslice
     plotSliceTypes["rad0"] = quantslice
+    plotSliceTypes["nneigh"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -684,8 +706,9 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["smooth"] = "h_p"
     plotData["rad0"] = "rad0"
     plotData["facetemp"] = ["dustTemp","opac","dustTemp","opac"]
+    plotData["nneigh"] = "nneigh"
     
-    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad","AGNI","opac","smooth","facetemp"]
+    logSliceTypes = ["temp","col","nH","dens","dust","view","emit","dt","arad","AGNI","opac","smooth","tdust"]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
@@ -849,10 +872,10 @@ def makesph_trhoz_frame(infile,outfile,
         verboseprint("Loading",infile)
         time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)
 #         time,data = load_gadget(infile,need_to_load,centredens=centredens)
-        verboseprint("Plotting",infile,", t=%.6f Myr"% time)
+        verboseprint("Plotting",infile,", t=%.4f Myr"% time)
 
         if ( visibleAxes ):
-            fig.suptitle(r"$T="+("%.6f" % time)+"$ Myr"+titlesuffix)
+            fig.suptitle(r"$T="+("%.4f" % time)+"$ Myr"+titlesuffix)
 #         fig.suptitle(infile)
 
     if ( visibleAxes ):
@@ -1037,14 +1060,10 @@ def makesph_trhoz_frame(infile,outfile,
             fig.subplots_adjust(left=0.12,hspace=.12,bottom=.1,top=.9)
     else:
         fig.subplots_adjust(left=0.0,hspace=.0,top=1.,bottom=.0,right=1.,wspace=0.)
-    
-    if plot_thing[0] in extraBarTypes:
-        pos = ax[0,2].get_position()
-    else:
-        pos = ax[0,1].get_position()
+        
+    pos = ax[0,1].get_position()
     lpixx = (L/(pos.x1-pos.x0))
     my_dpi = int(np.floor(lpixx/fw_inches))*pixsize
-#     print(L,pixsize,fw_inches,lpixx,my_dpi,pos)
     
     fig.savefig(outfile,dpi=my_dpi)
     P.close()

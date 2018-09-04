@@ -556,9 +556,9 @@ module sph_plotter
         end do
         
         rw = 0.d0
-        
         do ip=1,n
             h2 = h(ip)**2
+            !$OMP PARALLEL DO private(iray,dotprod,impact_pram,weight) shared(nray,xyzray,xyz,rw,h2,h,m,ip) default(none)
             do iray=1,nray
                 dotprod = sum(xyzray(iray,:)*xyz(ip,:))
                 if ( dotprod>0. ) then
@@ -571,6 +571,7 @@ module sph_plotter
                     endif
                 endif
             end do
+            !$OMP END PARALLEL DO 
         end do
         
     end function
@@ -648,26 +649,35 @@ module sph_plotter
         real(kind=8), dimension(L,L) :: g ! output grid
         
         integer, dimension(n) :: inzarg,zarg ! sorted positions of particles along line of sight
-        real(kind=8), dimension(L,L) :: opg ! grid of optical depths
+!         real(kind=8), dimension(L,L) :: opg ! grid of optical depths
 
-        integer :: i,ip ! loop variable, particle index
+        integer :: ip ! loop variable, particle index
 
         integer :: ix,iy ! grid position of particle
         integer :: hix,hiy ! position in h circle
-        integer :: ix0,iy0,ix1,iy1 ! bounds of h circle
+!         integer :: ix0,iy0,ix1,iy1 ! bounds of h circle
         
         integer :: ih ! integer h
         
         real(kind=8) :: r_cell, area_cell
         
-        real(kind=8) :: rdist, weight, this_opac
-
+        real(kind=8) :: rdist, planedist2, weight!, this_opac
+        
+        integer, parameter :: n_zdir_max=100000
+        integer, parameter :: persamples=16
+        integer :: iz,nz
+        real(kind=8), dimension(n_zdir_max) :: binedges,opacgrid,massgrid,emitgrid
+        logical, dimension(n) :: inray
+        !real(kind=8),allocatable,dimension(:,:,:) :: opac_samples,emit_samples! FIXXXXX
+        real(kind=8) :: stepsize
+        
+        
         if ( .not. kernel_initialized ) then
             call kernel_init
         endif
         
         g = 0.d0
-        opg = 0.d0
+!         opg = 0.d0
         r_cell = w/L
         area_cell = r_cell**2
 
@@ -675,45 +685,223 @@ module sph_plotter
         !zarg = rargsort(z)
         !print *,"sorted"
         zarg = inzarg+1 ! python to fortran numbering
-
-        do i=1,n
-            ip = zarg(i)
-            if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
-                ih = ceiling(h(ip)/r_cell)
-                ix = nint((x(ip)-c(1))/r_cell)
-                iy = nint((y(ip)-c(2))/r_cell)
+        
+!         print *,binedges(1:nz)
+        ! parallelise this loop
+!$OMP PARALLEL DO &
+!$OMP& private(ix,iy,inray,ip,ih,hix,hiy,nz,binedges,opacgrid,massgrid,emitgrid,iz,stepsize,planedist2,weight,rdist)&
+!$OMP& shared(g,v,op,m,n,c,r_cell,f,L,h,x,y,z) default(none)
+        do ix=1,L
+            print *,ix,"/",L,"started"
+            do iy=1,L
+                inray = .false.
+                do ip=1,n
+                    if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+                        ih = ceiling(h(ip)/r_cell)
+                        hix = nint((x(ip)-c(1))/r_cell)
+                        hiy = nint((y(ip)-c(2))/r_cell)
                 
-                ix0 = max(1,ix-ih)
-                iy0 = max(1,iy-ih)
-
-                ix1 = min(L,ix+ih)
-                iy1 = min(L,iy+ih)
+!                         ix0 = hix-ih)
+!                         iy0 = max(1,hiy-ih)
+! 
+!                         ix1 = min(L,hix+ih)
+!                         iy1 = min(L,hiy+ih)
                 
-                if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
-                
-                    do hix=ix0,ix1
-                        do hiy=iy0,iy1
-                            !if ( opg(hix,hiy)<1.d0 ) then
-                                rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
-                                weight = fkern(rdist/h(ip))/h(ip)**2
-                            
+                        if (  hix+ih>=ix .and. hix-ih<=ix.and. hiy+ih>=iy .and. hiy-ih<=iy  ) then
+                            inray(ip) = .true.
+!                             print *,z(ip),h(ip)/persamples
+                        endif
+                    endif
+                end do
+!                 print *,"n=",count(inray)
+!                 print *,pack(z,inray)
+                nz = persamples
+                binedges(1) = minval(z-h,inray)
+                binedges(nz) = maxval(z+h,inray)
+                opacgrid(1:nz)=0. 
+                massgrid(1:nz)=0.
+                emitgrid(1:nz)=0.
+                do iz=2,nz-1
+                    binedges(iz) = (binedges(nz)-binedges(1))*(iz-1.)/(nz-1)+binedges(1)
+                end do
+!                 print *,minval(h,inray)
+!                 print *,binedges(nz)-binedges(1)
+!                 print *,(binedges(nz)-binedges(1))/minval(h,inray)*persamples
 
-                                this_opac = weight * m(ip) * op(ip)
-                                g(hix,hiy) = g(hix,hiy) + min(1.,this_opac)*v(ip)*exp(-opg(hix,hiy))
-                                !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
-                                opg(hix,hiy) = opg(hix,hiy) + this_opac
-!                                 if ( opg(hix,hiy)>=1.d0 ) then
-!                                     g(hix,hiy)=v(ip)
-!                                 endif
-                            !endif
-                            
-                        end do
+                do ip=1,n
+!                     if ( mod(ip,10000)==1 ) then
+!                         print *,ip,"/",n,nz
+!                     endif
+                    if ( .not.inray(ip) ) then
+                        cycle
+                    endif
+                    stepsize = h(ip)/persamples
+        !             print *,stepsize
+                    iz = 1
+                    planedist2 = (x(ip)-(ix-1)*r_cell-c(1))**2+ &
+                                 (y(ip)-(iy-1)*r_cell-c(1))**2
+                    do while (iz<nz .and. binedges(iz)<=z(ip)+h(ip) )
+                        if ( binedges(iz+1)>=z(ip)-h(ip) ) then
+                            if ( binedges(iz+1)-binedges(iz)>stepsize ) then
+                                ! halve size - refine
+                                if ( nz+1 > n_zdir_max ) then
+                                    print *,"over-refined",ip,nz
+                                    stop
+                                endif
+!                                 print *,ip,inray(ip)
+!                                 print *,binedges(1:nz)
+                                ! shuffle up edges by one, insert one half-way in-between
+                                binedges(iz+2:nz+1)=binedges(iz+1:nz)
+                                binedges(iz+1) = (binedges(iz)+binedges(iz+1))/2.
+                                ! for SPH values, these are all volumetric values, just copy them over
+                                ! values iz+1 and iz+2 are now identical - i.e. below the res we cared about
+                                emitgrid(iz+2:nz+1)=emitgrid(iz+1:nz) 
+                                opacgrid(iz+2:nz+1)=opacgrid(iz+1:nz) 
+                                massgrid(iz+2:nz+1)=massgrid(iz+1:nz) 
+                                nz = nz + 1
+!                                 print *,binedges(1:nz)
+!                                 stop
+                            else
+                                ! we are within range, add our SPH weights to this point
+                                rdist=sqrt(planedist2+(z(ip)-binedges(iz))**2)
+                                if ( rdist<h(ip) ) then
+                                    weight = kern(rdist/h(ip))/h(ip)**3
+                                    emitgrid(iz)=emitgrid(iz)+v(ip)*op(ip)*weight*m(ip)
+                                    opacgrid(iz)=opacgrid(iz)+op(ip)*weight*m(ip)
+                                    massgrid(iz)=massgrid(iz)+weight*m(ip)
+                                endif
+                                iz = iz + 1
+                            endif
+                        else
+                            ! out of range, skip
+                            iz = iz + 1
+                        endif
                     end do
+                end do
 
-                endif
-                
-            endif
+                ! splat it down flat
+                weight = 0.
+                do iz=1,nz-1
+        !             write(12,"(I8,5E9.3)") iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz)
+                    weight = weight + (binedges(iz+1)-binedges(iz))*(emitgrid(iz)-opacgrid(iz)*weight)
+                    write(12,*) iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz),weight
+                end do
+                g(ix,iy) = weight
+
+            end do
+            print *,ix,"/",L,"done"
         end do
+!         opacgrid(1:nz)=opacgrid(1:nz)!/massgrid(1:nz) ! 
+!         emitgrid(1:nz)=emitgrid(1:nz)/massgrid(1:nz)
+!         open(unit=12,file="test.out")
+!         weight = 0.
+!         do iz=1,nz-1
+! !             write(12,"(I8,5E9.3)") iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz)
+!             weight = weight + (binedges(iz+1)-binedges(iz))*(emitgrid(iz)-opacgrid(iz)*weight)
+!             write(12,*) iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz),weight
+!         end do
+! !         print *,binedges(1:nz)
+!         close(12)
+!         stop
+!         do ip=1,n
+!             if ( mod(ip,1000)==1 ) then
+!                 print *,ip,"/",n,nz
+!             endif
+!             if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+!                 ih = ceiling(h(ip)/r_cell)
+!                 ix = nint((x(ip)-c(1))/r_cell)
+!                 iy = nint((y(ip)-c(2))/r_cell)
+!                 
+!                 ix0 = max(1,ix-ih)
+!                 iy0 = max(1,iy-ih)
+! 
+!                 ix1 = min(L,ix+ih)
+!                 iy1 = min(L,iy+ih)
+!                 
+!                 if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+!                 
+!                     do hix=ix0,ix1
+!                         do hiy=iy0,iy1
+!                             iz = 1
+!                             do while ( iz<nz .and. binedges(iz)<=z(ip)+h(ip))
+!                                 if ( binedges(iz)>=z(ip)+h(ip) ) then
+!                                     rdist=sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell+(z(ip)-h(ip)**2))
+!                                     weight = kern(rdist/h(ip))/kern_norm/h(ip)**3
+!                                     
+!                                 endif
+!                                 iz = iz + 1
+!                             end do
+!                         end do
+!                     end do
+!                 endif
+!             endif
+! 
+!         end do
+        
+        
+!         open(unit=12,file="test.out")
+!         do iz=1,nz-1
+!             write(12,*) iz,binedges(iz+1)-binedges(iz)
+!         end do
+! !         print *,binedges(1:nz)
+!         close(12)
+!         stop
+!         i_zedges = 0
+!         do i=1,n
+!             ip = zarg(i)
+!             if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+!                 if ( i_zedges==0 ) then
+!                     do j=0,persamples-1
+!                         z_edges(j) = (j-persamples/2)*h(ip)/persamples+z_p(j)
+!                     end do
+!                 else
+!                     
+!                 endif
+!             endif
+!         end do
+!         stop
+
+
+
+! old version
+!         do i=1,n
+!             ip = zarg(i)
+!             if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+!                 ih = ceiling(h(ip)/r_cell)
+!                 ix = nint((x(ip)-c(1))/r_cell)
+!                 iy = nint((y(ip)-c(2))/r_cell)
+!                 
+!                 ix0 = max(1,ix-ih)
+!                 iy0 = max(1,iy-ih)
+! 
+!                 ix1 = min(L,ix+ih)
+!                 iy1 = min(L,iy+ih)
+!                 
+!                 if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+!                 
+!                     do hix=ix0,ix1
+!                         do hiy=iy0,iy1
+!                             !if ( opg(hix,hiy)<1.d0 ) then
+!                                 rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+!                                 weight = fkern(rdist/h(ip))/h(ip)**2
+!                             
+! 
+!                                 this_opac = weight * m(ip) * op(ip)
+!                                 g(hix,hiy) = g(hix,hiy) + min(1.,this_opac)*v(ip)*exp(-opg(hix,hiy))
+!                                 !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
+!                                 opg(hix,hiy) = opg(hix,hiy) + this_opac
+! !                                 if ( opg(hix,hiy)>=1.d0 ) then
+! !                                     g(hix,hiy)=v(ip)
+! !                                 endif
+!                             !endif
+!                             
+!                         end do
+!                     end do
+! 
+!                 endif
+!                 
+!             endif
+!         end do
 
     end function
 

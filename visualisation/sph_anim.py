@@ -58,8 +58,9 @@ if __name__ == '__main__':
     default_values["suffix"]=""
     default_values["dotmode"]=""
     default_values["absurd"]=False
+    default_values["pixsize"]=1
     
-    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd"]
+    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
@@ -80,6 +81,7 @@ if __name__ == '__main__':
     parser.add_argument('--centrecom',help="centre on centre of mass",action='store_true')
     parser.add_argument('--suffix',help="suffix on anim filename")
     parser.add_argument('--dotmode',help="max, min, or nothing - dot plot mode")
+    parser.add_argument('--pixsize',type=int,help="pixelation level")
     parser.add_argument('--absurd',help="I'll try spinning, that's a good trick",action='store_true')
     args = parser.parse_args()
     
@@ -198,13 +200,16 @@ if __name__ == '__main__':
     else:
         thetas = np.full(nfiles,theta)
         phis = np.full(nfiles,phi)
-        rads = np.full(nfiles,rad)
+        if isinstance(rad,list):
+            rads = [rad]*nfiles
+        else: # if float
+            rads = np.full(nfiles,rad)
     
     if "rad0" in toplot:
         dump_rad0(infiles[0])
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode) for i in range(snapi,snapf+1))
+    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize) for i in range(snapi,snapf+1))
 
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))
