@@ -685,6 +685,9 @@ module sph_plotter
         !zarg = rargsort(z)
         !print *,"sorted"
         zarg = inzarg+1 ! python to fortran numbering
+
+        ! flip it, for backwards compatability
+        z = maxval(v)-z ! lololol
         
 !         print *,binedges(1:nz)
         ! parallelise this loop
@@ -694,6 +697,7 @@ module sph_plotter
         do ix=1,L
             print *,ix,"/",L,"started"
             do iy=1,L
+!                 print *,ix,"/",L,iy,"/",L," ray"
                 inray = .false.
                 do ip=1,n
                     if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
@@ -738,8 +742,8 @@ module sph_plotter
                     stepsize = h(ip)/persamples
         !             print *,stepsize
                     iz = 1
-                    planedist2 = (x(ip)-(ix-1)*r_cell-c(1))**2+ &
-                                 (y(ip)-(iy-1)*r_cell-c(1))**2
+                    planedist2 = (x(ip)-(ix)*r_cell-c(1))**2+ &
+                                 (y(ip)-(iy)*r_cell-c(1))**2
                     do while (iz<nz .and. binedges(iz)<=z(ip)+h(ip) )
                         if ( binedges(iz+1)>=z(ip)-h(ip) ) then
                             if ( binedges(iz+1)-binedges(iz)>stepsize ) then
@@ -783,8 +787,12 @@ module sph_plotter
                 weight = 0.
                 do iz=1,nz-1
         !             write(12,"(I8,5E9.3)") iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz)
-                    weight = weight + (binedges(iz+1)-binedges(iz))*(emitgrid(iz)-opacgrid(iz)*weight)
-                    write(12,*) iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz),weight
+                    weight = weight + (binedges(iz+1)-binedges(iz))*(emitgrid(iz))
+                    weight = weight*exp(-(binedges(iz+1)-binedges(iz))*opacgrid(iz))
+                    if ( weight<0. ) then
+                        weight = 0.
+                    endif
+!                     write(12,*) iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz),weight
                 end do
                 g(ix,iy) = weight
 
@@ -902,6 +910,90 @@ module sph_plotter
 !                 
 !             endif
 !         end do
+
+    end function
+
+
+    function sph_optical_depth_los_old(x,y,m,h,v,op,L,c,w,z,inzarg,f,n) result(g)
+        implicit none
+
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! brightness of particle
+        real(kind=8), dimension(n) :: op ! particle opacity per unit mass
+        real(kind=8), dimension(n) :: x,y,z ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+        
+        integer, dimension(n) :: inzarg,zarg ! sorted positions of particles along line of sight
+        real(kind=8), dimension(L,L) :: opg ! grid of optical depths
+
+        integer :: i,ip ! loop variable, particle index
+
+        integer :: ix,iy ! grid position of particle
+        integer :: hix,hiy ! position in h circle
+        integer :: ix0,iy0,ix1,iy1 ! bounds of h circle
+        
+        integer :: ih ! integer h
+        
+        real(kind=8) :: r_cell, area_cell
+        
+        real(kind=8) :: rdist, weight, this_opac
+
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+        
+        g = 0.d0
+        opg = 0.d0
+        r_cell = w/L
+        area_cell = r_cell**2
+
+        !print *,"sorting"
+        !zarg = rargsort(z)
+        !print *,"sorted"
+        zarg = inzarg+1 ! python to fortran numbering
+
+        do i=1,n
+            ip = zarg(i)
+            if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+                ih = ceiling(h(ip)/r_cell)
+                ix = nint((x(ip)-c(1))/r_cell)
+                iy = nint((y(ip)-c(2))/r_cell)
+                
+                ix0 = max(1,ix-ih)
+                iy0 = max(1,iy-ih)
+
+                ix1 = min(L,ix+ih)
+                iy1 = min(L,iy+ih)
+                
+                if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+                
+                    do hix=ix0,ix1
+                        do hiy=iy0,iy1
+                            !if ( opg(hix,hiy)<1.d0 ) then
+                                rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+                                weight = fkern(rdist/h(ip))/h(ip)**2
+                            
+
+                                this_opac = weight * m(ip) * op(ip)
+                                g(hix,hiy) = g(hix,hiy) + min(1.,this_opac)*v(ip)*exp(-opg(hix,hiy))
+                                !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
+                                opg(hix,hiy) = opg(hix,hiy) + this_opac
+!                                 if ( opg(hix,hiy)>=1.d0 ) then
+!                                     g(hix,hiy)=v(ip)
+!                                 endif
+                            !endif
+                            
+                        end do
+                    end do
+
+                endif
+                
+            endif
+        end do
 
     end function
 
