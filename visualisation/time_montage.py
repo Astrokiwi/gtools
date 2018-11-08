@@ -27,8 +27,12 @@ print("Running")
 # snapx = [200,500]
 
 
-runs = ["run_a2_e01"]
-run_id = "2022"
+# runs = ["run_a2_e01"]
+# run_id = "2022"
+
+runs = ["a2_e01"]
+run_id = "3001"
+
 
 snapx = [0,10,20,50,100]
 
@@ -41,7 +45,7 @@ flattenedPlot = True
 rot = [0.,0.]
 plot_thing = ['temp','nH']
 L=256
-width = .6
+width = .8
 corners_face = [-width/2.,-width/2.]
 corners_side = [0.,-width/2.]
 

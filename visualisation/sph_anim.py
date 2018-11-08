@@ -59,8 +59,10 @@ if __name__ == '__main__':
     default_values["dotmode"]=""
     default_values["absurd"]=False
     default_values["pixsize"]=1
+    default_values["noring"]=False
+    default_values["data_ranges"]=""
     
-    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize"]
+    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
@@ -82,7 +84,9 @@ if __name__ == '__main__':
     parser.add_argument('--suffix',help="suffix on anim filename")
     parser.add_argument('--dotmode',help="max, min, or nothing - dot plot mode")
     parser.add_argument('--pixsize',type=int,help="pixelation level")
+    parser.add_argument('--data_ranges',type=str,help="explicit data bounds for plot - format: --data_ranges=min1,max1+min2,max2+min3,max3 etc; the equals sign may be necessary!")
     parser.add_argument('--absurd',help="I'll try spinning, that's a good trick",action='store_true')
+    parser.add_argument('--noring',help="Edge on ring, not wrapped",action='store_true')
     args = parser.parse_args()
     
 #     run_id = args.run_id
@@ -101,6 +105,9 @@ if __name__ == '__main__':
                 raise Exception("No default value for {} - it must be specified!".format(parseval))
 
     flatPlot = not slice
+    ringPlot = flatPlot
+    if noring:
+        ringPlot = False
 
     if dotmode:
         smooth_str = dotmode
@@ -114,6 +121,10 @@ if __name__ == '__main__':
     else:
         rad = float(rad)
     
+    if len(data_ranges)<=0:
+        data_ranges = None
+    else:
+        data_ranges=[[float(y) for y in x.split(",")] for x in data_ranges.split("+")]
 #     if not rads is "":
 #         plotRads = 
     
@@ -177,8 +188,9 @@ if __name__ == '__main__':
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     
 # max run
-    if ( maxsnapf>-1 and snapf>maxsnapf ):
-        print("Forcing snapf down from {} to {}".format(snapf,maxsnapf))
+#     if ( maxsnapf>-1 and snapf>maxsnapf ):
+    if maxsnapf>-1:
+        print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
     os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
@@ -209,7 +221,7 @@ if __name__ == '__main__':
         dump_rad0(infiles[0])
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize) for i in range(snapi,snapf+1))
+    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges) for i in range(snapi,snapf+1))
 
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))

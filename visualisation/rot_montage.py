@@ -23,10 +23,12 @@ print("Running")
 # runs = ["q2redo"]
 # run_id = "2014"
 
-runs = ["run_a2_e01"]
-run_id = "2022"
+# runs = ["run_a2_e01"]
+# run_id = "2022"
+runs = ["a2_e01"]
+run_id = "3001"
 
-snapx = 20
+snapx = 20#100
 phis = np.linspace(0.,np.pi/2.,5) # representative
 nsp = 5
 # phis = np.linspace(0.,np.pi/2.,3) # representative
@@ -39,7 +41,8 @@ movieDir = gizmo_tools.getMovieDir()
 # rot = [0.,0.]
 plot_thing = ['view']
 L=32
-width = .8
+# width = .8
+width = 1.
 corners_face = [-width/2.,-width/2.]
 corners_side = [0.,-width/2.]
 
@@ -68,7 +71,8 @@ for output_dir in runs:
     for icol,phi in enumerate(phis):
         rot = [0.,phi]
         time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = sph_frame.load_process_gadget_data(infile,rot,plot_thing,plotData,ringPlot=False,flatPlot=True)
-        sph_frame.makesph_plot(fig,sp[icol+1],cb_sp,x,y,deep_face,0.,[data.brightness,data.opac,data.brightness,data.opac],data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} F$ (arbitrary units)",1.,7.,view_cmap,sph_frame.viewslice)
+        sph_frame.makesph_plot(fig,sp[icol+1],cb_sp,x,y,deep_face,0.,[data.brightness,data.opac,data.brightness,data.opac],data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} F$ (arbitrary units)",1.,6.,view_cmap,sph_frame.viewslice)
+#         sph_frame.makesph_plot(fig,sp[icol+1],cb_sp,x,y,deep_face,0.,[data.brightness,data.opac,data.brightness,data.opac],data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} F$ (arbitrary units)",1.,5.,view_cmap,sph_frame.viewslice)
         sp[icol+1].set_title(r"$\phi=%2d^\circ$"%(phi*180./np.pi))
         
     sp[nsp].yaxis.set_label_position("right")
@@ -82,5 +86,6 @@ for output_dir in runs:
     
     fig.subplots_adjust(hspace=0., wspace=0.) 
     fig.tight_layout(pad=0.3,w_pad=0.0,h_pad=0.)
-    P.savefig("../../figures/rotview_montage_"+run_id+output_dir+".png",dpi=150)
+#     P.savefig("../../figures/rotview_montage_"+run_id+output_dir+".png",dpi=150)
+    P.savefig("../../figures/rotview_montage_"+run_id+output_dir+"_new.png",dpi=150)
 #     P.savefig("../../figures/rotview_montage_poster_"+run_id+output_dir+".png",dpi=150)

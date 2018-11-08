@@ -23,8 +23,10 @@ print("Running")
 # 
 # snap_str = "1000"
 
-output_dir = "run_a2_e01"
-run_id = "2022"
+# output_dir = "run_a2_e01"
+# run_id = "2022"
+output_dir = "a2_e01"
+run_id = "3001"
 
 snap_str = "020"
 
@@ -68,8 +70,8 @@ plot_thing = ['vels']
 load_things = ['vels','tdust','temp']
 # load_things = ['vels','temp']
 L=256
-# width = 8.
-width = .6
+width = .8
+# width = .6
 corners_face = [-width/2.,-width/2.]
 corners_side = [0.,-width/2.]
 
