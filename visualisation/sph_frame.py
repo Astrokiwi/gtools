@@ -370,6 +370,8 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("dg")
     if ( "dg" in need_to_load ):
         need_to_load.append("table")
+    if ( "co1" in need_to_load or "co2" in need_to_load or "hcn1" in need_to_load or "hcn2" in need_to_load ):
+        need_to_load.append("table")
     if ( "table" in need_to_load ):
         need_to_load.append("temp")
         need_to_load.append("nH")
@@ -464,12 +466,19 @@ def load_gadget(infile, plot_thing,
     if ( "table" in need_to_load ):
         if ( not chTab ):
             verboseprint("Load dust tables")
-            chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_090818tau.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_tau.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_labels_090818taunodust.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taunodust.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_labels_090818taudense.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taudense.dat")
+#             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_090818tau.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_tau.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_labels_090818taunodust.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taunodust.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_labels_090818taudense.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taudense.dat")
+#                                             )
+            chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_131118tau.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_131118_m0.0001_hsmooth_tau.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_labels_131118taunodust.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_131118_m0.0001_hsmooth_taunodust.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_labels_131118taudense.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_131118_m0.0001_hsmooth_taudense.dat")
                                             )
             interpTabVec = np.vectorize(chTab.interpTab)
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
@@ -483,9 +492,23 @@ def load_gadget(infile, plot_thing,
     if ( "tdust" in need_to_load ):
         data.dustTemp = map(lambda y: y.dustT, tabStructs)
         data.dustTemp = np.array(list(data.dustTemp))
-        data.dustTemp = 10.**data.dustTemp
+#         data.dustTemp = 10.**data.dustTemp
 #         print(np.max(data.dustTemp),np.min(data.dustTemp))
 #         data.dustTemp = data.dustTemp**4 # for test
+
+    if ( "co1" in need_to_load ):
+        data.co1 = np.array(list(map(lambda y: y.line_co1, tabStructs))) # erg/s/cm**3
+        data.co1/=rho_p # to erg/g
+    if ( "co2" in need_to_load ):
+        data.co2 = np.array(list(map(lambda y: y.line_co2, tabStructs))) # erg/s/cm**3
+        data.co2/=rho_p # to erg/g
+    if ( "hcn1" in need_to_load ):
+        data.hcn1 = np.array(list(map(lambda y: y.line_hcn1, tabStructs))) # erg/s/cm**3
+        data.hcn1/=rho_p # to erg/g
+    if ( "hcn2" in need_to_load ):
+        data.hcn2 = np.array(list(map(lambda y: y.line_hcn2, tabStructs))) # erg/s/cm**3
+        data.hcn2/=rho_p # to erg/g
+        
 
     if ( "dg" in need_to_load ):
         data.dg = map(lambda y: y.dg, tabStructs)
@@ -663,6 +686,10 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["nneigh"] = [0,50]*2
 #     plotRanges["pres"] = [36.3,38.6]*2
     plotRanges["pres"] = [3.3,16]*2
+    plotRanges["co1"] = [-40.,40.]*2
+    plotRanges["co2"] = [-40.,40.]*2
+    plotRanges["hcn1"] = [-40.,40.]*2
+    plotRanges["hcn2"] = [-40.,40.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -698,6 +725,10 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotSliceTypes["rad0"] = quantslice
     plotSliceTypes["nneigh"] = quantslice
     plotSliceTypes["pres"] = quantslice
+    plotSliceTypes["co1"] = quantslice
+    plotSliceTypes["co2"] = quantslice
+    plotSliceTypes["hcn1"] = quantslice
+    plotSliceTypes["hcn2"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
@@ -736,8 +767,12 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["facetemp"] = ["dustTemp","opac","dustTemp","opac"]
     plotData["nneigh"] = "nneigh"
     plotData["pres"] = "pres"
+    plotData["co1"] = "co1"
+    plotData["co2"] = "co2"
+    plotData["hcn1"] = "hcn1"
+    plotData["hcn2"] = "hcn2"
     
-    logSliceTypes = ["temp","col","nH","dens","dust","view","emit","dt","arad","accel","AGNI","opac","smooth","tdust","pres"]
+    logSliceTypes = ["temp","col","nH","dens","dust","view","emit","dt","arad","accel","AGNI","opac","smooth","tdust","pres","co1","co2","hcn1","hcn2"]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
