@@ -95,6 +95,31 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile) {
     }
     f_tabvals.close();
     
+    // divide lines by density to get emission per gram
+//     molecular_mass = 4./(1.+3.*.76)
+//     proton_mass_cgs = 1.6726e-24
+// log10(proton_mass_cgs*molecular_mass)=-23.6904
+    int id;
+    double min_line = -20;
+    for ( id=0 ; id<agn_ndense ; id++ ) {
+//         double physical_density = pow(10.,agn_dense_vals[id]-23.6904);
+        double physical_density = agn_dense_vals[id]-23.6904;
+        for ( i=agn_tab_index(id,0,0,0) ; i<agn_tab_index(id,agn_ntemp-1,agn_nintensity-1,agn_ncolumn_in-1) ; i++ ) {
+            agn_line_co1[i]=log10(agn_line_co1[i])-physical_density;
+            agn_line_co2[i]=log10(agn_line_co2[i])-physical_density;
+            agn_line_hcn1[i]=log10(agn_line_hcn1[i])-physical_density;
+            agn_line_hcn2[i]=log10(agn_line_hcn2[i])-physical_density;
+            if ( !isfinite(agn_line_co1[i]) ) agn_line_co1[i] = min_line;
+            if ( !isfinite(agn_line_co2[i]) ) agn_line_co2[i] = min_line;
+            if ( !isfinite(agn_line_hcn1[i])) agn_line_hcn1[i] = min_line;
+            if ( !isfinite(agn_line_hcn2[i])) agn_line_hcn2[i] = min_line;
+//             agn_line_co1[i]/=physical_density;
+//             agn_line_co2[i]/=physical_density;
+//             agn_line_hcn1[i]/=physical_density;
+//             agn_line_hcn2[i]/=physical_density;
+        }
+    }
+    
     // set up pointers for better looping
     tables[0] = agn_dense_vals;
     ntabs[0] = &agn_ndense;
@@ -193,6 +218,9 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
             }    
         }
     }
+    
+//     interpBetweenTables = false; // for test
+//     thisTable = &mainTable; // also for test
     
 
     for (jj=interpBetweenTables?1:0 ; jj<4 ; jj++ ) {
@@ -306,10 +334,14 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
     outp.dg = dg_interp;
     outp.column_out = column_out_interp;
     outp.arad = arad_interp;
-    outp.line_co1 = co1_interp;
-    outp.line_co2 = co2_interp;
-    outp.line_hcn1 = hcn1_interp;
-    outp.line_hcn2 = hcn2_interp;
+    outp.line_co1 = pow(10.,co1_interp);
+    outp.line_co2 = pow(10.,co2_interp);
+    outp.line_hcn1 = pow(10.,hcn1_interp);
+    outp.line_hcn2 = pow(10.,hcn2_interp);
+//     outp.line_co1 = co1_interp;
+//     outp.line_co2 = co2_interp;
+//     outp.line_hcn1 = hcn1_interp;
+//     outp.line_hcn2 = hcn2_interp;
     return outp;
 }
 
