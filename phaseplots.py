@@ -25,6 +25,12 @@ labels = dict()
 dolog = dict()
 ranges = dict()
 
+for lineVal in ["co1","co2","hcn1","hcn2"]:
+    labels[lineVal] = lineVal+" erg/g/s"
+    dolog[lineVal] = True
+    ranges[lineVal] = [-20.,10.] # massy
+#     ranges[lineVal] = [-40.,-20.] # volumetric
+
 labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
 dolog['nH_p'] = True
 ranges['nH_p'] = [-4,12]
@@ -46,28 +52,30 @@ labels['TK_p'] = r"$\log T_g$ (K)"
 # dolog['TK_p'] = False
 # ranges['TK_p'] = [0,1e4]
 dolog['TK_p'] = True
-ranges['TK_p'] = [1.,7.]
+ranges['TK_p'] = [1.,5.]
+# ranges['TK_p'] = [.9,8.1]
+# ranges['TK_p'] = [.9,8.1]
 
 labels['rad2d_p'] = r"$R$ (pc)"
 dolog['rad2d_p'] = False
-#ranges['rad2d_p'] = [0,150.]
-ranges['rad2d_p'] = None
+ranges['rad2d_p'] = [0,.05]
+# ranges['rad2d_p'] = None
 
 labels['z_p'] = r"$|z|$ (pc)"
 dolog['z_p'] = False
 ranges['z_p'] = [0,20.]
 
-labels['dustTemp'] = r"$T_d$ (K)"
-dolog['dustTemp'] = False
-ranges['dustTemp'] = [0,150]
+labels['dustTemp'] = r"$\log T_d$ (K)"
+dolog['dustTemp'] = True
+ranges['dustTemp'] = [1.,4.]#[0.,0.5] #[0,150]
 
 labels['radrad_p'] = r"$a_{rad,r}$ (cm/s/s)"
-dolog['radrad_p'] = False
-ranges['radrad_p'] = None
+dolog['radrad_p'] = True
+ranges['radrad_p'] = [-10.,1.]
 
 labels['arad_p'] = r"$a_{all,r}$ (cm/s/s)"
-dolog['arad_p'] = False
-ranges['arad_p'] = None
+dolog['arad_p'] = True
+ranges['arad_p'] = [-10.,1.]
 
 labels['dHeat'] = r"$H$"
 dolog['dHeat'] = False
@@ -79,11 +87,26 @@ ranges['dt_heat'] = None
 
 
 labels['vrad'] = r"$v_{rad}$ (km/s)"
-dolog['vrad'] = False
-#ranges['vrad'] = [-300,300]
-#ranges['vrad'] = [-300,1.e3]
-# ranges['vrad'] = [-50,300.]
-ranges['vrad'] = [-50,600.]
+dolog['vrad'] = True
+# #ranges['vrad'] = [-300,300]
+# #ranges['vrad'] = [-300,1.e3]
+# # ranges['vrad'] = [-50,300.]
+# # ranges['vrad'] = [-50,600.]
+ranges['vrad'] = [-4.,4.]
+
+labels['vradpoly'] = r"$v_{rad}$ (km/s)"
+dolog['vradpoly'] = False
+# #ranges['vrad'] = [-300,300]
+# #ranges['vrad'] = [-300,1.e3]
+# # ranges['vrad'] = [-50,300.]
+# # ranges['vrad'] = [-50,600.]
+ranges['vradpoly'] = [-4.,22.]
+
+# polyfac = 3. # take cube root - need to do this explicitly
+
+# labels['vrad'] = r"$v_{rad}$ (km/s)"
+# dolog['vrad'] = False
+# ranges['vrad'] = [-50.,50.]
 
 
 labels['vcirc'] = r"$v_{circ}$ km/s"
@@ -91,8 +114,13 @@ dolog['vcirc'] = False
 ranges['vcirc'] = [-20.,150.]
 
 labels['vel'] = r"$v$ km/s"
-dolog['vel'] = False
-ranges['vel'] = [0.,300.]
+dolog['vel'] = True
+# ranges['vel'] = [0.,1.e3]
+ranges['vel'] = None
+
+# labels['vel'] = r"$\log v$ km/s"
+# dolog['vel'] = True
+# ranges['vel'] = [1.,4.]
 
 # labels['rad_p'] = r"$\log R$ (pc)"
 # dolog['rad_p'] = True
@@ -100,7 +128,11 @@ ranges['vel'] = [0.,300.]
 
 labels['rad_p'] = r"$R$ (pc)"
 dolog['rad_p'] = False
-ranges['rad_p'] = [0.,5.]
+ranges['rad_p'] = [0.,.3]
+
+labels['tau'] = r"$\tau$"
+dolog['tau'] = False
+ranges['tau'] = [0.,7.]
 
 labels['mJ_p'] = r"$M_\mathrm{J}$ (M$_\odot$)"
 dolog['mJ_p'] = True
@@ -177,8 +209,9 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     preqs["TK_p"]=["u_p"]
     if ( "/PartType0/Pressure" not in f ):
         preqs["p_p"]=["nH_p","TK_p"]
-    preqs["dustTemp"] = ["nH_p","TK_p","flux_p","tau"]
-    preqs["dHeat"] = ["nH_p","TK_p","flux_p","tau"]
+    for x in "dustTemp","dHeat","co1","co2","hcn1","hcn2":
+        preqs[x] = ["table"]
+    preqs["table"] = ["nH_p","TK_p","flux_p","tau"]
     preqs["dHeat"] = ["u_p","agn_heat_p"]
     preqs["cs_p"] = ["u_p"]
     preqs["mJ_p"] = ["cs_p"]
@@ -218,6 +251,9 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     
     if "vcirc" in requiredVals:
         values["vcirc"] = (vel_p[:,0]*xyz[:,1]-vel_p[:,1]*xyz[:,0])*1.e3/values["rad2d_p"]
+    
+    if "vradpoly" in requiredVals:
+        values["vradpoly"]=np.cbrt(values["vrad"])
 
     if "vel" in requiredVals:
         values["vel"] = np.sqrt(np.sum(vel_p**2,axis=1))
@@ -283,7 +319,7 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
         accel_p = np.array(f["/PartType0/Acceleration"])
         accel_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
 
-        values["arad_p"] = (xyz[:,0]*accel_p[:,0]+xyz[:,1]*accel_p[:,1]+xyz[:,2]*accel_p[:,2])/rad_p
+        values["arad_p"] = -(xyz[:,0]*accel_p[:,0]+xyz[:,1]*accel_p[:,1]+xyz[:,2]*accel_p[:,2])/rad_p
 
     molecular_mass = 4./(1.+3.*.76)
     proton_mass_cgs = 1.6726e-24
@@ -309,20 +345,46 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
         else:
             values["p_p"] = values["nH_p"]*values["TK_p"]*boltzmann_cgs
 
-    if ( "dustTemp" in requiredVals or "dHeat" in requiredVals ):
+    if ( "table" in requiredVals ):
         print("Loading table and extracting values")
-        chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
-                                            ("coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
-                                            ("coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
-                                            ("coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
-                                            )
+#         chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
+#                                             ("coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
+#                                             ("coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
+#                                             ("coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
+#                                             )
+
+        chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_131118tau.dat"),
+                                        ("coolheat_tab_marta/shrunk_table_131118_m0.0001_hsmooth_tau.dat"),
+                                        ("coolheat_tab_marta/shrunk_table_labels_131118taunodust.dat"),
+                                        ("coolheat_tab_marta/shrunk_table_131118_m0.0001_hsmooth_taunodust.dat"),
+                                        ("coolheat_tab_marta/shrunk_table_labels_131118taudense.dat"),
+                                        ("coolheat_tab_marta/shrunk_table_131118_m0.0001_hsmooth_taudense.dat")
+                                        )
+#         values["TK_p"][:] = 300.
+#         values["flux_p"][:] = 1.e5
+#         values["tau"][:] = 2.
+
         interpTabVec = np.vectorize(chTab.interpTab)
         tabStructs = interpTabVec(values["nH_p"].astype(np.float64),values["TK_p"].astype(np.float64),values["flux_p"].astype(np.float64),values["tau"].astype(np.float64))
 
     if ( "dustTemp" in requiredVals ):
-        values["dustTemp"] = list(map(lambda y: y.dustT, tabStructs))
-        values["dustTemp"] = np.array(values["dustTemp"])
+        values["dustTemp"] = np.array(list(map(lambda y: y.dustT, tabStructs)))
+#         values["dustTemp"] = 10.**np.array(values["dustTemp"])
         #print(list(values["dustTemp"]))
+    
+    if ( "co1" in requiredVals ):
+        values["co1"] = np.array(list(map(lambda y: y.line_co1, tabStructs)))#/values["rho_p"]
+    if ( "co2" in requiredVals ):
+        values["co2"] = np.array(list(map(lambda y: y.line_co2, tabStructs)))#/values["rho_p"]
+    if ( "hcn1" in requiredVals ):
+        values["hcn1"] = np.array(list(map(lambda y: y.line_hcn1, tabStructs)))#/values["rho_p"]
+    if ( "hcn2" in requiredVals ):
+        values["hcn2"] = np.array(list(map(lambda y: y.line_hcn2, tabStructs)))#/values["rho_p"]
+    
+#     for lineVal in "co1","co2","hcn1","hcn2":
+#         if lineVal in requiredVals:
+#             values[lineVal] = np.array(list(map(lambda y: y.__dict__["line_"+lineVal], tabStructs)))/values["rho_p"]
+            
 
     if ( "dHeat" in requiredVals ):
         values["dHeat"] = map(lambda y: y.dHeat, tabStructs)
@@ -361,7 +423,8 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     return time,values
 
 # assumes that values are already loaded
-def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma',bins=(150,150)):
+# def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma',bins=(150,150),m_bh=1.e6):
+def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma',bins=(300,300),m_bh=1.e6):
 
     bigslice = (values["dt_p"]>0.)
 
@@ -398,20 +461,35 @@ def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma',bins=(
 
     vmin = np.log10(values["m_p"][0]/2.)
     vmax = np.log10(np.sum(values["m_p"]))
+#     if iv=="vradpoly":
+#         xedges=xedges**polyfac
+#     if jv=="vradpoly":
+#         yedges=yedges**polyfac
     mappablePlot = sp.pcolormesh(xedges,yedges,H,cmap=cmap,vmin=vmin,vmax=vmax) #,norm=colors.LogNorm()
     if iv == "rad_p" and jv == "vel":
         # plot escape velocities
 #                 print("PLOTTING ESCAPE VELOCITY")
-        y = v_esc(10.**xedges,1.e6,1.e9,250.)
+#         y = v_esc(10.**xedges,m_bh,1.e9,250.)
+        y = v_esc(xedges,m_bh,1.e9,250.)
         sp.plot(xedges,y)
     sp.set_xlim(xedges[0],xedges[-1])
     sp.set_ylim(yedges[0],yedges[-1])
     sp.tick_params(which='both',direction="out")
+    if iv=="vradpoly" or jv=="vradpoly":
+        newtick_vals = np.array([-100.,-10.,0.,10.,100.,1000.,5000.])
+        newtick_locs = np.cbrt(newtick_vals)
+        newtick_vals = ["%d"%x for x in newtick_vals]
+        if iv=="vradpoly":
+            sp.set_xticks(newtick_locs)
+            sp.set_xticklabels(newtick_vals,rotation=90)
+        else:
+            sp.set_yticks(newtick_locs)
+            sp.set_yticklabels(newtick_vals)
     
     return mappablePlot
 
 
-def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
+def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None,m_bh=1.e6,gridMode=True):
     print("plotting:"+"".join([run_id,output_dir,snap_str,"".join(includedVals)]))
     
     time,values = loadvalues(run_id,output_dir,snap_str,includedVals,rcut)
@@ -425,7 +503,9 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
 
     i = 0
     #for iv in ["dt_p"]:
-    for i,iv in enumerate(includedVals):
+    varOneRange = includedVals if gridMode else [includedVals[0]]
+    
+    for i,iv in enumerate(varOneRange):
         for jv in includedVals[i+1:]:
     #for iv in range(7):
     #    for jv in [7]:
@@ -433,7 +513,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None):
             outfiles.append(fname)
             fig,sp = P.subplots(1,1)
             
-            mappablePlot = plot_phaseplot(sp,values,iv,jv,rcut)
+            mappablePlot = plot_phaseplot(sp,values,iv,jv,rcut,m_bh=m_bh)
             
 #             ax = P.gca()
             #ax.xaxis.set_minor_locator(ticker.MultipleLocator(1.))

@@ -22,43 +22,58 @@ def sort_nicely( l ):
     l.sort( key=alphanum_key )
 
 
+def g(run_id,output_dir,includedVal,rcut,m_bh,gridMode,snap_str):
+    return phaseplots.savephaseplots(run_id,output_dir,snap_str,includedVal,rcut=rcut,m_bh=m_bh,gridMode=gridMode)
+
+
 if __name__ == '__main__':
     run_id = sys.argv[1]
     output_dir = sys.argv[2]
 
     print("Running")
 
+    gridMode = False
 
     #includedVals = ["dt_p","nH_p","TK_p","rad2d_p","z_p","vrad","dHeat","dt_heat"]
-#     includedVals = ["rho_p","TK_p"]
-    #includedVals = ["mJ_p","nH_p","TK_p","p_p"]
-    #includedVals = ["mJ_p","TK_p"]
+#     includedVals = ["rad_p","nH_p","arad_p","radrad_p"]
+#     includedVals = ["rad2d_p","radrad_p"]
+#     includedVals = ["co1","co2"]
+    includedVals = ["hcn1","nH_p","TK_p","tau","flux_p"]
+#     includedVals = ["rad_p","radrad_p","nH_p"]
+#     includedVals = ["dustTemp","TK_p","vrad"]
     #includedVals = ["rad2d_p","hz_rat"]
     #includedVals = ["mJ_p","nH_p","TK_p"]
 #     includedVals = ["arad_p","radrad_p"]
 #     includedVals = ["vrad","z_p"]
     #includedVals = ["flux_p","radrad_p"]
-    includedVals = ["nH_p","TK_p"]
+#     includedVals = ["TK_p","opac"]
     #includedVals = ["p_p","nH_p"]
     #includedVals = ["rad2d_p","nH_p"]
 #     includedVals = ["dt_p","rad_p","nH_p","TK_p"]
     #includedVals = ["depth_p","radrad_p"]
 #     includedVals = ["dt_p","TK_p"]
 #     includedVals = ["TK_p","agn_heat_p"]
-#    includedVals = ["rad_p","vel"]
+#     includedVals = ["rad_p","vel"]
+#     includedVals = ["rad_p","nH_p","TK_p","opac","arad_p","radrad_p"]
+#     includedVals = ["rad_p","arad_p"]
     #includedVals = ["prat"]
     #includedVals = ["nH_p","p_p"]
     #includedVals = ["h_p","nH_p"]
     #includedVals = ["mJ_p","prat"]
-    #includedVals = ["vcirc","vrad"]
+#     includedVals = ["vcirc","vrad"]
+    
     
 #     rcut = 80.
     rcut = 1.e9
 
+    m_bh = 1.e6
+#     m_bh = .05e6
+
 #     snapi = 0
 
     snapi = 0
-    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
+#     snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
+    snapf = 100
     
     movieDir = gizmo_tools.getMovieDir()
 
@@ -80,17 +95,25 @@ if __name__ == '__main__':
     
     
     l = len(includedVals)
-    n_anim = (l*(l-1))//2
-    animstrs = np.empty((snapf),dtype=object)
+#     n_anim = (l*(l-1))//2
     
+    
+    animstrs = np.empty((snapf),dtype=object)
     snap_strs = ["%03d" % i for i in range(snapf+1)]
+
+    n_anim = 0
     anim_names = []
-    for i in range(l):
+#     for i in range(l): # do full grid
+    varOneRange = range(l) if gridMode else [0]
+    for i in varOneRange: # do first vs everything
         for j in range(i+1,l):
             anim_names.append(includedVals[i]+includedVals[j])
+            n_anim+=1
     
     pool = Pool(processes=80)
-    animstrs = pool.starmap(phaseplots.savephaseplots,zip(it.repeat(run_id),it.repeat(output_dir),snap_strs,it.repeat(includedVals),it.repeat(rcut)))
+    h = partial(g,run_id,output_dir,includedVals,rcut,m_bh,gridMode)
+#     animstrs = pool.starmap(phaseplots.savephaseplots,zip(it.repeat(run_id),it.repeat(output_dir),snap_strs,it.repeat(includedVals),it.repeat(rcut)))
+    animstrs = pool.map(h,snap_strs)
     pool.close()
     animstrs = np.vstack(animstrs)
 

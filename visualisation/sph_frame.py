@@ -370,23 +370,38 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("dg")
     if ( "dg" in need_to_load ):
         need_to_load.append("table")
+    if ( "vco1" in need_to_load ):
+        need_to_load.append("co1m")
+    if ( "vco2" in need_to_load ):
+        need_to_load.append("co2m")
+    if ( "vhcn1" in need_to_load ):
+        need_to_load.append("hcn1m")
+    if ( "vhcn2" in need_to_load ):
+        need_to_load.append("hcn2m")
+    if ( "co1m" in need_to_load ):
+        need_to_load.append("co1")
+    if ( "co2m" in need_to_load ):
+        need_to_load.append("co2")
+    if ( "hcn1m" in need_to_load ):
+        need_to_load.append("hcn1")
+    if ( "hcn2m" in need_to_load ):
+        need_to_load.append("hcn2")
     if ( "co1" in need_to_load or "co2" in need_to_load or "hcn1" in need_to_load or "hcn2" in need_to_load ):
         need_to_load.append("table")
+    if ( "col" in need_to_load ):
+        if not "/PartType0/AGNColDens" in f:
+            need_to_load.append("table")
     if ( "table" in need_to_load ):
         need_to_load.append("temp")
         need_to_load.append("nH")
         need_to_load.append("tau")
+    
 
 #     if "nopac" in need_to_load:
 #         need_to_load.append("opac")
 #         need_to_load.append("nH")
     
-    if ( "vel_2d" in need_to_load or
-         "vel_r" in need_to_load or
-         "vel_x" in need_to_load or
-         "vel_y" in need_to_load or
-         "vel_z" in need_to_load or
-         "vel_a" in need_to_load):
+    if any(x in need_to_load for x in ["vel_2d","vel_r","vel_x","vel_y","vel_z","vel_a","vco1","vco2","vhcn1","vhcn2"]):
         need_to_load.append("vels")
 
     if ( "pres" in need_to_load ):
@@ -403,10 +418,6 @@ def load_gadget(infile, plot_thing,
         data.accels*=3.24086617e-12 # to cm/s/s
         data.accel = np.sqrt(np.sum(data.accels**2,axis=1))
 
-    if ( "col" in need_to_load ):
-        data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
-        data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
-        data.coldens/=(molecular_mass*proton_mass_cgs) # N in cm**(-2) 
 
     if ( "depth" in need_to_load ):
         data.depth = np.array(f["/PartType0/AGNOpticalDepth"]) # Msun/kpc**2
@@ -487,7 +498,15 @@ def load_gadget(infile, plot_thing,
 
         verboseprint("Calculating dust/cooling/heating properties from table")
         tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.tau.astype(np.float64))
-        
+    
+    
+    if ( "col" in need_to_load ):
+        if "/PartType0/AGNColDens" in f:
+            data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
+            data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
+            data.coldens/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
+        else:
+            data.coldens = np.array(list(map(lambda y: y.column_out, tabStructs)))
 
     if ( "tdust" in need_to_load ):
         data.dustTemp = map(lambda y: y.dustT, tabStructs)
@@ -497,18 +516,25 @@ def load_gadget(infile, plot_thing,
 #         data.dustTemp = data.dustTemp**4 # for test
 
     if ( "co1" in need_to_load ):
-        data.co1 = np.array(list(map(lambda y: y.line_co1, tabStructs))) # erg/s/cm**3
-        data.co1/=rho_p # to erg/g
+        data.co1 = np.array(list(map(lambda y: y.line_co1, tabStructs))) # erg/s/g
+#         data.co1/=data.rho_p # to erg/g
     if ( "co2" in need_to_load ):
-        data.co2 = np.array(list(map(lambda y: y.line_co2, tabStructs))) # erg/s/cm**3
-        data.co2/=rho_p # to erg/g
+        data.co2 = np.array(list(map(lambda y: y.line_co2, tabStructs))) # erg/s/g
+#         data.co2/=data.rho_p # to erg/g
     if ( "hcn1" in need_to_load ):
-        data.hcn1 = np.array(list(map(lambda y: y.line_hcn1, tabStructs))) # erg/s/cm**3
-        data.hcn1/=rho_p # to erg/g
+        data.hcn1 = np.array(list(map(lambda y: y.line_hcn1, tabStructs))) # erg/s/g
+#         data.hcn1/=data.rho_p # to erg/g
     if ( "hcn2" in need_to_load ):
-        data.hcn2 = np.array(list(map(lambda y: y.line_hcn2, tabStructs))) # erg/s/cm**3
-        data.hcn2/=rho_p # to erg/g
-        
+        data.hcn2 = np.array(list(map(lambda y: y.line_hcn2, tabStructs))) # erg/s/g
+#         data.hcn2/=data.rho_p # to erg/g
+    if ( "co1m" in need_to_load ):
+        data.co1m=data.co1*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
+    if ( "co2m" in need_to_load ):
+        data.co2m=data.co2*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
+    if ( "hcn1m" in need_to_load ):
+        data.hcn1m=data.hcn1*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
+    if ( "hcn2m" in need_to_load ):
+        data.hcn2m=data.hcn2*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
 
     if ( "dg" in need_to_load ):
         data.dg = map(lambda y: y.dg, tabStructs)
@@ -618,7 +644,8 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
     plotLabel["accel"] = r"$a$ (log cm/s/s)"
     plotLabel["AGNI"] = r"Unextinced $I_{AGN}$ (log erg/s/cm^2)"
-    plotLabel["tau"] = r"$\log_{10}\tau$"
+#     plotLabel["tau"] = r"$\log_{10}\tau$"
+    plotLabel["tau"] = r"$\tau$"
     plotLabel["list"] = r"$i$"
     plotLabel["rand"] = r"$q$"
     plotLabel["opac"] = r"$\kappa$"
@@ -628,12 +655,24 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotLabel["nneigh"] = r"$N_n$"
 #     plotLabel["pres"] = r"$P$ (dyne/cm$^2$)"
     plotLabel["pres"] = r"$P$ (internal)"
+    plotLabel["co1"] = r"co1"
+    plotLabel["co2"] = r"co2"
+    plotLabel["hcn1"] = r"hcn1"
+    plotLabel["hcn2"] = r"hcn2"
+    plotLabel["co1m"] = r"CO '1' line intensity - erg/s/cm**2/ster"
+    plotLabel["co2m"] = r"CO '2' line intensity - erg/s/cm**2/ster"
+    plotLabel["hcn1m"] = r"HCN '1' line intensity - erg/s/cm**2/ster"
+    plotLabel["hcn2m"] = r"HCN '2' line intensity - erg/s/cm**2/ster"
+    plotLabel["vco1"] = r"vco1"
+    plotLabel["vco2"] = r"vco2"
+    plotLabel["vhcn1"] = r"vhcn1"
+    plotLabel["vhcn2"] = r"vhcn2"
 
     plotRanges = dict()
 #     plotRanges["temp"] = [.999,4.]*2
     plotRanges["temp"] = [.999,6.]*2
     #plotRanges["temp"] = [3.,4.]*2
-    plotRanges["col"] = [18.,25.]*2
+    plotRanges["col"] = [18.,26.]*2
 #     plotRanges["nH"] = [0.,8.]*2 # standard
     plotRanges["nH"] = [5.,10.]*2
 #     plotRanges["nH"] = [5.,7.]*2
@@ -670,8 +709,8 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["accel"] = [-3.,0.]*2
     plotRanges["AGNI"] = [-9.,-3.]*2
 #     plotRanges["tau"] = [0.,5.]*2
-#     plotRanges["tau"] = [0.,7.]*2
-    plotRanges["tau"] = [0.,1.]*2
+    plotRanges["tau"] = [0.,7.]*2
+#     plotRanges["tau"] = [0.,1.]*2
 #     plotRanges["tau"] = [-2,3.]*2
 #     plotRanges["tau"] = [0.,250.]*2
 #     plotRanges["tau"] = [0.,50.]*2
@@ -686,10 +725,18 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["nneigh"] = [0,50]*2
 #     plotRanges["pres"] = [36.3,38.6]*2
     plotRanges["pres"] = [3.3,16]*2
-    plotRanges["co1"] = [-40.,40.]*2
-    plotRanges["co2"] = [-40.,40.]*2
-    plotRanges["hcn1"] = [-40.,40.]*2
-    plotRanges["hcn2"] = [-40.,40.]*2
+    plotRanges["co1"] = [-4.,0.]*2
+    plotRanges["co2"] = [-4.,0.]*2
+    plotRanges["hcn1"] = [-4.,0.]*2
+    plotRanges["hcn2"] = [-4.,0.]*2
+    plotRanges["co1m"] = [-10.,-4.]*2
+    plotRanges["co2m"] = [-10.,-4.]*2
+    plotRanges["hcn1m"] = [-10.,-4.]*2
+    plotRanges["hcn2m"] = [-10.,-4.]*2
+    plotRanges["vco1"] = [-100.,100.]*2
+    plotRanges["vco2"] = [-100.,100.]*2
+    plotRanges["vhcn1"] = [-100.,100.]*2
+    plotRanges["vhcn2"] = [-100.,100.]*2
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -729,9 +776,25 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotSliceTypes["co2"] = quantslice
     plotSliceTypes["hcn1"] = quantslice
     plotSliceTypes["hcn2"] = quantslice
+    plotSliceTypes["co1m"] = dslice
+    plotSliceTypes["co2m"] = dslice
+    plotSliceTypes["hcn1m"] = dslice
+    plotSliceTypes["hcn2m"] = dslice
+    plotSliceTypes["vco1"] = quantslice
+    plotSliceTypes["vco2"] = quantslice
+    plotSliceTypes["vhcn1"] = quantslice
+    plotSliceTypes["vhcn2"] = quantslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
+    plotCustomMass["co1m"] = "co1m"
+    plotCustomMass["co2m"] = "co2m"
+    plotCustomMass["hcn1m"] = "hcn1m"
+    plotCustomMass["hcn2m"] = "hcn2m"
+    plotCustomMass["vco1"] = "co1m"
+    plotCustomMass["vco2"] = "co2m"
+    plotCustomMass["vhcn1"] = "hcn1m"
+    plotCustomMass["vhcn2"] = "hcn2m"
     
     plotData = dict()
     plotData["temp"] = "TK_p"
@@ -771,12 +834,24 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["co2"] = "co2"
     plotData["hcn1"] = "hcn1"
     plotData["hcn2"] = "hcn2"
+    plotData["vco1"] = "vthin"
+    plotData["vco2"] = "vthin"
+    plotData["vhcn1"] = "vthin"
+    plotData["vhcn2"] = "vthin"
+#     plotData["co1m"] = "co1m"
+#     plotData["co2m"] = "co2m"
+#     plotData["hcn1m"] = "hcn1m"
+#     plotData["hcn2m"] = "hcn2m"
     
-    logSliceTypes = ["temp","col","nH","dens","dust","view","emit","dt","arad","accel","AGNI","opac","smooth","tdust","pres","co1","co2","hcn1","hcn2"]
+    logSliceTypes = [   "temp","col","nH","dens","dust",
+                        "view","emit","dt","arad","accel",
+                        "AGNI","opac","smooth","tdust","pres",
+                        "co1","co2","hcn1","hcn2","co1m","co2m","hcn1m","hcn2m",
+                        ]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
-    divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d","vel_a","vthin"]
+    divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d","vel_a","vthin","vco1","vco2","vhcn1","vhcn2"]
     
     customCmaps = dict()
     customCmaps["heat"] = 'Reds'
@@ -813,7 +888,7 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
         z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
     
     
-    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a","vthin"]) ):
+    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a","vthin","vco1","vco2","vhcn1","vhcn2"]) ):
         #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
         data.vel2d = (x*data.vels[:,0]+y*data.vels[:,1])/np.sqrt(x**2+y**2)
         data.vel_a = (-x*data.vels[:,1]+y*data.vels[:,0])/np.sqrt(x**2+y**2)
@@ -822,16 +897,19 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
         data.vel_y = data.vels[:,1]
         data.vel_z = data.vels[:,2]
     
-    if "vthin" in plot_thing:
+    if any(x in plot_thing for x in ["vthin","vco1","vco2","vhcn1","vhcn2"]):
         if ringPlot:
             raise Exception("can't do optically thin line of sight velocity while integrating around ring")
+        
         if rot[0]!=0. or rot[1]!=0.:
             vyr = data.vel_x*np.sin(rot[0]) + data.vel_y*np.cos(rot[0])
 #             data.vel_y = vyr*np.cos(rot[1]) - data.vel_z*np.sin(rot[1])
             data.vthin = vyr*np.sin(rot[1]) + data.vel_z*np.cos(rot[1])
         else:
             data.vthin = data.vel_z
-
+#         for vthinplot in "vco1","vco2","vhcn1","vhcn2":
+#             if vthinplot in plot_thing:
+#                 data[vthinplot]*=data.vthin
 
     # set x coordinate - cartesian or cylindrical ("ringplot")
     if ( ringPlot ):
@@ -1044,7 +1122,7 @@ def makesph_trhoz_frame(infile,outfile,
         thisDiverging = (plot_thing[irow] in divergingTypes)
         
         if ( plot_thing[irow] in plotCustomMass ):
-            thisMass = data.__dict__[plot_thing[irow]]
+            thisMass = data.__dict__[plotCustomMass[plot_thing[irow]]]
         else:
             thisMass = data.m_p
 
@@ -1096,7 +1174,7 @@ def makesph_trhoz_frame(infile,outfile,
                 makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging)
             elif ( view=='side' ):
-                makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,data.m_p,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
+                makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging)
 
 
