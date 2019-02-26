@@ -1,29 +1,9 @@
-! 
-! function accel(xyz,N)
-!     use global_constants
-!     implicit none
-!     
-!     integer :: N
-!     real(kind=8),dimension(N,3) :: xyz,accel
-!     real(kind=8) :: r,x,m
-!     integer :: i
-! 
-!     do i=1,N
-!         r=sqrt(sum(xyz(i,:)**2))
-!         x=r/a_hernquist
-!         m=m_smbh*r**2/(r**2+c_scale**2) + m_hernquist*(x/(1.+x))**2
-!     
-!         accel(i,:)=(-G_internal*m/r**3) * xyz(i,:)
-!     end do
-! 
-!     return
-! end function
+! This code reads in some parameters and uses them to integrate some blobs outwards
+! The blobs are "frozen" after some time, in turn
+! Use blobfile_ICs to convert this into GIZMO/GADGET ICs
+! With the given potential, the blobs will then infall with the given inflow rate (in blobs/yr)
 
-program reverse_for_ICs
-!     use global_constants
-    implicit none
-
-
+module blob_reverse_prams
     real(kind=8), parameter ::  G_cgs = 6.67259e-8,&
                                 solarmass_in_g = 1.989e33,&
                                 pc_in_cm = 3.086e18,&
@@ -32,16 +12,67 @@ program reverse_for_ICs
                                 G_internal = G_cgs/pc_in_cm**2*solarmass_in_g/km_in_cm,&
                                 M_PI = 4.0_8*atan(1.0_8)
 
-    real(kind=8), parameter ::  a_hernquist=250.,&
+    real(kind=8) ::  a_hernquist=250.,&
                                 m_hernquist=1.d9,&
                                 m_smbh=1.d6,&
                                 c_scale=1.d-2
-    
-    integer, parameter :: N=100
-    real(kind=8), parameter ::  rmin=0.005,&
+
+    integer :: N=100
+    real(kind=8) ::  rmin=0.005,&
                                 inflow_rate=0.01,&
                                 mean_rot_vel=600.!100.
+    character(len=256) :: outfile
+    
+    contains
+        subroutine get_prams(pramfile)
+            use ic_formatter
+            implicit none
+            character(len=*) :: pramfile
+            
+            call parse_prams(pramfile)
+            
+            N = get_int('N',100)
+            a_hernquist = get_real('hernquist_scale',250.d0)
+            m_hernquist = get_real('hernquist_mass',1.d9)
+            m_smbh = get_real('m_smbh',1.d6)
+            c_scale = get_real('c_scale',1.d-2)
+            rmin = get_real('rmin',0.005d0)
+            inflow_rate = get_real('inflow_rate',0.01d0)
+            mean_rot_vel = get_real('vrot',600.d0)
+            outfile = get_string('outfile',"blobdata/generic_out.dat")
+            
+            print *,N,a_hernquist,m_hernquist,m_smbh,N,rmin,inflow_rate,mean_rot_vel,trim(outfile)
 
+            call tidy_up
+        end subroutine get_prams
+
+    
+
+end module
+
+program reverse_for_ICs
+    use blob_reverse_prams
+    implicit none
+    character(len=256) :: pramfile
+    
+    ! Read input from parameter file
+    if ( command_argument_count()<1 ) then
+        print *,"Please give the parameter file in the command line"
+        print *,"e.g. ./reverse_for_ICs blobprams/fastRotPrams.dat"
+        stop
+    endif
+    
+    call get_command_argument(1,pramfile)
+    
+    call get_prams(pramfile)
+
+    call integrate_and_save
+end program reverse_for_ICs
+    
+
+subroutine integrate_and_save
+    use blob_reverse_prams
+    implicit none
     real(kind=8) :: v_esc
     real(kind=8) :: r2d,r3d,x,m,vcirc
     real(kind=8) :: vcirc_avg,dvcirc
@@ -126,10 +157,10 @@ program reverse_for_ICs
     end do
     print *,"nframes=",frame
 
-    open(unit=17,file="data/stronger_rot.dat")
+    open(unit=17,file=outfile)
     do i=1,N
         write(17,"(6E13.5)") xyz(i,:),vel(i,:)
     end do
     close(17)
 
-end program reverse_for_ICs
+end subroutine integrate_and_save

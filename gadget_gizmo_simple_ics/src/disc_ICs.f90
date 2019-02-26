@@ -8,6 +8,8 @@ module IC_parameters
     real(kind=8) :: v0,v0rad,v_index
     real(kind=8) :: T0
     real(kind=8) :: vloop0,vlooprad
+    real(kind=8) :: hotcore
+    integer :: nhotcore,ndisc
     
     real(kind=8) :: dense_index
     
@@ -57,7 +59,7 @@ program disc_ICs
     integer :: ios
     integer :: whitey
     
-    integer :: np
+    integer :: ip,np
     
     logical :: valid_command
     
@@ -91,6 +93,10 @@ program disc_ICs
     ! hernquist type bulge potential
     hernquist_mass = 1.d9
     hernquist_scale = 250.d0
+    
+    ! negative = not initial hot core, otherwise = temp of hot core
+    hotcore = -1.
+    nhotcore = 0
 
     !mtot = 2.d6/1.d10 ! units of 1.d10 msun
     mtot = 8.426453d6 ! units of Msun
@@ -215,6 +221,8 @@ program disc_ICs
                     endif
                 case("temp")
                     read(invalue,*) T0
+                case("hotcore")
+                    read(intext,*,iostat=ios) invariable,hotcore,nhotcore
 
                 case("pfile")
                     read(intext,"(A6,A)",iostat=ios) invariable,position_file
@@ -254,6 +262,14 @@ program disc_ICs
     v0rad = v0rad/1.e3
     vlooprad = vlooprad/1.e3
     
+    ndisc = np
+    if ( hotcore>0. .and. nhotcore>0 ) then
+        print *,"Increasing np from ",np," to ",np+nhotcore," to produce hot core"
+        print *,"Increasing mtot from ",mtot," to ",mtot/np*(np+nhotcore)," to maintain resolution"
+        mtot = mtot/np*(np+nhotcore)
+        np = np+nhotcore
+    endif
+    
     !call set_N_onlygas(8192)
     !call set_N_onlygas(65536)
     call set_N_onlygas(np)
@@ -273,6 +289,15 @@ program disc_ICs
     
     call disc_locs(tproffile)
     
+    if ( hotcore>0. .and. nhotcore>0 ) then
+        call hotcore_locs()
+    endif
+    
+    ! set initial IDs
+    do ip=1,p_data%ng
+        p_data%id_p(ip) = ip
+    end do
+
     !call write_ICs("data/discICs_midres.dat")
     !call write_ICs("data/holy_razorthin_discICs_midres.dat")
     call write_ICs(outfile)
@@ -486,7 +511,7 @@ subroutine calc_const_q_surf_profile(rans)
     
     fbin = fbin/fbin(nbin)
     
-    do ip=1,p_data%ng
+    do ip=1,ndisc
         ibin = 1
         do while (fbin(ibin)<rans(ip,1) .and. ibin<=nbin)
             ibin = ibin + 1
@@ -532,7 +557,7 @@ subroutine disc_locs(tproffile)
         rho_target = rho_target / nunit
     endif
     
-    allocate(rans(p_data%ng,3))
+    allocate(rans(ndisc,3))
     call random_number(rans) ! generate random numbers
     if ( position_file=="" ) then
 
@@ -578,18 +603,18 @@ subroutine disc_locs(tproffile)
             rans(:,3) = (rans(:,3)-.5d0)*2.d0*disc_thick ! thickness is disk_thick
         endif
     
-        p_data%r_p(1,:) = real(rans(:,1)*dsin(rans(:,2)))
-        p_data%r_p(2,:) = real(rans(:,1)*dcos(rans(:,2)))
-        p_data%r_p(3,:) = real(rans(:,3))
+        p_data%r_p(1,1:ndisc) = real(rans(:,1)*dsin(rans(:,2)))
+        p_data%r_p(2,1:ndisc) = real(rans(:,1)*dcos(rans(:,2)))
+        p_data%r_p(3,1:ndisc) = real(rans(:,3))
     
     else
         open(unit=16,file=position_file)
-        do ip=1,p_data%ng
+        do ip=1,ndisc
             read(16,*) p_data%r_p(2,ip), p_data%r_p(1,ip)
             ! centre arbitrarily
             p_data%r_p(1,ip) = (p_data%r_p(1,ip)-325)*1.e-5
             p_data%r_p(2,ip) = (-p_data%r_p(2,ip)+180)*1.e-5
-            p_data%r_p(3,ip) = (rans(ip,3)-.5e0)*2.e-5+.5e-3
+            p_data%r_p(3,ip) = real((rans(ip,3)-.5e0)*2.e-5+.5e-3)
         end do
         
         close(16)
@@ -603,11 +628,11 @@ subroutine disc_locs(tproffile)
     ! density is constant, so M(r)=G * M_tot * r^2 / r_max^2
     ! add external potential to this
     
-    allocate(rads(p_data%ng))
-    allocate(vcircs(p_data%ng))
-    allocate(vrads(p_data%ng))
+    allocate(rads(ndisc))
+    allocate(vcircs(ndisc))
+    allocate(vrads(ndisc))
     
-    rads = sqrt(p_data%r_p(1,:)**2+p_data%r_p(2,:)**2+p_data%r_p(3,:)**2) ! sqrt is slow, but this is O(N) so okay
+    rads = sqrt(p_data%r_p(1,1:ndisc)**2+p_data%r_p(2,1:ndisc)**2+p_data%r_p(3,1:ndisc)**2) ! sqrt is slow, but this is O(N) so okay
     !
     !mrads = mtot*rads**2/disc_rad**2 ! disc mass for self gravity
 
@@ -615,13 +640,13 @@ subroutine disc_locs(tproffile)
     ! Temperatures - use constant temperature if tproffile is not assigned
     ! otherwise, interpolate from tproffile
     if ( trim(tproffile)=='none' ) then
-        p_data%u_p(:)=real(T0)
+        p_data%u_p(1:ndisc)=real(T0)
 
     
         ! Calculate rotation curve from potential, if no vlaw is given (i.e. input v0rad<0), and no explicit acceleration profile is given
         ! Otherwise, set vcircs(:)=v0*(R/v0rad)**v_index
         if ( v0rad<0. ) then
-            allocate(mrads(p_data%ng))
+            allocate(mrads(ndisc))
     
             if ( selfgrav ) then
                 !mrads = mtot*(rads-disc_inner_rad)**2/(disc_rad-disc_inner_rad)**2 ! disc mass for self gravity with inner cutoff
@@ -656,21 +681,21 @@ subroutine disc_locs(tproffile)
     if ( vlooprad<0 ) then
         vrads = - inwards_v
     else
-        allocate(rad2d(p_data%ng))
-        allocate(z_over_r(p_data%ng))
-        allocate(vphis(p_data%ng))
-        allocate(r_transformed(3,p_data%ng))
-        allocate(rad_transformed(p_data%ng))
+        allocate(rad2d(ndisc))
+        allocate(z_over_r(ndisc))
+        allocate(vphis(ndisc))
+        allocate(r_transformed(3,ndisc))
+        allocate(rad_transformed(ndisc))
     
 
-        rad2d = sqrt(p_data%r_p(1,:)**2+p_data%r_p(2,:)**2) - disc_inner_rad
-        z_over_r = rad2d/p_data%r_p(3,:)
+        rad2d = sqrt(p_data%r_p(1,1:ndisc)**2+p_data%r_p(2,1:ndisc)**2) - disc_inner_rad
+        z_over_r = rad2d/p_data%r_p(3,1:ndisc)
         
         vrads = (1.d0-z_over_r**2)/(z_over_r**2+1.d0)
         vphis = 2.d0*z_over_r/(z_over_r**2+1.d0)
         
-        r_transformed(3,:) = p_data%r_p(3,:)
-        r_transformed(1:2,:) = p_data%r_p(1:2,:)*spread(1.d0-disc_inner_rad/rad2d,1,2)
+        r_transformed(3,:) = p_data%r_p(3,1:ndisc)
+        r_transformed(1:2,:) = p_data%r_p(1:2,1:ndisc)*spread(1.d0-disc_inner_rad/rad2d,1,2)
         
         rad_transformed=sqrt(r_transformed(1,:)**2+r_transformed(2,:)**2+r_transformed(3,:)**2)
         
@@ -679,7 +704,7 @@ subroutine disc_locs(tproffile)
     endif
 
     ! convert from temperature in K to internal units (1e10 erg/g)
-    p_data%u_p(:) = real(p_data%u_p(:)/u_to_TK/uunit_cgs)
+    p_data%u_p(1:ndisc) = real(p_data%u_p(1:ndisc)/u_to_TK/uunit_cgs)
 
     if ( position_file/="" ) then
         !vcircs = 0.d0
@@ -692,22 +717,23 @@ subroutine disc_locs(tproffile)
 
     
     ! convert to cartesian
-    p_data%v_p(1,:) =  real(vcircs * p_data%r_p(2,:) / rads)
-    p_data%v_p(2,:) = real(-vcircs * p_data%r_p(1,:) / rads)
-    p_data%v_p(3,:) = 0.
+    p_data%v_p(1,1:ndisc) =  real(vcircs * p_data%r_p(2,1:ndisc) / rads)
+    p_data%v_p(2,1:ndisc) = real(-vcircs * p_data%r_p(1,1:ndisc) / rads)
+    p_data%v_p(3,1:ndisc) = 0.
 
     print *,p_data%v_p(:,1),p_data%r_p(:,1)
     
     if ( vlooprad>=0 ) then
     ! TODO: include vphi
-        p_data%v_p(1:2,:) = real(p_data%v_p(1:2,:) + p_data%r_p(1:2,:)*spread(vphis*z_over_r/sqrt(z_over_r**2+1.)/rad2d,1,2))
-        p_data%v_p(3,:) = real(p_data%v_p(3,:) - vphis/sqrt(z_over_r**2+1.))
+        p_data%v_p(1:2,1:ndisc) = real(p_data%v_p(1:2,1:ndisc) + &
+                p_data%r_p(1:2,1:ndisc)*spread(vphis*z_over_r/sqrt(z_over_r**2+1.)/rad2d,1,2))
+        p_data%v_p(3,1:ndisc) = real(p_data%v_p(3,1:ndisc) - vphis/sqrt(z_over_r**2+1.))
         
         ! include radial impulse
-        p_data%v_p(:,:) = real(p_data%v_p(:,:) + r_transformed(:,:) * spread(vrads(:)/rad_transformed(:),1,3))
+        p_data%v_p(:,1:ndisc) = real(p_data%v_p(:,1:ndisc) + r_transformed(:,:) * spread(vrads(:)/rad_transformed(:),1,3))
     else
         ! include radial impulse
-        p_data%v_p(:,:) = real(p_data%v_p(:,:) + p_data%r_p(:,:) * spread(vrads(:)/rads,1,3))
+        p_data%v_p(:,1:ndisc) = real(p_data%v_p(:,1:ndisc) + p_data%r_p(:,1:ndisc) * spread(vrads(:)/rads,1,3))
     endif
     
     print *,p_data%v_p(:,1),p_data%r_p(:,1)
@@ -723,18 +749,47 @@ subroutine disc_locs(tproffile)
     deallocate(vrads)
     deallocate(vcircs)
     
-    ! set initial IDs
-    do ip=1,p_data%ng
-        p_data%id_p(ip) = ip
-    end do
-    
 
 end subroutine disc_locs
 
+subroutine hotcore_locs
+    use gadget_ics_IO
+    use IC_parameters
+    use Units
+    implicit none
+    
+    real(kind=8), dimension(:,:), allocatable :: rans
+    real(kind=8), dimension(:), allocatable :: rad,phi,theta
+    
+    allocate(rans(nhotcore,3))
+    allocate(rad(nhotcore))
+    allocate(phi(nhotcore))
+    allocate(theta(nhotcore))
+    call random_number(rans) ! generate random numbers
+
+    phi = rans(:,1)*2.d0*pi
+    theta = acos(rans(:,2)*2.d0-1.d0)
+    rad = disc_inner_rad*rans(:,3)**(1.d0/3.d0)
+
+    p_data%r_p(1,ndisc+1:ndisc+nhotcore) = real(rad*sin(theta)*cos(phi))
+    p_data%r_p(2,ndisc+1:ndisc+nhotcore) = real(rad*sin(theta)*sin(phi))
+    p_data%r_p(3,ndisc+1:ndisc+nhotcore) = real(rad*cos(theta))
+
+    deallocate(rans)
+    deallocate(rad)
+    deallocate(phi)
+    deallocate(theta)
+    
+    p_data%v_p(:,ndisc+1:ndisc+nhotcore)=0.d0
+
+    p_data%u_p(ndisc+nhotcore)=real(T0/u_to_TK/uunit_cgs)
+
+end subroutine hotcore_locs
 
 ! set temperature profile by interpolating from points in a file
 subroutine temp_profile(tproffile, rads, vcircs)
     use gadget_ics_IO
+    use IC_parameters, only: ndisc 
     implicit none
     
     character(len=256) :: tproffile
@@ -778,7 +833,7 @@ subroutine temp_profile(tproffile, rads, vcircs)
     
     tab_rad = tab_rad/1.d3 ! convert to kpc
     
-    do ip=1,p_data%ng
+    do ip=1,ndisc
         if ( rads(ip)>tab_rad(nbins) ) then
             ! assume flat T profile at large radius
             p_data%u_p(ip) = real(tab_temp(nbins))
