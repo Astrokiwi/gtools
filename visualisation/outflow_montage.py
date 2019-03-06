@@ -18,10 +18,15 @@ import matplotlib.pyplot as P
 
 print("Running")
 
-output_dir = "q2redo"
-run_id = "2014"
+# output_dir = "q2redo"
+# run_id = "2014"
+# 
+# snap_str = "1000"
 
-snap_str = "1000"
+output_dir = "run_a2_e01"
+run_id = "2022"
+
+snap_str = "100"
 
 # cuts = [    ['temp',10.**0.,10.**2.5],
 #             ['temp',10.**2.5,10.**4.],
@@ -42,18 +47,18 @@ snap_str = "1000"
 
 ncuts = 3
 
-gizmoDir = gizmo_tools.getGizmoDir()
+gizmoDir = gizmo_tools.getGizmoDir(run_id)
 movieDir = gizmo_tools.getMovieDir()
 
 flattenedPlot = True
 rot = [0.,0.]
 plot_things = ['velr','TK_p','dustTemp']
 load_things = ['vels','tdust','temp']
-ranges = [[0.,2.5],[1.,4.],[1.,2.4]]
+ranges = [[1.,3.],[2.,4.],[1.,2.6]]
 labels = [r'$\log v_r$ (km/s)',r'$\log T_g$ (K)',r'$\log T_d$ (K)']
 # load_things = ['vels','temp']
 L=256
-width = 70.
+width = 5.
 corners_face = [-width/2.,-width/2.]
 corners_side = [0.,-width/2.]
 

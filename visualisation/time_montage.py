@@ -20,21 +20,32 @@ print("Running")
 
 # output_dir = "q2redo"
 # runs = ["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
-runs = ["q2redo"]
-run_id = "2014"
-
-snapx = [0,100,200,500,1000]
+# runs = ["q2redo"]
+# run_id = "2014"
+# 
+# snapx = [0,100,200,500,1000]
 # snapx = [200,500]
+
+
+# runs = ["run_a2_e01"]
+# run_id = "2022"
+
+runs = ["a2_e01"]
+run_id = "3001"
+
+
+snapx = [0,10,20,50,100]
+
 nsnaps = len(snapx)
 
-gizmoDir = gizmo_tools.getGizmoDir()
+gizmoDir = gizmo_tools.getGizmoDir(run_id)
 movieDir = gizmo_tools.getMovieDir()
 
 flattenedPlot = True
 rot = [0.,0.]
 plot_thing = ['temp','nH']
 L=256
-width = 8.
+width = .8
 corners_face = [-width/2.,-width/2.]
 corners_side = [0.,-width/2.]
 
@@ -76,11 +87,11 @@ for output_dir in runs:
         time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = sph_frame.load_process_gadget_data(infile,rot,plot_thing,plotData,ringPlot=flattenedPlot,flatPlot=flattenedPlot)
         sph_frame.makesph_plot(fig,sp[irow,1],cb_sp,x,y,deep_face,0.,data.nH_p,data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} n_{H}$ (cm$^{-3}$)",0.,8.,nH_cmap,sph_frame.weightslice)
         sph_frame.makesph_plot(fig,sp[irow,2],cb_sp,rad2d,z,deep_side,0.,data.nH_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} n_{H}$ (cm$^{-3}$)",0.,8.,nH_cmap,sph_frame.weightslice)
-        sph_frame.makesph_plot(fig,sp[irow,3],cb_sp_temp,x,y,deep_face,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} T_g$ (K)",0.,4.,temp_cmap,sph_frame.weightslice)
-        sph_frame.makesph_plot(fig,sp[irow,4],cb_sp_temp,rad2d,z,deep_side,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} T_g$ (K)",0.,4.,temp_cmap,sph_frame.weightslice)
+        sph_frame.makesph_plot(fig,sp[irow,3],cb_sp_temp,x,y,deep_face,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} T_g$ (K)",0.,5.,temp_cmap,sph_frame.weightslice)
+        sph_frame.makesph_plot(fig,sp[irow,4],cb_sp_temp,rad2d,z,deep_side,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} T_g$ (K)",0.,5.,temp_cmap,sph_frame.weightslice)
         
         sp[irow,4].yaxis.set_label_position("right")
-        sp[irow,4].set_ylabel("t={0:.4f} Myr".format(time),size='x-large')
+        sp[irow,4].set_ylabel("t={0:.2f} kyr".format(time*1.e3),size='x-large')
 
     for isp in range(1,ntimes):
         sp[isp,0].remove()
@@ -95,7 +106,7 @@ for output_dir in runs:
     
     fig.subplots_adjust(hspace=0., wspace=0.) 
     fig.tight_layout(pad=0.0,w_pad=0.0,h_pad=0.)
-    P.savefig("../pics/time_montage_"+run_id+output_dir+".png",dpi=150)
+    P.savefig("../../figures/time_montage_"+run_id+output_dir+".png",dpi=150)
     #     outfile = "../../figures/nHevolve"+run_id+output_dir+".png"
     #     sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['nH']*nsnaps,L=400,scale=4.)
     # 

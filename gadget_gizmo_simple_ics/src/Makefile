@@ -15,6 +15,15 @@ disc : ${DISC_OBJS}
 	${FORT} ${OPTIONS} -o ${DISC_EXEC} ${DISC_OBJS} ${LIBS}
 	mv ${DISC_EXEC} ..
 
+reverse:
+	gfortran -fbacktrace -g ic_formatter.f90 reverse_for_ICs.f90 -o ../reverse_for_ICs
+
+BLOBFILE_OBJS=gadget_ics_IO.o blobfile_ICs.o
+BLOBFILE_EXEC=blobfile_ICs
+
+blobfile : ${BLOBFILE_OBJS}
+	${FORT} ${OPTIONS} -o ${BLOBFILE_EXEC} ${BLOBFILE_OBJS} ${LIBS}
+	mv ${BLOBFILE_EXEC} ..
 
 DROP_OBJS=gadget_ics_IO.o blobdrop_ICs.o
 DROP_EXEC=blobdrop_ICs

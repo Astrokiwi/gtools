@@ -15,9 +15,6 @@ import gizmo_tools
 
 import argparse
 
-def doop(*args):
-    print(args)
-
 # def sort_nicely( l ):
 #     """ Sort the given list in the way that humans expect.
 #     """
@@ -38,11 +35,19 @@ def dump_rad0(infile):
 #     sys.exit()
     
 
+# joblib doesn't dump exceptions well, just print them
+def plotter_parallel_exception_wrapper(*args,**kwargs):
+    try:
+        return sph_frame.makesph_trhoz_frame(*args,**kwargs)
+    except Exception as e:
+        print(e) # should give some output at least
+        raise(e) # might not work
 
 if __name__ == '__main__':
     default_values = dict()
     default_values["nprocs"]=8
     default_values["maxsnapf"]=-1
+    default_values["snap0"]=-1
     default_values["rad"]="15"
     #default_values["rads"]=""
     default_values["L"]=400
@@ -58,14 +63,19 @@ if __name__ == '__main__':
     default_values["suffix"]=""
     default_values["dotmode"]=""
     default_values["absurd"]=False
+    default_values["pixsize"]=1
+    default_values["noring"]=False
+    default_values["data_ranges"]=""
+    default_values["savemap"]=False
     
-    parsevals = ["nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd"]
+    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
     parser.add_argument('output_dir',help="name of subdirectory for run")
     parser.add_argument('--nprocs',type=int,help="processors to run on (default {})".format(default_values["nprocs"]))
     parser.add_argument('--maxsnapf',type=int,help="snapshot to end on (default=-1=do all snapshots)")
+    parser.add_argument('--snap0',type=int,help="snapshot to start on (default=-1=do all snapshots)")
     parser.add_argument('--rad',type=str,help="radius of all plots in parsecs - same value for all plots, or separated by commas")
     #parser.add_argument('--rads',type=float,help="radius of each plot in parsecs, separated by commas")
     parser.add_argument('--L',type=int,help="size of plot area in pixels")
@@ -80,7 +90,11 @@ if __name__ == '__main__':
     parser.add_argument('--centrecom',help="centre on centre of mass",action='store_true')
     parser.add_argument('--suffix',help="suffix on anim filename")
     parser.add_argument('--dotmode',help="max, min, or nothing - dot plot mode")
+    parser.add_argument('--pixsize',type=int,help="pixelation level")
+    parser.add_argument('--data_ranges',type=str,help="explicit data bounds for plot - format: --data_ranges=min1,max1+min2,max2+min3,max3 etc; the equals sign may be necessary!")
     parser.add_argument('--absurd',help="I'll try spinning, that's a good trick",action='store_true')
+    parser.add_argument('--noring',help="Edge on ring, not wrapped",action='store_true')
+    parser.add_argument('--savemap',help="Save maps as data file",action='store_true')
     args = parser.parse_args()
     
 #     run_id = args.run_id
@@ -99,6 +113,9 @@ if __name__ == '__main__':
                 raise Exception("No default value for {} - it must be specified!".format(parseval))
 
     flatPlot = not slice
+    ringPlot = flatPlot
+    if noring:
+        ringPlot = False
 
     if dotmode:
         smooth_str = dotmode
@@ -112,6 +129,10 @@ if __name__ == '__main__':
     else:
         rad = float(rad)
     
+    if len(data_ranges)<=0:
+        data_ranges = None
+    else:
+        data_ranges=[[float(y) for y in x.split(",")] for x in data_ranges.split("+")]
 #     if not rads is "":
 #         plotRads = 
     
@@ -168,6 +189,8 @@ if __name__ == '__main__':
 #             snapf = new_snapf
     
     snapi = 0
+    if snap0>0:
+        snapi=snap0
     snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
 
     gizmoDir = gizmo_tools.getGizmoDir(run_id)
@@ -175,8 +198,9 @@ if __name__ == '__main__':
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     
 # max run
-    if ( maxsnapf>-1 and snapf>maxsnapf ):
-        print("Forcing snapf down from {} to {}".format(snapf,maxsnapf))
+#     if ( maxsnapf>-1 and snapf>maxsnapf ):
+    if maxsnapf>-1:
+        print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
     os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
@@ -198,15 +222,21 @@ if __name__ == '__main__':
     else:
         thetas = np.full(nfiles,theta)
         phis = np.full(nfiles,phi)
-        rads = np.full(nfiles,rad)
+        if isinstance(rad,list):
+            rads = [rad]*nfiles
+        else: # if float
+            rads = np.full(nfiles,rad)
     
     if "rad0" in toplot:
         dump_rad0(infiles[0])
 
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
-    Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode) for i in range(snapi,snapf+1))
-
-
+    maps=Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap) for i in range(snapf+1-snapi))
+    if savemap:
+        for itime,maps_timeslice in enumerate(maps):
+            for iplot,map in enumerate(maps_timeslice):
+                outfile = "../data/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+"_%03d_%03d.dat"%(itime,iplot)
+                np.savetxt(outfile,map)
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='viridis',flat=True,ring=True,plot=['dt'],L=200,scale=15.,pixsize=2) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=400,scale=15.) for i in range(snapi,snapf+1))

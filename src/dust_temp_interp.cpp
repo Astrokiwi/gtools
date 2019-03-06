@@ -25,9 +25,9 @@ int AGN_heat_table::agn_tab_index(int id, int it, int ii, int is) {
             agn_ncolumn_in*agn_nintensity*agn_ntemp*id;
 }
 
-void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile) {
+void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile, bool convertLines) {
 
-    int i,ntab;
+    int i,ntab,iline;
     
     // read in tables
     std::ifstream f_tablab (labelFile, std::ifstream::in);
@@ -74,6 +74,13 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile) {
     agn_opac_abs_tab = new double[ntab];
     agn_arad_tab = new double[ntab];
     agn_column_out_tab = new double[ntab];
+    agn_line_co1 = new double[ntab];
+    agn_line_co2 = new double[ntab];
+    agn_line_hcn1 = new double[ntab];
+    agn_line_hcn2 = new double[ntab];
+    agn_line_h2_1 = new double[ntab];
+    agn_line_h2_2 = new double[ntab];
+    agn_line_h2_3 = new double[ntab];
     
     std::ifstream f_tabvals (tableFile, std::ifstream::in);
 
@@ -85,9 +92,59 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile) {
 
     
     for ( i=0 ; i<ntab ; i++ ) {
-        f_tabvals >> agn_heat_tab[i] >> agn_cool_tab[i] >> agn_dust_tab[i] >> agn_arad_tab[i] >> agn_dg_tab[i] >> agn_opac_abs_tab[i] >> agn_opac_scat_tab[i] >> agn_column_out_tab[i];
+        f_tabvals >> agn_heat_tab[i] >> agn_cool_tab[i] >> agn_dust_tab[i] >> agn_arad_tab[i] >> agn_dg_tab[i] >>
+                     agn_opac_abs_tab[i] >> agn_opac_scat_tab[i] >> agn_column_out_tab[i] >> agn_line_co1[i] >> agn_line_co2[i] >>
+                     agn_line_hcn1[i] >> agn_line_hcn2[i] >> agn_line_h2_1[i] >> agn_line_h2_2[i] >> agn_line_h2_3[i];
     }
     f_tabvals.close();
+    
+    lineArrays[0]=agn_line_co1;
+    lineArrays[1]=agn_line_co2;
+    lineArrays[2]=agn_line_hcn1;
+    lineArrays[3]=agn_line_hcn2;
+    lineArrays[4]=agn_line_h2_1;
+    lineArrays[5]=agn_line_h2_2;
+    lineArrays[6]=agn_line_h2_3;
+    if ( convertLines ) { // if we are preprocessing the tables, convert lines to erg/s/g. Output tables have this already done
+            // divide lines by density to get emission per gram
+            //     molecular_mass = 4./(1.+3.*.76)
+            //     proton_mass_cgs = 1.6726e-24
+            // log10(proton_mass_cgs*molecular_mass)=-23.6904
+        int id;
+        double min_line = -20;
+        for ( id=0 ; id<agn_ndense ; id++ ) {
+    //         double physical_density = pow(10.,agn_dense_vals[id]-23.6904);
+            double physical_density = agn_dense_vals[id]-23.6904;
+            for ( i=agn_tab_index(id,0,0,0) ; i<agn_tab_index(id,agn_ntemp-1,agn_nintensity-1,agn_ncolumn_in-1) ; i++ ) {
+                for ( iline=0 ; iline<7 ; iline++ ) {
+                    lineArrays[iline][i]=log10(lineArrays[iline][i])-physical_density;
+                    if ( !isfinite(lineArrays[iline][i]) ) lineArrays[iline][i] = min_line;
+                }
+//                 agn_line_co1[i]=log10(agn_line_co1[i])-physical_density;
+//                 agn_line_co2[i]=log10(agn_line_co2[i])-physical_density;
+//                 agn_line_hcn1[i]=log10(agn_line_hcn1[i])-physical_density;
+//                 agn_line_hcn2[i]=log10(agn_line_hcn2[i])-physical_density;
+//                 if ( !isfinite(agn_line_co1[i]) ) agn_line_co1[i] = min_line;
+//                 if ( !isfinite(agn_line_co2[i]) ) agn_line_co2[i] = min_line;
+//                 if ( !isfinite(agn_line_hcn1[i])) agn_line_hcn1[i] = min_line;
+//                 if ( !isfinite(agn_line_hcn2[i])) agn_line_hcn2[i] = min_line;
+    //             agn_line_co1[i]/=physical_density;
+    //             agn_line_co2[i]/=physical_density;
+    //             agn_line_hcn1[i]/=physical_density;
+    //             agn_line_hcn2[i]/=physical_density;
+            }
+        }
+    } else { // log for better interpolation
+        for ( i=0 ; i<ntab ; i++ ) {
+            for ( iline=0 ; iline<7 ; iline++ ) {
+                lineArrays[iline][i]=log10(lineArrays[iline][i]);
+            }
+//             agn_line_co1[i]=log10(agn_line_co1[i]);
+//             agn_line_co2[i]=log10(agn_line_co2[i]);
+//             agn_line_hcn1[i]=log10(agn_line_hcn1[i]);
+//             agn_line_hcn2[i]=log10(agn_line_hcn2[i]);
+        }
+    }
     
     // set up pointers for better looping
     tables[0] = agn_dense_vals;
@@ -151,62 +208,163 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
         return garbage;
     }
 
-    AGN_heat_table *thisTable; 
-
-    if ( temperature<=sputtering_temperature ) {
-        thisTable = &mainTable;
-    } else {
-        thisTable = &dustlessTable;
-    }
-
-
     int jj,kk;
     
     int tab_index[4];
     int interp_indices[4][2];
-    //int interp_right_index[4];
     double interp_weights[4][2];
     double values[4];
+
+    bool interpBetweenTables = false; // only use one table at a time
+    bool dusty;
     
-    struct coolHeatDust outp;
+    AGN_heat_table *thisTable; 
+    
+    if ( temperature<=sputtering_temperature ) {
+        thisTable = &mainTable;
+        dusty = true;
+    } else {
+        thisTable = &dustlessTable;
+        dusty = false;
+    }
     
     values[0] = log10(density);
     values[1] = log10(temperature);
     values[2] = log10(intensity);
     values[3] = column_in;
     
-    for (jj=0 ; jj<4 ; jj++ ) {
+    if ( this->cold_dense_loaded ) {
+        if ( values[0]>thisTable->agn_dense_vals[thisTable->agn_ndense-1] && values[1]<densecoldTable.agn_temp_vals[densecoldTable.agn_ndense-1] && dusty ) {
+            if (values[0]>=densecoldTable.agn_dense_vals[0] ) {
+                // only need to use cold low density table
+                thisTable = &densecoldTable;
+            } else {
+                // need to interpolate between tables
+                interpBetweenTables = true;
+            }    
+        }
+    }
+    
+//     interpBetweenTables = false; // for test
+//     thisTable = &mainTable; // also for test
+    
+
+    for (jj=interpBetweenTables?1:0 ; jj<4 ; jj++ ) {
         tab_index[jj] = value_to_index(thisTable->tables[jj],*thisTable->ntabs[jj],values[jj]);
         interp_indices[jj][0] = std::max(tab_index[jj],0);
         interp_indices[jj][1] = std::min(tab_index[jj]+1,*thisTable->ntabs[jj]-1);
         interp_weights[jj][1] = right_weight(thisTable->tables[jj],*thisTable->ntabs[jj],tab_index[jj],values[jj]);
         interp_weights[jj][0] = 1.-interp_weights[jj][1];
     }
+    double heat_interp=0.,cool_interp=0.,dust_interp=0.,dg_interp=0.,opac_abs_interp=0.,
+           opac_scat_interp=0.,column_out_interp=0.,arad_interp=0.;           
+//            ,co1_interp=0.,co2_interp=0.,
+//            hcn1_interp=0.,hcn2_interp=0.;
+    double line_interp[7];
+    int iline;
+    for ( iline=0 ; iline<7 ; iline++ ) {
+        line_interp[iline]=0.;
+    }
 
-    // too clever by half
-    double heat_interp=0.,cool_interp=0.,dust_interp=0.,dg_interp=0.,opac_abs_interp=0.,opac_scat_interp=0.,column_out_interp=0.,arad_interp=0.;
-    double weightsum = 0.;
-    for (jj=0 ; jj<16 ; jj++ ) {
-        int idex = thisTable->agn_tab_index(interp_indices[0][jj%2],interp_indices[1][(jj/2)%2],interp_indices[2][(jj/4)%2],interp_indices[3][(jj/8)%2]);
-        //int idex = agn_tab_index(5,5,interp_indices[2][(jj/4)%2],5);
-        double weight = 1.;
-        for ( kk=0 ; kk<4 ; kk++ ) {
-            weight*=interp_weights[kk][(jj/(1<<kk))%2];
-        }
-        //weight = interp_weights[2][(jj/4)%2];
+    
+    if ( interpBetweenTables ) {
+//         if ( ThisTask==0 ) std::cout << "interpbetweentables" << std::endl;
+        interp_indices[0][0] = thisTable->agn_ndense-1;
+        interp_indices[0][1] = 0;
+        interp_weights[0][1] = (values[0]-thisTable->agn_dense_vals[thisTable->agn_ndense-1])
+                                /(densecoldTable.agn_dense_vals[0]-thisTable->agn_dense_vals[thisTable->agn_ndense-1]);
+        interp_weights[0][0] = 1.-interp_weights[0][1];
         
-        heat_interp+=weight*thisTable->agn_heat_tab[idex];
-        cool_interp+=weight*thisTable->agn_cool_tab[idex];
-        dust_interp+=weight*thisTable->agn_dust_tab[idex];
-        dg_interp+=weight*thisTable->agn_dg_tab[idex];
-        opac_scat_interp+=weight*thisTable->agn_opac_scat_tab[idex];
-        opac_abs_interp+=weight*thisTable->agn_opac_abs_tab[idex];
-        column_out_interp+=weight*thisTable->agn_column_out_tab[idex];
-        arad_interp+=weight*thisTable->agn_arad_tab[idex];
-        weightsum+=weight;
+        int interp_indices_lowtemp[2];
+        if ( interp_indices[1][1]>densecoldTable.agn_ntemp-1 ) {
+            for (jj=0 ; jj<2 ; jj++) {
+                interp_indices_lowtemp[jj] = densecoldTable.agn_ntemp-1;
+            }
+        } else {
+            for (jj=0 ; jj<2 ; jj++) {
+                interp_indices_lowtemp[jj] = interp_indices[1][jj];
+            }
+        }
+        
+        AGN_heat_table *curTable;
+        for (jj=0 ; jj<16 ; jj++ ) {
+            int idex;
+            
+            if ( jj%2==0 ) {
+                curTable = thisTable;
+                idex = curTable->agn_tab_index(interp_indices[0][jj%2],interp_indices[1][(jj/2)%2],interp_indices[2][(jj/4)%2],interp_indices[3][(jj/8)%2]);
+            } else {
+                curTable = &densecoldTable;
+                idex = curTable->agn_tab_index(interp_indices[0][jj%2],interp_indices_lowtemp[(jj/2)%2],interp_indices[2][(jj/4)%2],interp_indices[3][(jj/8)%2]);
+            }
 
+            double weight = 1.;
+            for ( kk=0 ; kk<4 ; kk++ ) {
+                weight*=interp_weights[kk][(jj/(1<<kk))%2];
+            }
+
+            heat_interp+=weight*curTable->agn_heat_tab[idex];
+            cool_interp+=weight*curTable->agn_cool_tab[idex];
+            dust_interp+=weight*curTable->agn_dust_tab[idex];
+            dg_interp+=weight*curTable->agn_dg_tab[idex];
+            opac_scat_interp+=weight*curTable->agn_opac_scat_tab[idex];
+            opac_abs_interp+=weight*curTable->agn_opac_abs_tab[idex];
+            column_out_interp+=weight*curTable->agn_column_out_tab[idex];
+            arad_interp+=weight*curTable->agn_arad_tab[idex];
+            for ( iline=0 ; iline<7 ; iline++ ) {
+                line_interp[iline]+=weight*curTable->lineArrays[iline][idex];
+            }
+
+//             co1_interp+=weight*curTable->agn_line_co1[idex];
+//             co2_interp+=weight*curTable->agn_line_co2[idex];
+//             hcn1_interp+=weight*curTable->agn_line_hcn1[idex];
+//             hcn2_interp+=weight*curTable->agn_line_hcn2[idex];
+        }
+    } else {
+        for (jj=0 ; jj<16 ; jj++ ) {
+            int idex = thisTable->agn_tab_index(interp_indices[0][jj%2],interp_indices[1][(jj/2)%2],interp_indices[2][(jj/4)%2],interp_indices[3][(jj/8)%2]);
+            double weight = 1.;
+            for ( kk=0 ; kk<4 ; kk++ ) {
+                weight*=interp_weights[kk][(jj/(1<<kk))%2];
+            }
+            heat_interp+=weight*thisTable->agn_heat_tab[idex];
+            cool_interp+=weight*thisTable->agn_cool_tab[idex];
+            dust_interp+=weight*thisTable->agn_dust_tab[idex];
+            dg_interp+=weight*thisTable->agn_dg_tab[idex];
+            opac_scat_interp+=weight*thisTable->agn_opac_scat_tab[idex];
+            opac_abs_interp+=weight*thisTable->agn_opac_abs_tab[idex];
+            column_out_interp+=weight*thisTable->agn_column_out_tab[idex];
+            arad_interp+=weight*thisTable->agn_arad_tab[idex];
+//             co1_interp+=weight*thisTable->agn_line_co1[idex];
+//             co2_interp+=weight*thisTable->agn_line_co2[idex];
+//             hcn1_interp+=weight*thisTable->agn_line_hcn1[idex];
+//             hcn2_interp+=weight*thisTable->agn_line_hcn2[idex];
+            for ( iline=0 ; iline<7 ; iline++ ) {
+                line_interp[iline]+=weight*thisTable->lineArrays[iline][idex];
+            }
+        }
+    
+    }
+    // do extrapolation for density above max
+    if ( values[0]>thisTable->agn_dense_vals[thisTable->agn_ndense-1] && !interpBetweenTables) {
+//         if ( ThisTask==0 ) std::cout << "extrapolation" << std::endl;
+        heat_interp += values[0]-thisTable->agn_dense_vals[thisTable->agn_ndense-1]; // heating per unit volume is proportional to density - i.e. heating per unit mass is constant
+        cool_interp += 2.*(values[0]-thisTable->agn_dense_vals[thisTable->agn_ndense-1]); // cooling per volume is proportional to n^2
     }
     
+    // do extrapolation for intensity above max - assume heating is proportional to intensity outside of the table
+    // do extrapolation for intensity below minimum
+    if ( values[2]<thisTable->agn_intensity_vals[0] ) {
+        heat_interp += values[2] - thisTable->agn_intensity_vals[0];
+    }
+    // do extrapolation for intensity above maximum
+    if ( values[2]>thisTable->agn_intensity_vals[thisTable->agn_nintensity-1] ) {
+        heat_interp += values[2] - thisTable->agn_intensity_vals[thisTable->agn_nintensity-1];
+    }
+
+
+    // NO EXTRAPOLATION yet
+    struct coolHeatDust outp;
     outp.dCool = cool_interp;
     outp.dHeat = heat_interp;
     outp.dustT = dust_interp;
@@ -215,41 +373,71 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
     outp.dg = dg_interp;
     outp.column_out = column_out_interp;
     outp.arad = arad_interp;
-    
-    outp.id = interp_indices[0][0];
-    outp.fd = interp_weights[0][1];
-    outp.it = interp_indices[1][0];
-    outp.ft = interp_weights[1][1];
-    outp.ii = interp_indices[2][0];
-    outp.fi = interp_weights[2][1];
-    outp.ic = interp_indices[3][0];
-    outp.fc = interp_weights[3][1];
-    
-    
-//     if ( outp.dustT>1.e9 ) {
-//         std::cout << "bad dustT" << std::endl;
-//         exit(1);
-//     }
-
-//     if ( outp.dg>1. ) {
-//         std::cout << "bad dg" << std::endl;
-//         exit(1);
-//     }
-    
+//     outp.line_co1 = pow(10.,co1_interp);
+//     outp.line_co2 = pow(10.,co2_interp);
+//     outp.line_hcn1 = pow(10.,hcn1_interp);
+//     outp.line_hcn2 = pow(10.,hcn2_interp);
+    outp.line_co1 = pow(10.,line_interp[0]);
+    outp.line_co2 = pow(10.,line_interp[1]);
+    outp.line_hcn1 = pow(10.,line_interp[2]);
+    outp.line_hcn2 = pow(10.,line_interp[3]);
+    outp.line_h2_1 = pow(10.,line_interp[4]);
+    outp.line_h2_2 = pow(10.,line_interp[5]);
+    outp.line_h2_3 = pow(10.,line_interp[6]);
+//     outp.line_co1 = co1_interp;
+//     outp.line_co2 = co2_interp;
+//     outp.line_hcn1 = hcn1_interp;
+//     outp.line_hcn2 = hcn2_interp;
     return outp;
 }
 
 //CoolHeatTab::CoolHeatTab(std::string flabels,std::string ftab) {
-CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab) {
+CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab, bool convertLines) {
     this->data_loaded = false;
+    this->cold_dense_loaded = false;
 
-    mainTable.setupTable(flabels,ftab);
-    dustlessTable.setupTable(dustlessflabels,dustlessftab);
+    mainTable.setupTable(flabels,ftab,convertLines);
+    dustlessTable.setupTable(dustlessflabels,dustlessftab,convertLines);
 
     this->data_loaded = true;
 
 }
 
+CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab) {
+    this->data_loaded = false;
+    this->cold_dense_loaded = false;
+
+    mainTable.setupTable(flabels,ftab,false);
+    dustlessTable.setupTable(dustlessflabels,dustlessftab,false);
+
+    this->data_loaded = true;
+
+}
+
+CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab,const char* denseflabels,const char* denseftab, bool convertLines) {
+    this->data_loaded = false;
+    this->cold_dense_loaded = false;
+
+    mainTable.setupTable(flabels,ftab,convertLines);
+    dustlessTable.setupTable(dustlessflabels,dustlessftab,convertLines);
+    densecoldTable.setupTable(denseflabels,denseftab,convertLines);
+
+    this->cold_dense_loaded = true;
+    this->data_loaded = true;
+}
+
+
+CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab,const char* denseflabels,const char* denseftab) {
+    this->data_loaded = false;
+    this->cold_dense_loaded = false;
+
+    mainTable.setupTable(flabels,ftab,false);
+    dustlessTable.setupTable(dustlessflabels,dustlessftab,false);
+    densecoldTable.setupTable(denseflabels,denseftab,false);
+
+    this->cold_dense_loaded = true;
+    this->data_loaded = true;
+}
 
 
 // int main(int argc, char **argv) {

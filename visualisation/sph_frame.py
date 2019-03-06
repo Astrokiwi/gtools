@@ -8,12 +8,16 @@ from matplotlib import colors
 
 import pylab as P
 #from joblib import Parallel, delayed
+from scipy.ndimage.filters import gaussian_filter
 
 from sph_plotter import sph_plotter
 
 from sys import path, version, exit
 path.append("../src/")
 import tab_interp
+
+import sys
+import traceback
 
 import numpy as np
 
@@ -27,8 +31,9 @@ def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
 def raiseprint(a):
+    print("EXCEPTION RAISED")
     print(a)
-    raise Exception(a)
+    raise a
 
 # --- Custom colormaps ---
 
@@ -59,6 +64,9 @@ cdict1 = {'red':   ((0.0, .5, .5),
 
 P.register_cmap(name='RGBsteps', data=cdict1)
 
+lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
+
+
 # class SliceType(Enum):
 #     densslice = 0
 #     weightslice = 1
@@ -81,6 +89,8 @@ maxslice = 10
 zmaxslice = 11
 maxdotslice = 12
 mindotslice = 13
+sdevslice = 14
+weightviewslice = 15
 
 molecular_mass = 4./(1.+3.*.76)
 proton_mass_cgs = 1.6726e-24
@@ -155,6 +165,7 @@ def safe_pcolormesh(sp,*args,**qwargs):
         args = tuple(args)
     return sp.pcolormesh(*args,**qwargs)
 
+
 def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,width,cblabel,clow,chigh,cmap_label,mode,
                  dolog=True,
                  planenorm=False,
@@ -163,7 +174,9 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                  diverging=False,
                  visibleAxes=True,
                  cbar2=None,
-                 cmap2=None):
+                 cmap2=None,
+                 contour=False,
+                 gaussian=None):
 
     cmap_label2=cmap2
     cbax2=cbar2
@@ -211,7 +224,12 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         map2/=norm_map
     elif (mode==viewslice ):
         zarg = np.argsort(z_p)
-        map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
+#         map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
+        map = sph_plotter.sph_optical_depth_los_area(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
+    elif (mode==weightviewslice ):
+        zarg = np.argsort(z_p)
+#         map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
+        map = sph_plotter.sph_optical_depth_los_weight(x_p,y_p,m_p,h_p,val_p[0],val_p[1],val_p[2],L,corner,width,z_p,zarg,mask,n)
     elif (mode==minslice ):
         map = sph_plotter.sph_min(x_p,y_p,h_p,val_p,L,corner,width,mask,n)
     elif (mode==zminslice ):
@@ -226,6 +244,8 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         map = sph_plotter.sph_max_slice(x_p,y_p,m_p,h_p,val_p,L,corner,width,z_p,zslice,mask,n)
     elif mode==maxdotslice or mode==mindotslice:
         map = sph_plotter.sph_dot(x_p,y_p,val_p,L,corner,width,mode-maxdotslice,mask,n)
+    elif mode==sdevslice:
+        map = sph_plotter.sph_sdev(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
     
 #     nerrors = map[0,0]
     
@@ -261,6 +281,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #         sp.set_ylim(corner[1],corner[1]+width)
 #         sp.set_xmargin(0)
 #         sp.set_ymargin(0)
+        outmap = norm_map
     else:
 #         xedges = np.arange(corner[0],corner[0]+width,width/L)
 #         yedges = np.arange(corner[1],corner[1]+width,width/L)
@@ -299,9 +320,14 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                     cb2 = fig.colorbar(mesh2,label=cblabel,cax=cbax2)
                 else:
                     cbax2.set_axis_off()
+            outmap = [plusmap.T,minusmap.T]
         else:
             if not debug_mode:
                 verboseprint(np.nanmin(map),np.nanmax(map))
+                
+            if gaussian is not None:
+                map = gaussian_filter(map,gaussian)
+            
 
             if ( dolog ):
                 map = np.log10(map)
@@ -316,6 +342,11 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                 cb = fig.colorbar(mesh,label=cblabel,cax=cbax)
             else:
                 cbax.set_axis_off()
+
+            if ( contour ):
+                sp.contour(xedges,yedges,gaussian_filter(map.T,5),vmin=clow,vmax=chigh,colors='white',levels=8,linewidths=.5)
+
+            outmap = map.T
     
     sp.set_xlim([corner[0],corner[0]+width])
     sp.set_ylim([corner[1],corner[1]+width])
@@ -323,6 +354,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
     #mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap) 
     #sp.axis('equal')
+    return outmap
     
 #     return nerrors
 
@@ -359,7 +391,10 @@ def load_gadget(infile, plot_thing,
     if ( "facetemp" in need_to_load ):
         need_to_load.append("tdust")
         need_to_load.append("opac")
-    if ( "vlos" in need_to_load or "vmag" in need_to_load ):
+    if ( "vlos" in need_to_load ):
+        need_to_load.append("opac")
+        need_to_load.append("dg")
+    if ( "vlos" in need_to_load or "vmag" in need_to_load or "vthin" in need_to_load):
         need_to_load.append("vels")
     if ( "emit" in need_to_load ):
         need_to_load.append("tdust")
@@ -369,32 +404,51 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("dg")
     if ( "dg" in need_to_load ):
         need_to_load.append("table")
+    for line in lines:
+        if "dv"+line in need_to_load:
+            need_to_load.append("v"+line)
+        if "view"+line in need_to_load:
+            need_to_load.append("v"+line)
+            need_to_load.append("opac")
+            need_to_load.append("dg")
+        if "v"+line in need_to_load:
+            need_to_load.append(line+"m")
+        if "vels"+line in need_to_load:
+            need_to_load.append(line+"m")
+        if line+"m" in need_to_load:
+            need_to_load.append(line)
+        if line in need_to_load and not "table" in need_to_load:
+            need_to_load.append("table")
+    if ( "col" in need_to_load ):
+        if not "/PartType0/AGNColDens" in f:
+            need_to_load.append("table")
     if ( "table" in need_to_load ):
         need_to_load.append("temp")
         need_to_load.append("nH")
         need_to_load.append("tau")
+    
 
 #     if "nopac" in need_to_load:
 #         need_to_load.append("opac")
 #         need_to_load.append("nH")
     
-    if ( "vel_2d" in need_to_load or
-         "vel_r" in need_to_load or
-         "vel_x" in need_to_load or
-         "vel_y" in need_to_load or
-         "vel_z" in need_to_load or
-         "vel_a" in need_to_load):
+    if any(x in need_to_load for x in ["vel_2d","vel_r","vel_x","vel_y","vel_z","vel_a"]+["v"+line for line in lines]+["vels"+line for line in lines]):
         need_to_load.append("vels")
+
+    if ( "pres" in need_to_load ):
+        data.pres = np.array(f["/PartType0/Pressure"])
+#         data.pres*=1.989e+33 # from internal units to dyne/cm*8*2
 
     if ( "arad" in need_to_load ):
         data.arads = np.array(f["/PartType0/RadiativeAcceleration"])
         data.arads*=3.24086617e-12 # to cm/s/s
         data.arad = np.sqrt(np.sum(data.arads**2,axis=1))
 
-    if ( "col" in need_to_load ):
-        data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
-        data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
-        data.coldens/=(molecular_mass*proton_mass_cgs) # N in cm**(-2) 
+    if ( "accel" in need_to_load ):
+        data.accels = np.array(f["/PartType0/Acceleration"])
+        data.accels*=3.24086617e-12 # to cm/s/s
+        data.accel = np.sqrt(np.sum(data.accels**2,axis=1))
+
 
     if ( "depth" in need_to_load ):
         data.depth = np.array(f["/PartType0/AGNOpticalDepth"]) # Msun/kpc**2
@@ -406,6 +460,8 @@ def load_gadget(infile, plot_thing,
         data.rand = np.random.random(n)
         #data.rand = np.random.randint(n,size=n)
 
+    if ( "nneigh" in need_to_load ):
+        data.nneigh = np.array(f["/PartType0/TrueNumberOfNeighbours"])
     
     if ( "temp" in need_to_load ):
         data.u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
@@ -419,7 +475,7 @@ def load_gadget(infile, plot_thing,
     # doesn't work well
     if ( "dt" in need_to_load ):
         data.dt_p = np.array(f["/PartType0/TimeStep"])
-#         data.dt_p*=0.9778e9 # to yr
+        data.dt_p*=0.9778e9 # to yr
 
     # doesn't work well
     if ( "heat" in need_to_load ):
@@ -452,10 +508,22 @@ def load_gadget(infile, plot_thing,
     if ( "table" in need_to_load ):
         if ( not chTab ):
             verboseprint("Load dust tables")
-            chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
+#             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_090818tau.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_tau.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_labels_090818taunodust.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taunodust.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_labels_090818taudense.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taudense.dat")
+#                                             )
+
+            tableDate="281118"
+            tableRes="0.0001"
+            chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
+                                            ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
                                             )
             interpTabVec = np.vectorize(chTab.interpTab)
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
@@ -464,13 +532,49 @@ def load_gadget(infile, plot_thing,
 
         verboseprint("Calculating dust/cooling/heating properties from table")
         tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.tau.astype(np.float64))
-        
+    
+    
+    if ( "col" in need_to_load ):
+        if "/PartType0/AGNColDens" in f:
+            data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
+            data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
+            data.coldens/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
+        else:
+            data.coldens = np.array(list(map(lambda y: y.column_out, tabStructs)))
 
     if ( "tdust" in need_to_load ):
         data.dustTemp = map(lambda y: y.dustT, tabStructs)
         data.dustTemp = np.array(list(data.dustTemp))
+#         data.dustTemp = 10.**data.dustTemp
 #         print(np.max(data.dustTemp),np.min(data.dustTemp))
 #         data.dustTemp = data.dustTemp**4 # for test
+    for line in lines:
+        if line in need_to_load:
+            data.__dict__[line] = np.array(list(map(lambda y: y.__getattr__("line_"+line), tabStructs)))
+        if line+"m" in need_to_load:
+            data.__dict__[line+"m"] = data.__dict__[line]*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
+        
+
+#     if ( "co1" in need_to_load ):
+#         data.co1 = np.array(list(map(lambda y: y.line_co1, tabStructs))) # erg/s/g
+# #         data.co1/=data.rho_p # to erg/g
+#     if ( "co2" in need_to_load ):
+#         data.co2 = np.array(list(map(lambda y: y.line_co2, tabStructs))) # erg/s/g
+# #         data.co2/=data.rho_p # to erg/g
+#     if ( "hcn1" in need_to_load ):
+#         data.hcn1 = np.array(list(map(lambda y: y.line_hcn1, tabStructs))) # erg/s/g
+# #         data.hcn1/=data.rho_p # to erg/g
+#     if ( "hcn2" in need_to_load ):
+#         data.hcn2 = np.array(list(map(lambda y: y.line_hcn2, tabStructs))) # erg/s/g
+# #         data.hcn2/=data.rho_p # to erg/g
+#     if ( "co1m" in need_to_load ):
+#         data.co1m=data.co1*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
+#     if ( "co2m" in need_to_load ):
+#         data.co2m=data.co2*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
+#     if ( "hcn1m" in need_to_load ):
+#         data.hcn1m=data.hcn1*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
+#     if ( "hcn2m" in need_to_load ):
+#         data.hcn2m=data.hcn2*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
 
     if ( "dg" in need_to_load ):
         data.dg = map(lambda y: y.dg, tabStructs)
@@ -484,16 +588,34 @@ def load_gadget(infile, plot_thing,
 
     if ( "opac" in need_to_load ):
         data.opac = np.array(f["/PartType0/AGNOpacity"]) # internal units: kpc**2/1e10 solar mass
-        data.opac*= 1.e-4 # to pc**2/solar mass
+#         data.opac*= 1.e-4 # to pc**2/solar mass
+        data.opac*= 0.478679108 # to cm**2/g
+#         print("faking opacity")
+#         opacity = 65.2 # cm^2/g, somewhat arbitrary
+#         opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
+#         data.opac = np.full((n),opacity)
 
-    if ( "view" in need_to_load or "vlos" in need_to_load ):
+    if ( "view" in need_to_load or "vlos" in need_to_load or any(x in need_to_load for x in ["view"+line for line in lines]) ):
         if ( "view" in need_to_load ):
             data.brightness = 5.67e-5 * data.dustTemp**4. * data.dg/np.nanmax(data.dg) # erg/s/cm^2
         #opacity = 652. # cm^2/g, somewhat arbitrary
         #opacity = 1. # cm^2/g, somewhat arbitrary
-        #opacity = 65.2 # cm^2/g, somewhat arbitrary
-        #opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
-        #data.opac = np.full((n),opacity)
+
+        # we want infrared opacity, not the flux-weighted opacity
+        print("faking opacity")
+        opacity = 65.2 # cm^2/g, somewhat arbitrary
+#         print("SUPER faking opacity")
+#         opacity*=1.e3 # for lulz
+        
+        opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
+        data.opac = np.full((n),opacity)
+        data.opac*=data.dg/np.nanmax(data.dg) # take into account dust fraction
+
+#         for line in lines:
+#             if not "view"+line in need_to_load:
+#                 continue
+#             data.__dict__[line+"brightness"]=data.__dict[line]/opacity # erg/s/cm^2 - multiply by opacity to get actual emission
+
         
         if ( "view" in need_to_load ):
             #sputtered = (data.dustTemp>2.5e3) # or something, super arbitrary
@@ -559,66 +681,138 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotLabel["dust"] = rhounit
     plotLabel["view"] = r"$\log_{10} F$ (arbitrary units)"
     plotLabel["vlos"] = r"$v_{LOS}$"
+    plotLabel["vthin"] = r"$v_{LOS}$"
     plotLabel["emit"] = r"$\log_{10} F$"
     plotLabel["dt"] = r"$\log_{10}$ dt"
     plotLabel["vel_2d"] = r"$v_{2D}$"
     plotLabel["vel_x"] = r"$v_{x}$"
     plotLabel["vel_y"] = r"$v_{y}$"
     plotLabel["vel_z"] = r"$v_{z}$"
-    plotLabel["vel_r"] = r"$v_{r}$"
+    plotLabel["vel_r"] = r"$v_{r}$ (km/s)"
     plotLabel["vel_a"] = r"$v_{\theta}$"
     plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
+    plotLabel["accel"] = r"$a$ (log cm/s/s)"
     plotLabel["AGNI"] = r"Unextinced $I_{AGN}$ (log erg/s/cm^2)"
-    plotLabel["tau"] = r"$\log_{10}\tau$"
+#     plotLabel["tau"] = r"$\log_{10}\tau$"
+    plotLabel["tau"] = r"$\tau$"
     plotLabel["list"] = r"$i$"
     plotLabel["rand"] = r"$q$"
     plotLabel["opac"] = r"$\kappa$"
     plotLabel["smooth"] = r"$h_p$"
     plotLabel["facetemp"] = r"$\log_{10}T_d$ (K)"
     plotLabel["rad0"] = r"$R_0$ (pc)"
+    plotLabel["nneigh"] = r"$N_n$"
+#     plotLabel["pres"] = r"$P$ (dyne/cm$^2$)"
+    plotLabel["pres"] = r"$P$ (internal)"
+    for line in lines:
+        plotLabel[line]=line
+        plotLabel[line+"m"]=line+" line intensity - erg/s/cm**2/ster"
+        plotLabel["v"+line]="v"+line
+        plotLabel["dv"+line]="dv"+line
+        plotLabel["view"+line]="view"+line
+        plotLabel["vels"+line]=r"$\log_{10}v_{"+line+r"}$"
+#     plotLabel["co1"] = r"co1"
+#     plotLabel["co2"] = r"co2"
+#     plotLabel["hcn1"] = r"hcn1"
+#     plotLabel["hcn2"] = r"hcn2"
+#     plotLabel["co1m"] = r"CO '1' line intensity - erg/s/cm**2/ster"
+#     plotLabel["co2m"] = r"CO '2' line intensity - erg/s/cm**2/ster"
+#     plotLabel["hcn1m"] = r"HCN '1' line intensity - erg/s/cm**2/ster"
+#     plotLabel["hcn2m"] = r"HCN '2' line intensity - erg/s/cm**2/ster"
+#     plotLabel["vco1"] = r"vco1"
+#     plotLabel["vco2"] = r"vco2"
+#     plotLabel["vhcn1"] = r"vhcn1"
+#     plotLabel["vhcn2"] = r"vhcn2"
+#     plotLabel["dvco1"] = r"dvco1"
+#     plotLabel["dvco2"] = r"dvco2"
+#     plotLabel["dvhcn1"] = r"dvhcn1"
+#     plotLabel["dvhcn2"] = r"dvhcn2"
 
     plotRanges = dict()
 #     plotRanges["temp"] = [.999,4.]*2
-    plotRanges["temp"] = [.999,5.]*2
+    plotRanges["temp"] = [.999,6.]*2
     #plotRanges["temp"] = [3.,4.]*2
-    plotRanges["col"] = [18.,25.]*2
-    plotRanges["nH"] = [0.,8.]*2
+    plotRanges["col"] = [18.,26.]*2
+#     plotRanges["nH"] = [0.,8.]*2 #Êstandard
+    plotRanges["nH"] = [5.,10.]*2
+#     plotRanges["nH"] = [5.,7.]*2
+#     plotRanges["nH"] = [-1.,7.]*2
+#     plotRanges["nH"] = [-7.,7.]*2
     plotRanges["heat"] = [1e-2,1.e10]*2
     plotRanges["dens"] = drange+drange_s
     plotRanges["depth"] = [0.,1.e3]*2
     plotRanges["vels"] = [0.,3.]*2
-    plotRanges["tdust"] = [1.,2.4]*2
+    plotRanges["tdust"] = [0.,3.]*2
 #     plotRanges["tdust"] = [1.,3.]*2
     #plotRanges["tdust"] = [1.3,2.2]*2
 #     plotRanges["tdust"] = [4.,8.]*2
-    plotRanges["dg"] = [0.00635,.006363]*2
+#     plotRanges["dg"] = [0.00635,.006363]*2
+    plotRanges["dg"] = [0.0,.000234]*2
     plotRanges["dust"] = drange+drange_s
-    plotRanges["view"] = [0.,4.]*2
+#     plotRanges["view"] = [0.,4.]*2
+    plotRanges["view"] = [1.,7.]*2
     plotRanges["vlos"] = [-1.2e2,1.2e2]*2
+#     plotRanges["vthin"] = [-1.2e2,1.2e2]*2
+    plotRanges["vthin"] = [-300.,300.]*2
     plotRanges["emit"] = [0.,6.]*2
-#     plotRanges["dt"] = [1.,3.]*2
-    plotRanges["dt"] = [-14.,-7.]*2
+    plotRanges["dt"] = [-3.,3.]*2
     #plotRanges["vel_2d"] = [-25.,25.]*2
     plotRanges["vel_2d"] = [-250.,250.]*2
-    plotRanges["vel_r"] = [-25.,25.]*2
+#     plotRanges["vel_r"] = [-25.,25.]*2
+#     plotRanges["vel_r"] = [-3.e5,3.e5]*2
+    plotRanges["vel_r"] = [1.,4.]*2
     plotRanges["vel_x"] = [-200.,200.]*2
     plotRanges["vel_y"] = [-200.,200.]*2
-    plotRanges["vel_z"] = [-25.,25.]*2
+#     plotRanges["vel_z"] = [-25.,25.]*2
+    plotRanges["vel_z"] = [-2000.,2000.]*2
     plotRanges["vel_a"] = [-100.,100.]*2
-    plotRanges["arad"] = [-9.,-3.]*2
+    plotRanges["arad"] = [-9.,0.]*2
+    plotRanges["accel"] = [-3.,0.]*2
     plotRanges["AGNI"] = [-9.,-3.]*2
-#    plotRanges["tau"] = [0.,5.]*2
+#     plotRanges["tau"] = [0.,5.]*2
+    plotRanges["tau"] = [0.,7.]*2
+#     plotRanges["tau"] = [0.,1.]*2
 #     plotRanges["tau"] = [-2,3.]*2
 #     plotRanges["tau"] = [0.,250.]*2
-    plotRanges["tau"] = [0.,50.]*2
+#     plotRanges["tau"] = [0.,50.]*2
     plotRanges["list"] = [0.,1.e6]*2
     plotRanges["rand"] = [0.,1.]*2
-#     plotRanges["opac"] = [-4.,-1.6]*2
-    plotRanges["opac"] = [-6.,-1.6]*2
+#     plotRanges["opac"] = [-7.,-1.6]*2
+    plotRanges["opac"] = [-3.,2]*2
 #     plotRanges["opac"] = [-2.,-1.]*2
     plotRanges["smooth"] = [-2.,2.]*2
-    plotRanges["facetemp"] = [0.,2.5]*2
+    plotRanges["facetemp"] = [0.,5.]*2
     plotRanges["rad0"] = [0.,4.]*2
+    plotRanges["nneigh"] = [0,50]*2
+#     plotRanges["pres"] = [36.3,38.6]*2
+    plotRanges["pres"] = [3.3,16]*2
+    for line in lines:
+#         plotRanges[line]=[-6.,-2.]*2
+        plotRanges[line]=[-8.,2.]*2
+#         plotRanges[line+"m"]=[-7.,-3.]*2
+        plotRanges[line+"m"]=[-12.,0.]*2
+        plotRanges["v"+line]=[-100.,100.]*2
+        plotRanges["dv"+line]=[0.,3.,0.,30.]
+        plotRanges["view"+line]=[-1.2e2,1.2e2]*2
+        plotRanges["vels"+line]=[0.,3.]*2
+#         plotRanges["view"+line]=[-1.2e1,1.2e1]*2
+#     plotRanges["co1"] = [-6.,-2.]*2
+#     plotRanges["co2"] = [-6.,-2.]*2
+#     plotRanges["hcn1"] = [-6.,-2.]*2
+#     plotRanges["hcn2"] = [-6.,-2.]*2
+#     plotRanges["co1m"] = [-7.,-3.]*2
+#     plotRanges["co2m"] = [-7.,-3.]*2
+#     plotRanges["hcn1m"] = [-7.,-3.]*2
+#     plotRanges["hcn2m"] = [-7.,-3.]*2
+#     plotRanges["vco1"] = [-100.,100.]*2
+#     plotRanges["vco2"] = [-100.,100.]*2
+#     plotRanges["vhcn1"] = [-100.,100.]*2
+#     plotRanges["vhcn2"] = [-100.,100.]*2
+#     plotRanges["dvco1"] = [0.,5.,0.,30.]
+# #     plotRanges["dvco1"] = [-2.,2.]*2
+#     plotRanges["dvco2"] = plotRanges["dvco1"]
+#     plotRanges["dvhcn1"] = plotRanges["dvco1"]
+#     plotRanges["dvhcn2"] = plotRanges["dvco1"]
 
     plotSliceTypes = dict()
     plotSliceTypes["temp"] = quantslice
@@ -640,8 +834,10 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotSliceTypes["vel_x"] = quantslice
     plotSliceTypes["vel_y"] = quantslice
     plotSliceTypes["vel_z"] = quantslice
+    plotSliceTypes["vthin"] = quantslice
     plotSliceTypes["vel_a"] = quantslice
     plotSliceTypes["arad"] = quantslice
+    plotSliceTypes["accel"] = quantslice
     plotSliceTypes["AGNI"] = quantslice
     plotSliceTypes["tau"] = zweightslice
     plotSliceTypes["list"] = quantslice
@@ -650,9 +846,40 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotSliceTypes["facetemp"] = viewslice
     plotSliceTypes["rand"] = quantslice
     plotSliceTypes["rad0"] = quantslice
+    plotSliceTypes["nneigh"] = quantslice
+    plotSliceTypes["pres"] = quantslice
+    for line in lines:
+        plotSliceTypes[line]=quantslice
+        plotSliceTypes[line+"m"]=dslice
+        plotSliceTypes["v"+line]=quantslice
+        plotSliceTypes["dv"+line]=sdevslice
+        plotSliceTypes["view"+line]=weightviewslice
+        plotSliceTypes["vels"+line]=vec2dslice
+#     plotSliceTypes["co1"] = quantslice
+#     plotSliceTypes["co2"] = quantslice
+#     plotSliceTypes["hcn1"] = quantslice
+#     plotSliceTypes["hcn2"] = quantslice
+#     plotSliceTypes["co1m"] = dslice
+#     plotSliceTypes["co2m"] = dslice
+#     plotSliceTypes["hcn1m"] = dslice
+#     plotSliceTypes["hcn2m"] = dslice
+#     plotSliceTypes["vco1"] = quantslice
+#     plotSliceTypes["vco2"] = quantslice
+#     plotSliceTypes["vhcn1"] = quantslice
+#     plotSliceTypes["vhcn2"] = quantslice
+#     plotSliceTypes["dvco1"] = sdevslice
+#     plotSliceTypes["dvco2"] = sdevslice
+#     plotSliceTypes["dvhcn1"] = sdevslice
+#     plotSliceTypes["dvhcn2"] = sdevslice
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
+    for line in lines:
+        plotCustomMass[line+"m"]=line+"m"
+        plotCustomMass["v"+line]=line+"m"
+        plotCustomMass["dv"+line]=line+"m"
+        plotCustomMass["vels"+line]=line+"m"
+#         plotCustomMass["view"+line]=line+"m"
     
     plotData = dict()
     plotData["temp"] = "TK_p"
@@ -666,7 +893,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["dg"] = "dg"
 #    plotData["dust"] = dslice
     plotData["view"] = ["brightness","opac","brightness","opac"]
-    plotData["vlos"] = ["vel_z","opac","vel_x","opac"]
+    plotData["vlos"] = ["vthin","opac","vthin","opac"]
     plotData["emit"] = "emissivity"
     plotData["opac"] = "opac"
     plotData["dt"] = "dt_p"
@@ -676,7 +903,9 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["vel_y"] = "vel_y"
     plotData["vel_z"] = "vel_z"
     plotData["vel_a"] = "vel_a"
+    plotData["vthin"] = "vthin"
     plotData["arad"] = "arad"
+    plotData["accel"] = "accel"
     plotData["tau"] = "tau"
     plotData["AGNI"] = "AGNI"
     plotData["list"] = "list"
@@ -684,12 +913,45 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["smooth"] = "h_p"
     plotData["rad0"] = "rad0"
     plotData["facetemp"] = ["dustTemp","opac","dustTemp","opac"]
+    plotData["nneigh"] = "nneigh"
+    plotData["pres"] = "pres"
+#     plotData["co1"] = "co1"
+#     plotData["co2"] = "co2"
+#     plotData["hcn1"] = "hcn1"
+#     plotData["hcn2"] = "hcn2"
+    for line in lines:
+        plotData[line]=line
+        plotData[line+"m"]=line+"m"
+        plotData["v"+line]="vthin"
+        plotData["dv"+line]="vthin"
+        plotData["view"+line]=["vthin",line+"m","opac","vel_x",line+"m","opac"]
+        plotData["vels"+line]=["vel_x","vel_y","vel2d","vel_z"]
+#     plotData["vco1"] = "vthin"
+#     plotData["vco2"] = "vthin"
+#     plotData["vhcn1"] = "vthin"
+#     plotData["vhcn2"] = "vthin"
+#     plotData["dvco1"] = "vthin"
+#     plotData["co1m"] = "co1m"
+#     plotData["co2m"] = "co2m"
+#     plotData["hcn1m"] = "hcn1m"
+#     plotData["hcn2m"] = "hcn2m"
     
-    logSliceTypes = ["temp","col","nH","dens","tdust","dust","view","emit","dt","arad","AGNI","opac","smooth","facetemp"]
+    logSliceTypes = [   "temp","col","nH","dens","dust",
+                        "view","emit","dt","arad","accel",
+                        "AGNI","opac","smooth","tdust","pres","vel_r"]
+    logSliceTypes+=lines
+    logSliceTypes+=[line+"m" for line in lines]               
+    # ,
+#                         "co1","co2","hcn1","hcn2","co1m","co2m","hcn1m","hcn2m"
+# #                         ,"dvco1","dvco2","dvhcn1","dvhcn2"
+#                         ]
     extraBarTypes = ["heat"]
     plusMinusTypes = ["heat"]
     
-    divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d","vel_a"]
+    divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d","vel_a","vthin"]
+    divergingTypes+=["v"+line for line in lines]
+    divergingTypes+=["view"+line for line in lines]
+#     ,"vco1","vco2","vhcn1","vhcn2"]
     
     customCmaps = dict()
     customCmaps["heat"] = 'Reds'
@@ -725,8 +987,7 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
         y = yr*np.cos(rot[1]) - z*np.sin(rot[1])
         z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
     
-    
-    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a"]) ):
+    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a","vthin","vlos"] + ["v"+line for line in lines] + ["dv"+line for line in lines] + ["view"+line for line in lines] + ["vels"+line for line in lines]) ):
         #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
         data.vel2d = (x*data.vels[:,0]+y*data.vels[:,1])/np.sqrt(x**2+y**2)
         data.vel_a = (-x*data.vels[:,1]+y*data.vels[:,0])/np.sqrt(x**2+y**2)
@@ -734,7 +995,20 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
         data.vel_x = data.vels[:,0]
         data.vel_y = data.vels[:,1]
         data.vel_z = data.vels[:,2]
-
+    
+    if any(x in plot_thing for x in ["vthin","vlos"]+["v"+line for line in lines] + ["dv"+line for line in lines] + ["view"+line for line in lines]):
+        if ringPlot:
+            raise Exception("can't do optically thin line of sight velocity while integrating around ring")
+        
+        if rot[0]!=0. or rot[1]!=0.:
+            vyr = data.vel_x*np.sin(rot[0]) + data.vel_y*np.cos(rot[0])
+#             data.vel_y = vyr*np.cos(rot[1]) - data.vel_z*np.sin(rot[1])
+            data.vthin = vyr*np.sin(rot[1]) + data.vel_z*np.cos(rot[1])
+        else:
+            data.vthin = data.vel_z
+#         for vthinplot in "vco1","vco2","vhcn1","vhcn2":
+#             if vthinplot in plot_thing:
+#                 data[vthinplot]*=data.vthin
 
     # set x coordinate - cartesian or cylindrical ("ringplot")
     if ( ringPlot ):
@@ -762,8 +1036,23 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
 
     return time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones
 
-def makesph_trhoz_frame(infile,outfile,
-                        scale = 20.,
+
+def makesph_trhoz_frame(*args,**kwargs):
+    try:
+        makesph_trhoz_frame_wrapped(*args,**kwargs)
+    except Exception as e:
+        print(repr(e))
+#         print(sys.exc_info())
+#         traceback.print_exc(file=sys.stdout)
+#         print(traceback.format_tb(sys.exc_info()[2]))
+#         traceback.print_stack()
+#         traceback.print_tb(sys.exc_info()[2])
+#         print("Raising back up")
+        raise(e)
+
+
+def makesph_trhoz_frame_wrapped(infile,outfile,
+                        scale = .7,
                         cmap="viridis",
                         L=256,
                         ring=False,
@@ -781,7 +1070,10 @@ def makesph_trhoz_frame(infile,outfile,
                         maxmode=False,
                         dotmode=None,
                         titlesuffix="",
-                        maskbounds=None
+                        maskbounds=None,
+                        data_ranges=None,
+                        gaussian=None,
+                        return_maps=False
                         ):
     if version[0]=='2':
         raise Exception("Requires Python 3.X. Current version:"+version)
@@ -791,6 +1083,9 @@ def makesph_trhoz_frame(infile,outfile,
     plot_thing = plot
     flatPlot = flat
     ringPlot = ring
+    
+    if return_maps:
+        out_maps = []
     
     if dotmode!='max' and dotmode!='min':
         dotmode = None
@@ -806,10 +1101,17 @@ def makesph_trhoz_frame(infile,outfile,
         
     if ( not all(view=='face' or view=='side' for view in views) ):
         raise Exception("Views must be an array of size one or two containing only 'face' or 'side'")
+    if ( not 'side' in views ):
+        ringPlot = False # IRRELEVANT
+    
     
     cols = len(views)
     if ( cols!=1 and cols!=2 ):
         raise Exception("len(views)=1 or =2")
+    
+    if data_ranges is not None:
+        if len(data_ranges)!=len(plot):
+            raise Exception("Need to give data ranges for ALL plots or none")
 
     plotLabel, plotRanges, plotSliceTypes, plotCustomMass, plotData, logSliceTypes, extraBarTypes, plusMinusTypes, divergingTypes, customCmaps, customCmaps2 = pack_dicts(flatPlot,planenorm,cmap)
 
@@ -849,10 +1151,13 @@ def makesph_trhoz_frame(infile,outfile,
         verboseprint("Loading",infile)
         time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)
 #         time,data = load_gadget(infile,need_to_load,centredens=centredens)
-        verboseprint("Plotting",infile,", t=%.6f Myr"% time)
+        verboseprint("Plotting",infile,", t=%.4f Myr"% time)
 
         if ( visibleAxes ):
-            fig.suptitle(r"$T="+("%.6f" % time)+"$ Myr"+titlesuffix)
+            if time<1.e-3:
+                fig.suptitle(r"$T="+("%.4f" % (time*1.e3))+"$ kyr"+titlesuffix)
+            else:
+                fig.suptitle(r"$T="+("%.4f" % time)+"$ Myr"+titlesuffix)
 #         fig.suptitle(infile)
 
     if ( visibleAxes ):
@@ -890,7 +1195,11 @@ def makesph_trhoz_frame(infile,outfile,
             errstr += "\n".join(labelstrs)
             raise Exception(errstr)
         thisPlotLabel = plotLabel[plot_thing[irow]]
-        thisPlotRanges = plotRanges[plot_thing[irow]]
+        if data_ranges is not None:
+            thisPlotRanges = data_ranges[irow]*2
+        else:
+            thisPlotRanges = plotRanges[plot_thing[irow]]
+#             thisPlotRanges = plotRanges[plot_thing[irow]]*2
 
         # physical coordinates of region to plot, in pc
         if isinstance(scale,list):
@@ -935,7 +1244,7 @@ def makesph_trhoz_frame(infile,outfile,
         thisDiverging = (plot_thing[irow] in divergingTypes)
         
         if ( plot_thing[irow] in plotCustomMass ):
-            thisMass = data.__dict__[plot_thing[irow]]
+            thisMass = data.__dict__[plotCustomMass[plot_thing[irow]]]
         else:
             thisMass = data.m_p
 
@@ -950,12 +1259,20 @@ def makesph_trhoz_frame(infile,outfile,
                 thisPlotQuantityFace = data.__dict__[plotCommand]
                 thisPlotQuantitySide = thisPlotQuantityFace
             elif ( type(plotCommand) is list ):
-                if ( len(plotCommand)!=4 ):
-                    raiseprint("{} must have length 4".format(plotCommand))
-                thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
-                thisPlotQuantitySide = [data.__dict__[plotCommand[2]],data.__dict__[plotCommand[3]]]
+                if thisSliceType==viewslice or thisSliceType==vec2dslice:
+                    if ( len(plotCommand)!=4 ):
+                        raise Exception("{} must have length 4 for view or vec2d slice".format(plotCommand))
+                    thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
+                    thisPlotQuantitySide = [data.__dict__[plotCommand[2]],data.__dict__[plotCommand[3]]]
+                elif thisSliceType==weightviewslice:
+                    if ( len(plotCommand)!=6 ):
+                        raise Exception("{} must have length 6 for weighted view slice".format(plotCommand))
+                    thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]],data.__dict__[plotCommand[2]]]
+                    thisPlotQuantitySide = [data.__dict__[plotCommand[3]],data.__dict__[plotCommand[4]],data.__dict__[plotCommand[5]]]
+                else:
+                    raise Exception("{} can't be an array except for view slices".format(plotCommand))
             else:
-                raiseprint("{} is not a valid plot format".format(plotCommand))
+                raise Exception("{} is not a valid plot format".format(plotCommand))
         else:
             thisPlotQuantityFace = None
             thisPlotQuantitySide = None
@@ -984,13 +1301,14 @@ def makesph_trhoz_frame(infile,outfile,
         # actually do the plot
         for icol,view in enumerate(views):
             if ( view=='face' ):
-                makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
-                        cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging)
+                outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
+                        cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=gaussian)
             elif ( view=='side' ):
-                makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,data.m_p,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
-                        cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging)
+                outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
+                        cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=gaussian)
 
-
+            if return_maps:
+                out_maps.append(outmap)
 
         if ( "heat" in plot_thing and plot_thing[irow]!='heat' ):
             for visax in [ax[irow,cbax2left_index],ax[irow,cbax2right_index]]:
@@ -1037,14 +1355,15 @@ def makesph_trhoz_frame(infile,outfile,
             fig.subplots_adjust(left=0.12,hspace=.12,bottom=.1,top=.9)
     else:
         fig.subplots_adjust(left=0.0,hspace=.0,top=1.,bottom=.0,right=1.,wspace=0.)
-    
-    if plot_thing[0] in extraBarTypes:
-        pos = ax[0,2].get_position()
-    else:
-        pos = ax[0,1].get_position()
+        
+    pos = ax[0,1].get_position()
     lpixx = (L/(pos.x1-pos.x0))
     my_dpi = int(np.floor(lpixx/fw_inches))*pixsize
-#     print(L,pixsize,fw_inches,lpixx,my_dpi,pos)
     
     fig.savefig(outfile,dpi=my_dpi)
     P.close()
+    if return_maps:
+        return out_maps
+    else:
+        return None
+    

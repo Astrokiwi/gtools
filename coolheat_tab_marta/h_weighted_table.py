@@ -28,17 +28,21 @@ def generate_h_weighted_table(nodustmode,highdensemode,table_date,mass=0.0001):
  
     suffixes = dust_suffix+dense_suffix
 
+#     print("H_WEIGHTED_TABLE PROCESS STARTED - ",nodustmode,highdensemode,table_date,mass,suffixes)
+
     #table_date = "17117"
     #table_date = "291117"
 
     print("Loading table (coldens)")
     chTab = tab_interp.CoolHeatTab(("shrunk_table_labels_"+table_date+"coldens"+suffixes+".dat"),("shrunk_table_"+table_date+"coldens"+suffixes+".dat"),
-                                   ("shrunk_table_labels_"+table_date+"coldens"+suffixes+".dat"),("shrunk_table_"+table_date+"coldens"+suffixes+".dat"))
+                                   ("shrunk_table_labels_"+table_date+"coldens"+suffixes+".dat"),("shrunk_table_"+table_date+"coldens"+suffixes+".dat"),
+                                   True)
     interpTabVec = np.vectorize(chTab.interpTab)
 
     print("Loading table (tau)")
     tauChTab = tab_interp.CoolHeatTab(("shrunk_table_labels_"+table_date+"tau"+suffixes+".dat"),("shrunk_table_"+table_date+"tau"+suffixes+".dat"),
-                                      ("shrunk_table_labels_"+table_date+"tau"+suffixes+".dat"),("shrunk_table_"+table_date+"tau"+suffixes+".dat"))
+                                      ("shrunk_table_labels_"+table_date+"tau"+suffixes+".dat"),("shrunk_table_"+table_date+"tau"+suffixes+".dat"),
+                                      True)
     interpTauTabVec = np.vectorize(tauChTab.interpTab)
 
     def get_table_labels(fname):
@@ -86,7 +90,10 @@ def generate_h_weighted_table(nodustmode,highdensemode,table_date,mass=0.0001):
     #tab_surfs = np.array([0.,0.,0.,0.])
     #tab_dm = np.array([.25,.25,.25,.25])
 
-    attributes_to_mean = ['dHeat','dCool','dustT','arad','dg','opac_abs','opac_scat','column_in'] # for production - i.e. output column density as a function of tau, plot surface density as an output
+    lines = ["co1","co2","hcn1","hcn2","H2_1","H2_2","H2_3"]
+    attributes_to_mean = ['dHeat','dCool','dustT','arad','dg','opac_abs','opac_scat','column_in']# for production - i.e. output column density as a function of tau, plot surface density as an output
+    attributes_to_mean+= ["line_"+line for line in lines]
+#     ,'line_co1','line_co2','line_hcn1','line_hcn2'] 
 
     centre_max_surface_density = integrate.quad(lambda z: kernel(z),-1.,1.)[0]
 
@@ -96,15 +103,13 @@ def generate_h_weighted_table(nodustmode,highdensemode,table_date,mass=0.0001):
         masses = mass
     else:
         masses = [mass]
-
-    #for mass_p in np.arange(1,11)*0.01:
-    for mass_p in masses:
-    #for mass_p in [0.02,0.04,0.06,0.08,0.1]:
+    
+    def integrate_and_dump_table(mass_p):
         print("mass=",mass_p)
 
-        # h=nH**(-1./3.)/h_dense_factor
+        # h=nH**(-1./3.)*h_dense_factor
         # h comes out in pc
-        h_dense_factor = 0.3404 * (mass_p/0.1)**(-1/.3)
+        h_dense_factor = (mass_p/0.1)**(1./3.)/0.3404
 
         # conversion factor from solar masses/pc**2 into N_H in cm**-2
         molecular_mass = 4./(1.+3.*.76)
@@ -160,17 +165,25 @@ def generate_h_weighted_table(nodustmode,highdensemode,table_date,mass=0.0001):
         #         if np.sum(~index_is_max)>0:
         #             vals[~index_is_max] = agn_column_in_vals[tau_indices[~index_is_max]]*(1.-tau_weights[~index_is_max]) + agn_column_in_vals[tau_indices[~index_is_max]+1]*tau_weights[~index_is_max]
                 vals = surf0_p
-                print(vals.shape)
+#                 print(vals.shape)
             else:
                 vals = get_struct_attribute(tabStructs,attribute)
-                print(vals.shape)
+#                 print(vals.shape)
             vals = vals * tab_dm
             vals = np.sum(vals,1)
             attrib_out.append(vals)
     
         attrib_out = np.array(attrib_out)
+        outfile = "shrunk_table_"+time.strftime("%d%m%y")+"_m{}_hsmooth_tau".format(mass_p)+suffixes+".dat"
+        print("Dumping table:",outfile)
+        np.savetxt(outfile,attrib_out.T)
+    #for mass_p in np.arange(1,11)*0.01:
+    for mass_p in masses:
+        integrate_and_dump_table(mass_p)
+#     with Pool(processes=64) as pool:
+#         pool.map(integrate_and_dump_table,masses)
+    #for mass_p in [0.02,0.04,0.06,0.08,0.1]:
 
-        np.savetxt("shrunk_table_"+time.strftime("%d%m%y")+"_m{}_hsmooth_tau".format(mass_p)+suffixes+".dat",attrib_out.T)
 
 
 if __name__ == '__main__':

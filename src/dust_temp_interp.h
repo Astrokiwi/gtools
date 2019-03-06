@@ -8,8 +8,16 @@ struct coolHeatDust {
     double column_out;
     double arad;
     
-    int id,it,ii,ic;
-    double fd,ft,fi,fc;
+    double line_co1;
+    double line_co2;
+    double line_hcn1;
+    double line_hcn2;
+    double line_h2_1;
+    double line_h2_2;
+    double line_h2_3;
+    
+    /*int id,it,ii,ic;
+    double fd,ft,fi,fc;*/
 };
 
 
@@ -30,16 +38,25 @@ struct AGN_heat_table {
             *agn_opac_scat_tab,
             *agn_opac_abs_tab,
             *agn_arad_tab,
+            *agn_line_co1,
+            *agn_line_co2,
+            *agn_line_hcn1,
+            *agn_line_hcn2,
+            *agn_line_h2_1,
+            *agn_line_h2_2,
+            *agn_line_h2_3,
             *agn_column_out_tab;
     double *tables[4];
     int *ntabs[4];
+    double *lineArrays[7];
+
 
     // table axes
     int agn_ntemp,agn_ndense,agn_nintensity,agn_ncolumn_in;
     double *agn_temp_vals,*agn_dense_vals,*agn_intensity_vals,*agn_column_in_vals;
 
 
-    void setupTable(const char* labelFile,const char* tableFile);
+    void setupTable(const char* labelFile,const char* tableFile,bool convertLines);
     
     int agn_tab_index(int id, int it, int ii, int is);
     
@@ -51,7 +68,10 @@ class CoolHeatTab {
 
         //CoolHeatTab(std::string flabels,std::string ftab);
         CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab);
-
+        CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab,const char* denseflabels,const char* denseftab);
+        CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab,bool convertLines);
+        CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab,const char* denseflabels,const char* denseftab,bool convertLines);
+        
     private:
         static const double sputtering_temperature = 1.e5;
 
@@ -75,8 +95,8 @@ class CoolHeatTab {
 //         int agn_ntemp,agn_ndense,agn_nintensity,agn_ncolumn_in;
 //         double *agn_temp_vals,*agn_dense_vals,*agn_intensity_vals,*agn_column_in_vals;
         
-        bool data_loaded;
+        bool data_loaded,cold_dense_loaded;
         
-        struct AGN_heat_table mainTable,dustlessTable;
+        struct AGN_heat_table mainTable,dustlessTable,densecoldTable;
         
 };

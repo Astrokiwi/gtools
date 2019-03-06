@@ -18,6 +18,8 @@ module sph_plotter
     integer, parameter :: VORINOI_POS = 3
     integer(kind=1), parameter :: MAX_MODE = B'00010000'
     integer, parameter :: MAX_POS = 4
+    integer(kind=1), parameter :: SDEV_MODE = B'00100000'
+    integer, parameter :: SDEV_POS = 5
 
 
 
@@ -136,6 +138,8 @@ module sph_plotter
 
         real(kind=8), dimension(L,L) :: mg ! mass or distance grid
         
+        real(kind=8), dimension(:,:), allocatable :: g2 ! secondary grid, if needed
+        
         integer :: ip ! this particle
         integer :: ix,iy ! grid position of particle
         integer :: hix,hiy ! position in h circle
@@ -164,6 +168,10 @@ module sph_plotter
             mg = huge(mg(1,1))
         else
             mg = 0.d0
+        endif
+        if ( btest(mode,SDEV_POS) ) then
+            allocate(g2(L,L))
+            g2 = 0.d0
         endif
         r_cell = w/L
         area_cell = r_cell**2
@@ -228,6 +236,9 @@ module sph_plotter
                                     else
                                         if ( btest(mode,DENSE_WEIGHT_POS) ) then
                                             g(hix,hiy) = g(hix,hiy) + weight * m(ip) * v(ip)
+                                            if ( btest(mode,SDEV_POS) ) then
+                                                g2(hix,hiy) = g2(hix,hiy) + weight * m(ip) * v(ip)**2
+                                            endif
                                         endif
                                         mg(hix,hiy) = mg(hix,hiy) + weight * m(ip)
                                     endif
@@ -247,13 +258,21 @@ module sph_plotter
                 where (g==huge(g(1,1))) g=-huge(g(1,1))
             else
                 if ( btest(mode,DENSE_WEIGHT_POS) ) then
-                    g = g/mg
+                    if ( btest(mode,SDEV_POS) ) then
+                        g = sqrt(g2/mg-(g/mg)**2)
+                    else
+                        g = g/mg
+                    endif
                 else
                     g = mg
                 endif
             endif
         endif
         
+        if ( btest(mode,SDEV_POS) ) then
+            deallocate(g2)
+        endif
+
 !         g(1,1) = count(isnan(v))
 
         return
@@ -276,6 +295,24 @@ module sph_plotter
         g = sph_general(x,y,m,h,v,L,c,w,f,nonsense_array,0.d0,WEIGHT_MODE,n)
 
     end function sph_weight
+
+    function sph_sdev(x,y,m,h,v,L,c,w,f,n) result(g)
+        implicit none
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! values to smooth
+        real(kind=8), dimension(n) :: x,y ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+
+        real(kind=8), dimension(n) :: nonsense_array
+
+        
+        g = sph_general(x,y,m,h,v,L,c,w,f,nonsense_array,0.d0,ior(SDEV_MODE,WEIGHT_MODE),n)
+
+    end function sph_sdev
     
     function sph_vorinoi(x,y,m,h,v,L,c,w,f,n) result(g)
         implicit none
@@ -460,7 +497,9 @@ module sph_plotter
 
 
     ! histogram along some radial ray
-    function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,nbins,nray,n) result(rayhist)
+    function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,broaden,nbins,nray,emission,n) result(rayhist)
+!     function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,nbins,nray,n) result(rayhist)
+        !$ use omp_lib
         implicit none
         
         integer :: n,nray,nbins
@@ -468,6 +507,9 @@ module sph_plotter
         real(kind=8), dimension(n,3) :: xyz ! particle positions
         real(kind=8), dimension(n) :: m,h ! mass, smoothing
         real(kind=8), dimension(n) :: v ! value to sum along ray
+!         real(kind=8), dimension(n) :: broaden ! if <0, no broadening. If >0, width of gaussian broadening
+        real(kind=8), dimension(n) :: broaden ! width of gaussian broadening
+        logical :: emission ! true = (optically thin) emission lines from whole galaxy, false = absorption line from ray from centre
 
         
         real(kind=8), dimension(nray,3) :: xyzray_in ! Ray from 0,0 in these directions
@@ -479,9 +521,12 @@ module sph_plotter
 
         real(kind=8) :: ray_norm, impact_pram, dotprod
         real(kind=8) :: h2 ! h squared to avoid square roots later
-        real(kind=8) :: weight
+        real(kind=8) :: weight,broad_weight
+        real(kind=8) :: dv2_normed, gauss_weight
+        real(kind=8), dimension(n) :: gauss_norm
         
         real(kind=8) :: bin_width
+        
 
         logical, dimension(n) :: f ! mask
 
@@ -498,35 +543,116 @@ module sph_plotter
             xyzray(iray,:) = xyzray_in(iray,:)/ray_norm
         end do
         
+        gauss_norm = broaden*sqrt(4.*atan(1.d0))
+        
         rayhist = 0.d0
         bin_width = (vmax-vmin)/nbins
         
-        do ip=1,n
-            if ( f(ip) ) then
-                h2 = h(ip)**2
+!         print *,"MAX THREADS=",omp_get_max_threads()
+
+!$OMP PARALLEL DO private(ibin,iray,dv2_normed,broad_weight,dotprod)&
+!$OMP& private(impact_pram,ip,weight,h2,gauss_weight)&
+!$OMP& shared(v,vmin,bin_width,broaden,gauss_norm,emission)&
+!$OMP& shared(rayhist,nray,nbins,xyzray,xyz,h,m,n,f)&
+!$OMP& default(none) schedule(static,1)
+        do ibin=1,nbins
+!             print *,ibin,omp_get_thread_num()
+            do ip=1,n
+!             do ip=1,20000
+!                 if ( mod(ip,1000)==0 .and. ibin==1) then
+!                     print *,ip,"/",n
+!                 endif
+                if ( .not. f(ip) ) then
+                    continue
+                endif
+                dv2_normed = ((v(ip)-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
+!                 if ( dv2_normed>50. ) then
+                if ( dv2_normed>25. ) then
+                    continue
+                endif
+                gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
+                if ( .not. emission ) then
+                    h2 = h(ip)**2
+                endif
                 do iray=1,nray
-                    dotprod = sum(xyzray(iray,:)*xyz(ip,:))
-                    if ( dotprod>0. ) then
-                        impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
-                        if ( impact_pram<h2 ) then
-                            ibin = floor((v(ip)-vmin)/bin_width+1)
-                            if ( ibin>=1 .and. ibin<=nbins ) then
-                    
-                                impact_pram = sqrt(impact_pram)
-                                weight = m(ip)*fkern(impact_pram/h(ip))/h2
-                        
-                                rayhist(ibin,iray) = rayhist(ibin,iray) + weight
-                            endif
+                    if ( .not. emission ) then
+                        dotprod = sum(xyzray(iray,:)*xyz(ip,:))
+                        if ( dotprod<=0. ) then
+                            continue
                         endif
+                
+                        impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
+                        if ( impact_pram>=h2 ) then
+                            continue
+                        endif
+                
+                        impact_pram = sqrt(impact_pram)
+                        weight = m(ip)*fkern(impact_pram/h(ip))/h2
+                    else
+                        weight = m(ip) ! m is actually luminosity
                     endif
+                            ! should we also weight by bin width?
+                    broad_weight = weight * gauss_weight/bin_width
+                    rayhist(ibin,iray) = rayhist(ibin,iray) + broad_weight
                 end do
-            endif
+            end do
         end do
+!$OMP END PARALLEL DO
+
+        
+!         do ip=1,n
+!             if ( mod(ip,1000)==0 ) then
+!                 print *,ip,"/",n
+!             endif
+!             if ( .not. f(ip) ) then
+!                 continue
+!             endif
+!             h2 = h(ip)**2
+! !        !$OMP PARALLEL DO private(iray,dv2_normed,broad_weight,dotprod,impact_pram)&
+! !        !$OMP& shared(v,vmin,bin_width,broaden,weight,gauss_norm,rayhist,nray,nbins,ip,xyzray,xyz,h,m,h2)&
+! !        !$OMP& default(none)
+!             do iray=1,nray
+!                 dotprod = sum(xyzray(iray,:)*xyz(ip,:))
+!                 if ( dotprod<=0. ) then
+!                     continue
+!                 endif
+!                 
+!                 impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
+!                 if ( impact_pram>=h2 ) then
+!                     continue
+!                 endif
+!                 
+! !                 if ( broaden(ip)<0. ) then ! unbroadened
+!                     ibin = floor((v(ip)-vmin)/bin_width+1)
+!                     if ( ibin>=1 .and. ibin<=nbins ) then
+!     
+!                         impact_pram = sqrt(impact_pram)
+!                         weight = m(ip)*fkern(impact_pram/h(ip))/h2
+!         
+!                         rayhist(ibin,iray) = rayhist(ibin,iray) + weight
+!                     endif
+! !                 else
+! !                     impact_pram = sqrt(impact_pram)
+! !                     weight = m(ip)*fkern(impact_pram/h(ip))/h2
+! ! !        !$OMP PARALLEL DO private(ibin,dv2_normed,broad_weight)&
+! ! !        !$OMP& shared(v,vmin,bin_width,broaden,weight,gauss_norm,rayhist,iray,nbins,ip) default(none)
+! !                     do ibin=1,nbins
+! !                         ! should we also weight by bin width?
+! !                         dv2_normed = ((v(ip)-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
+! !                         broad_weight = weight * exp(-dv2_normed)/gauss_norm(ip)
+! !                         rayhist(ibin,iray) = rayhist(ibin,iray) + broad_weight
+! !                     end do
+! ! !        !$OMP END PARALLEL DO
+! !                 endif
+!             end do
+! ! !        !$OMP END PARALLEL DO
+!         end do
         
     end function
 
     ! surface density along some radial ray
     function sph_ray_integrate(xyz,m,h,xyzray_in,nray,n) result(rw)
+        !$ use omp_lib
         implicit none
         
         integer :: n,nray
@@ -555,23 +681,57 @@ module sph_plotter
             xyzray(iray,:) = xyzray_in(iray,:)/ray_norm
         end do
         
-        rw = 0.d0
+        print *,"Integrating:",n," particles ",nray," rays"
+        print *,"MAX THREADS=",omp_get_max_threads()
         
-        do ip=1,n
-            h2 = h(ip)**2
-            do iray=1,nray
+        rw = 0.d0
+        !$OMP PARALLEL DO private(iray,dotprod,impact_pram,weight,h2,ip)&
+        !$OMP& shared(nray,xyzray,xyz,rw,h,m,n) default(none)
+        do iray=1,nray
+            do ip=1,n
+!                 if ( omp_get_thread_num()==0 .and. mod(ip,10000)==1 ) then
+!                     print *,ip,"/",n
+!                 endif
+                h2 = h(ip)**2
+    !                 print *,omp_get_thread_num(),ip,iray
                 dotprod = sum(xyzray(iray,:)*xyz(ip,:))
                 if ( dotprod>0. ) then
                     impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
                     if ( impact_pram<h2 ) then
                         impact_pram = sqrt(impact_pram)
                         weight = m(ip)*fkern(impact_pram/h(ip))/h2
-                        
+                    
                         rw(iray) = rw(iray) + weight
                     endif
                 endif
             end do
         end do
+        !$OMP END PARALLEL DO 
+
+! 
+!         do ip=1,n
+! !             if ( mod(ip,10000)==1 ) then
+!                 print *,ip,"/",n
+! !             endif
+!             h2 = h(ip)**2
+!             !$OMP PARALLEL DO private(iray,dotprod,impact_pram,weight)&
+!             !$OMP& shared(nray,xyzray,xyz,rw,h2,h,m,ip) default(none)
+!             do iray=1,nray
+! !                 print *,omp_get_thread_num(),ip,iray
+!                 dotprod = sum(xyzray(iray,:)*xyz(ip,:))
+!                 if ( dotprod>0. ) then
+!                     impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
+!                     if ( impact_pram<h2 ) then
+!                         impact_pram = sqrt(impact_pram)
+!                         weight = m(ip)*fkern(impact_pram/h(ip))/h2
+!                         
+!                         rw(iray) = rw(iray) + weight
+!                     endif
+!                 endif
+!             end do
+!             !$OMP END PARALLEL DO 
+!         end do
+        print *,"Integration complete"
         
     end function
 
@@ -635,6 +795,288 @@ module sph_plotter
     
     ! Imaging
     function sph_optical_depth_los(x,y,m,h,v,op,L,c,w,z,inzarg,f,n) result(g)
+        implicit none
+
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! brightness of particle
+        real(kind=8), dimension(n) :: op ! particle opacity per unit mass
+        real(kind=8), dimension(n) :: x,y,z ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+        
+        integer, dimension(n) :: inzarg,zarg ! sorted positions of particles along line of sight
+!         real(kind=8), dimension(L,L) :: opg ! grid of optical depths
+
+        integer :: ip ! loop variable, particle index
+
+        integer :: ix,iy ! grid position of particle
+        integer :: hix,hiy ! position in h circle
+!         integer :: ix0,iy0,ix1,iy1 ! bounds of h circle
+        
+        integer :: ih ! integer h
+        
+        real(kind=8) :: r_cell, area_cell
+        
+        real(kind=8) :: rdist, planedist2, weight!, this_opac
+        
+        integer, parameter :: n_zdir_max=100000
+        integer, parameter :: persamples=16
+        integer :: iz,nz
+        real(kind=8), dimension(n_zdir_max) :: binedges,opacgrid,emitgrid!,massgrid
+        logical, dimension(n) :: inray
+        !real(kind=8),allocatable,dimension(:,:,:) :: opac_samples,emit_samples! FIXXXXX
+        real(kind=8) :: stepsize
+        
+        
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+        
+        g = 0.d0
+!         opg = 0.d0
+        r_cell = w/L
+        area_cell = r_cell**2
+
+        !print *,"sorting"
+        !zarg = rargsort(z)
+        !print *,"sorted"
+        zarg = inzarg+1 ! python to fortran numbering
+
+        ! flip it, for backwards compatability
+        z = maxval(v)-z ! lololol
+        
+!         print *,binedges(1:nz)
+        ! parallelise this loop
+!$OMP PARALLEL DO &
+!$OMP& private(ix,iy,inray,ip,ih,hix,hiy,nz,binedges,opacgrid,emitgrid,iz,stepsize,planedist2,weight,rdist)&
+!$OMP& shared(g,v,op,m,n,c,r_cell,f,L,h,x,y,z) default(none)
+        do ix=1,L
+            print *,ix,"/",L,"started"
+            do iy=1,L
+!                 print *,ix,"/",L,iy,"/",L," ray"
+                inray = .false.
+                do ip=1,n
+                    if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+                        ih = ceiling(h(ip)/r_cell)
+                        hix = nint((x(ip)-c(1))/r_cell)
+                        hiy = nint((y(ip)-c(2))/r_cell)
+                
+!                         ix0 = hix-ih)
+!                         iy0 = max(1,hiy-ih)
+! 
+!                         ix1 = min(L,hix+ih)
+!                         iy1 = min(L,hiy+ih)
+                
+                        if (  hix+ih>=ix .and. hix-ih<=ix.and. hiy+ih>=iy .and. hiy-ih<=iy  ) then
+                            inray(ip) = .true.
+!                             print *,z(ip),h(ip)/persamples
+                        endif
+                    endif
+                end do
+!                 print *,"n=",count(inray)
+!                 print *,pack(z,inray)
+                nz = persamples
+                binedges(1) = minval(z-h,inray)
+                binedges(nz) = maxval(z+h,inray)
+                opacgrid(1:nz)=0. 
+!                 massgrid(1:nz)=0.
+                emitgrid(1:nz)=0.
+                do iz=2,nz-1
+                    binedges(iz) = (binedges(nz)-binedges(1))*(iz-1.)/(nz-1)+binedges(1)
+                end do
+!                 print *,minval(h,inray)
+!                 print *,binedges(nz)-binedges(1)
+!                 print *,(binedges(nz)-binedges(1))/minval(h,inray)*persamples
+
+                do ip=1,n
+!                     if ( mod(ip,10000)==1 ) then
+!                         print *,ip,"/",n,nz
+!                     endif
+                    if ( .not.inray(ip) ) then
+                        cycle
+                    endif
+                    stepsize = h(ip)/persamples
+        !             print *,stepsize
+                    iz = 1
+                    planedist2 = (x(ip)-(ix)*r_cell-c(1))**2+ &
+                                 (y(ip)-(iy)*r_cell-c(1))**2
+                    do while (iz<nz .and. binedges(iz)<=z(ip)+h(ip) )
+                        if ( binedges(iz+1)>=z(ip)-h(ip) ) then
+                            if ( binedges(iz+1)-binedges(iz)>stepsize ) then
+                                ! halve size - refine
+                                if ( nz+1 > n_zdir_max ) then
+                                    print *,"over-refined",ip,nz
+                                    stop
+                                endif
+!                                 print *,ip,inray(ip)
+!                                 print *,binedges(1:nz)
+                                ! shuffle up edges by one, insert one half-way in-between
+                                binedges(iz+2:nz+1)=binedges(iz+1:nz)
+                                binedges(iz+1) = (binedges(iz)+binedges(iz+1))/2.
+                                ! for SPH values, these are all volumetric values, just copy them over
+                                ! values iz+1 and iz+2 are now identical - i.e. below the res we cared about
+                                emitgrid(iz+2:nz+1)=emitgrid(iz+1:nz) 
+                                opacgrid(iz+2:nz+1)=opacgrid(iz+1:nz) 
+!                                 massgrid(iz+2:nz+1)=massgrid(iz+1:nz) 
+                                nz = nz + 1
+!                                 print *,binedges(1:nz)
+!                                 stop
+                            else
+                                ! we are within range, add our SPH weights to this point
+                                rdist=sqrt(planedist2+(z(ip)-binedges(iz))**2)
+                                if ( rdist<h(ip) ) then
+                                    weight = kern(rdist/h(ip))/h(ip)**3
+                                    emitgrid(iz)=emitgrid(iz)+v(ip)*op(ip)*weight*m(ip)
+                                    opacgrid(iz)=opacgrid(iz)+op(ip)*weight*m(ip)
+!                                     massgrid(iz)=massgrid(iz)+weight*m(ip)
+                                endif
+                                iz = iz + 1
+                            endif
+                        else
+                            ! out of range, skip
+                            iz = iz + 1
+                        endif
+                    end do
+                end do
+
+                ! splat it down flat
+                weight = 0.
+                do iz=1,nz-1
+        !             write(12,"(I8,5E9.3)") iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz)
+                    weight = weight + (binedges(iz+1)-binedges(iz))*(emitgrid(iz))
+                    weight = weight*exp(-(binedges(iz+1)-binedges(iz))*opacgrid(iz))
+!                     write(12,*) iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz),weight
+                end do
+                g(ix,iy) = weight
+
+            end do
+            print *,ix,"/",L,"done"
+        end do
+!         opacgrid(1:nz)=opacgrid(1:nz)!/massgrid(1:nz) ! 
+!         emitgrid(1:nz)=emitgrid(1:nz)/massgrid(1:nz)
+!         open(unit=12,file="test.out")
+!         weight = 0.
+!         do iz=1,nz-1
+! !             write(12,"(I8,5E9.3)") iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz)
+!             weight = weight + (binedges(iz+1)-binedges(iz))*(emitgrid(iz)-opacgrid(iz)*weight)
+!             write(12,*) iz,binedges(iz),binedges(iz+1)-binedges(iz),opacgrid(iz),emitgrid(iz),massgrid(iz),weight
+!         end do
+! !         print *,binedges(1:nz)
+!         close(12)
+!         stop
+!         do ip=1,n
+!             if ( mod(ip,1000)==1 ) then
+!                 print *,ip,"/",n,nz
+!             endif
+!             if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+!                 ih = ceiling(h(ip)/r_cell)
+!                 ix = nint((x(ip)-c(1))/r_cell)
+!                 iy = nint((y(ip)-c(2))/r_cell)
+!                 
+!                 ix0 = max(1,ix-ih)
+!                 iy0 = max(1,iy-ih)
+! 
+!                 ix1 = min(L,ix+ih)
+!                 iy1 = min(L,iy+ih)
+!                 
+!                 if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+!                 
+!                     do hix=ix0,ix1
+!                         do hiy=iy0,iy1
+!                             iz = 1
+!                             do while ( iz<nz .and. binedges(iz)<=z(ip)+h(ip))
+!                                 if ( binedges(iz)>=z(ip)+h(ip) ) then
+!                                     rdist=sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell+(z(ip)-h(ip)**2))
+!                                     weight = kern(rdist/h(ip))/kern_norm/h(ip)**3
+!                                     
+!                                 endif
+!                                 iz = iz + 1
+!                             end do
+!                         end do
+!                     end do
+!                 endif
+!             endif
+! 
+!         end do
+        
+        
+!         open(unit=12,file="test.out")
+!         do iz=1,nz-1
+!             write(12,*) iz,binedges(iz+1)-binedges(iz)
+!         end do
+! !         print *,binedges(1:nz)
+!         close(12)
+!         stop
+!         i_zedges = 0
+!         do i=1,n
+!             ip = zarg(i)
+!             if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+!                 if ( i_zedges==0 ) then
+!                     do j=0,persamples-1
+!                         z_edges(j) = (j-persamples/2)*h(ip)/persamples+z_p(j)
+!                     end do
+!                 else
+!                     
+!                 endif
+!             endif
+!         end do
+!         stop
+
+
+
+! old version
+!         do i=1,n
+!             ip = zarg(i)
+!             if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+!                 ih = ceiling(h(ip)/r_cell)
+!                 ix = nint((x(ip)-c(1))/r_cell)
+!                 iy = nint((y(ip)-c(2))/r_cell)
+!                 
+!                 ix0 = max(1,ix-ih)
+!                 iy0 = max(1,iy-ih)
+! 
+!                 ix1 = min(L,ix+ih)
+!                 iy1 = min(L,iy+ih)
+!                 
+!                 if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+!                 
+!                     do hix=ix0,ix1
+!                         do hiy=iy0,iy1
+!                             !if ( opg(hix,hiy)<1.d0 ) then
+!                                 rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+!                                 weight = fkern(rdist/h(ip))/h(ip)**2
+!                             
+! 
+!                                 this_opac = weight * m(ip) * op(ip)
+!                                 g(hix,hiy) = g(hix,hiy) + min(1.,this_opac)*v(ip)*exp(-opg(hix,hiy))
+!                                 !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
+!                                 opg(hix,hiy) = opg(hix,hiy) + this_opac
+! !                                 if ( opg(hix,hiy)>=1.d0 ) then
+! !                                     g(hix,hiy)=v(ip)
+! !                                 endif
+!                             !endif
+!                             
+!                         end do
+!                     end do
+! 
+!                 endif
+!                 
+!             endif
+!         end do
+
+    end function
+
+
+
+! basically, assume that dust is both producing and extincting
+! v is emission in erg/s/cm^2 where /cm^2 is per surface area of dust
+! op is opacity in cm^2/g where g is mass of total gas, and cm^2 is cross section for both emission and absorption
+! op*(line of sight column density) = fraction of area covered by dust. Take max of 1 for 100% coverage
+! multiply this by v to get erg/s/cm^2 column contribution
+    function sph_optical_depth_los_area(x,y,m,h,v,op,L,c,w,z,inzarg,f,n) result(g)
         implicit none
 
         integer :: n,L
@@ -714,8 +1156,101 @@ module sph_plotter
                 
             endif
         end do
-
     end function
+
+! `emit` is total luminosity of particle
+! `emit` weighted by 2D kernel gives erg/s/cm^2 flux
+! weight by `v` to calculate "line" output, divide at the end
+! opacity is completely independent, but still mass weighted
+    function sph_optical_depth_los_weight(x,y,m,h,v,emit,op,L,c,w,z,inzarg,f,n) result(g)
+        implicit none
+
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! value to smooth over
+        real(kind=8), dimension(n) :: op ! particle opacity per unit mass
+        real(kind=8), dimension(n) :: emit ! particle emission per unit mass
+        real(kind=8), dimension(n) :: x,y,z ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
+        
+        integer, dimension(n) :: inzarg,zarg ! sorted positions of particles along line of sight
+        real(kind=8), dimension(L,L) :: opg, emitg ! grid of optical depths, grid of emissions
+
+        integer :: i,ip ! loop variable, particle index
+
+        integer :: ix,iy ! grid position of particle
+        integer :: hix,hiy ! position in h circle
+        integer :: ix0,iy0,ix1,iy1 ! bounds of h circle
+        
+        integer :: ih ! integer h
+        
+        real(kind=8) :: r_cell, area_cell
+        
+        real(kind=8) :: rdist, weight, this_opac, this_emission
+
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+        
+        g = 0.d0
+        opg = 0.d0
+        emitg = 0.d0
+        r_cell = w/L
+        area_cell = r_cell**2
+
+        !print *,"sorting"
+        !zarg = rargsort(z)
+        !print *,"sorted"
+        zarg = inzarg+1 ! python to fortran numbering
+
+        do i=1,n
+            ip = zarg(i)
+            if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
+                ih = ceiling(h(ip)/r_cell)
+                ix = nint((x(ip)-c(1))/r_cell)
+                iy = nint((y(ip)-c(2))/r_cell)
+                
+                ix0 = max(1,ix-ih)
+                iy0 = max(1,iy-ih)
+
+                ix1 = min(L,ix+ih)
+                iy1 = min(L,iy+ih)
+                
+                if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+                
+                    do hix=ix0,ix1
+                        do hiy=iy0,iy1
+                            !if ( opg(hix,hiy)<1.d0 ) then
+                                rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+                                weight = fkern(rdist/h(ip))/h(ip)**2
+                            
+
+                                this_opac = weight * m(ip) * op(ip)
+                                this_emission = weight * emit(ip)
+                                g(hix,hiy) = g(hix,hiy) + this_emission*v(ip)*exp(-opg(hix,hiy))
+                                !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
+                                emitg(hix,hiy) = emitg(hix,hiy) + this_emission*exp(-opg(hix,hiy))
+                                opg(hix,hiy) = opg(hix,hiy) + this_opac
+!                                 if ( opg(hix,hiy)>=1.d0 ) then
+!                                     g(hix,hiy)=v(ip)
+!                                 endif
+                            !endif
+                            
+                        end do
+                    end do
+
+                endif
+                
+            endif
+        end do
+        
+        g = g / emitg
+    end function
+
+
 
 ! taken from:
 ! Module for sorting arrays.
