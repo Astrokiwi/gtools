@@ -14,6 +14,8 @@ import itertools as it
 
 import gizmo_tools
 
+import glob
+
 def sort_nicely( l ):
     """ Sort the given list in the way that humans expect.
     """
@@ -39,6 +41,7 @@ if __name__ == '__main__':
 #     includedVals = ["vrad","z_p"]
     #includedVals = ["flux_p","radrad_p"]
     includedVals = ["nH_p","TK_p"]
+#     includedVals = ["rad2d_p","agn_heat_p","radrad_p"]
     #includedVals = ["p_p","nH_p"]
     #includedVals = ["rad2d_p","nH_p"]
 #     includedVals = ["dt_p","rad_p","nH_p","TK_p"]
@@ -99,6 +102,12 @@ if __name__ == '__main__':
         #np.savetxt(anim_file_list,animstrs[:,i_anim],fmt='%s')
         first_filename = animstrs[0,i_anim]
         anim_catch = first_filename[:-7]+"%03d.png"
+        # remove all old images
+        n_last = animstrs.shape[0]
+        for imageFile in glob.glob(first_filename[:-7]+"*.png"):
+            if int(imageFile[-7:-4])>=n_last:
+                os.remove(imageFile)
+        
         cmd = "ffmpeg -y -r 24 -i "+anim_catch+" -c:v mpeg4 -q:v 1 "+movieDir+"/phaseplots"+run_id+"_"+output_dir+"_"+anim_names[i_anim]+".mp4"
         #cmd = "ffmpeg -y -r 5 -i "+anim_file_list+" -c:v mpeg4 -q:v 1 /export/1/djw/movies/phaseplots"+run_id+"_"+output_dir+"_"+anim_names[i_anim]+".mp4"
         os.system(cmd)
