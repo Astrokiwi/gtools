@@ -22,8 +22,8 @@ def sort_nicely( l ):
     l.sort( key=alphanum_key )
 
 
-def g(run_id,output_dir,includedVal,rcut,m_bh,gridMode,snap_str):
-    return phaseplots.savephaseplots(run_id,output_dir,snap_str,includedVal,rcut=rcut,m_bh=m_bh,gridMode=gridMode)
+def g(run_id,output_dir,includedVal,rcut,m_bh,gridMode,uniqueMode,snap_str):
+    return phaseplots.savephaseplots(run_id,output_dir,snap_str,includedVal,rcut=rcut,m_bh=m_bh,gridMode=gridMode,uniqueMode=uniqueMode)
 
 
 if __name__ == '__main__':
@@ -32,13 +32,22 @@ if __name__ == '__main__':
 
     print("Running")
 
-    gridMode = False
+#     gridMode = False
+#     uniqueMode = False
+    gridMode = True
+    uniqueMode = False
+    
+#     append_name = "_high_hcn"
+    append_name = ""
 
     #includedVals = ["dt_p","nH_p","TK_p","rad2d_p","z_p","vrad","dHeat","dt_heat"]
 #     includedVals = ["rad_p","nH_p","arad_p","radrad_p"]
 #     includedVals = ["rad2d_p","radrad_p"]
 #     includedVals = ["co1","co2"]
-    includedVals = ["hcn1","nH_p","TK_p","tau","flux_p"]
+#     includedVals = ["hcn2","nH_p","TK_p","tau","flux_p"]
+    includedVals = ["nH_p","TK_p","tau","flux_p"]
+#     includedVals = ["hcn2","nH_p"]
+#     includedVals = ["hcn1","hcn2","co1","co2"]
 #     includedVals = ["rad_p","radrad_p","nH_p"]
 #     includedVals = ["dustTemp","TK_p","vrad"]
     #includedVals = ["rad2d_p","hz_rat"]
@@ -104,14 +113,23 @@ if __name__ == '__main__':
     n_anim = 0
     anim_names = []
 #     for i in range(l): # do full grid
-    varOneRange = range(l) if gridMode else [0]
+    varOneRange = [0]
+    if gridMode:
+        varOneRange = range(l)
+#     if uniqueMode:
+#         varOneRange = range(0,l,2)
     for i in varOneRange: # do first vs everything
-        for j in range(i+1,l):
+        if uniqueMode and i%2!=0:
+            continue
+        varTwoRange = range(i+1,l)
+        if uniqueMode:
+            varTwoRange = [i+1]
+        for j in varTwoRange:
             anim_names.append(includedVals[i]+includedVals[j])
             n_anim+=1
     
-    pool = Pool(processes=80)
-    h = partial(g,run_id,output_dir,includedVals,rcut,m_bh,gridMode)
+    pool = Pool(processes=128)
+    h = partial(g,run_id,output_dir,includedVals,rcut,m_bh,gridMode,uniqueMode)
 #     animstrs = pool.starmap(phaseplots.savephaseplots,zip(it.repeat(run_id),it.repeat(output_dir),snap_strs,it.repeat(includedVals),it.repeat(rcut)))
     animstrs = pool.map(h,snap_strs)
     pool.close()
@@ -122,7 +140,7 @@ if __name__ == '__main__':
         #np.savetxt(anim_file_list,animstrs[:,i_anim],fmt='%s')
         first_filename = animstrs[0,i_anim]
         anim_catch = first_filename[:-7]+"%03d.png"
-        cmd = "ffmpeg -y -r 24 -i "+anim_catch+" -c:v mpeg4 -q:v 1 "+movieDir+"/phaseplots"+run_id+"_"+output_dir+"_"+anim_names[i_anim]+".mp4"
+        cmd = "ffmpeg -y -r 24 -i "+anim_catch+" -c:v mpeg4 -q:v 1 "+movieDir+"/phaseplots"+run_id+"_"+output_dir+"_"+anim_names[i_anim]+append_name+".mp4"
         #cmd = "ffmpeg -y -r 5 -i "+anim_file_list+" -c:v mpeg4 -q:v 1 /export/1/djw/movies/phaseplots"+run_id+"_"+output_dir+"_"+anim_names[i_anim]+".mp4"
         os.system(cmd)
 # 
