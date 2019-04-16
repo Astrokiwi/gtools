@@ -213,6 +213,7 @@ program disc_ICs
 
                 case("selfgrav")
                     read(invalue,*) selfgrav
+                    print *,"selfgrav=",selfgrav
 
                 case("tproffile")
                     read(intext,"(A10,A)",iostat=ios) invariable,tproffile
@@ -379,14 +380,16 @@ function epicyclic_parameter(r) result(kappa)
 
     ! smbh component
     kappa = m_smbh/(r**2+c_scale**2) * (2*c_scale**2/(r**2+c_scale**2)+1)
+!     kappa = m_smbh/(r**2+c_scale**2) * (3.-2.*r**2/(r**2+c_scale**2)) ! wrong
 
     ! hernquist component
-    kappa = kappa + hernquist_mass*(hernquist_scale+r)**2*(2*hernquist_scale/(hernquist_scale+r)+1)
-    
+!     kappa = kappa + hernquist_mass*(hernquist_scale+r)**2*(2*hernquist_scale/(hernquist_scale+r)+1) ! wrong
+    kappa = kappa + hernquist_mass/(hernquist_scale+r)**2*(3.-r/(hernquist_scale+r))
+
     kappa = kappa * G/r
     
     kappa = sqrt(kappa)
-    
+        
     return
 end function
     
@@ -443,7 +446,9 @@ subroutine calc_max_q_surf_profile
     dense_index = 0.d0
     disc_rad = r_guess
     
-    disc_thick = constant_q_surf(r_guess,cooled_sound_speed,Q_target)/rho_target/2.d0
+    if ( rho_target>0. ) then
+        disc_thick = constant_q_surf(r_guess,cooled_sound_speed,Q_target)/rho_target/2.d0
+    endif
 end subroutine
 
 subroutine calc_const_q_surf_profile(rans)
@@ -468,6 +473,9 @@ subroutine calc_const_q_surf_profile(rans)
     real(kind=8), dimension(p_data%ng,3) :: rans
     
     integer :: ip
+
+!     real(kind=8) :: epicyclic_parameter ! for dump
+
     
     stepsize = (disc_rad-disc_inner_rad)/nbin
     r_inner = disc_inner_rad
@@ -511,6 +519,16 @@ subroutine calc_const_q_surf_profile(rans)
     
     fbin = fbin/fbin(nbin)
     
+    
+    ! dump profile?
+!     do ibin=1,nbin
+!         rbin = disc_inner_rad+stepsize*(ibin-.5)
+!         print *,rbin*1.e3,epicyclic_parameter(rbin)/tunit_cgs
+!     end do
+!     
+!     stop
+    
+    
     do ip=1,ndisc
         ibin = 1
         do while (fbin(ibin)<rans(ip,1) .and. ibin<=nbin)
@@ -528,6 +546,7 @@ subroutine calc_const_q_surf_profile(rans)
             rans(ip,3) = (rans(ip,3)-.5d0)*(bin_surf/rho_target)
         endif
     end do
+    
     
 end subroutine
 
@@ -569,6 +588,7 @@ subroutine disc_locs(tproffile)
         if ( Q_target>0. .and. .not. constant_surf) then
             call calc_const_q_surf_profile(rans)
             !call calc_max_q_surf_profile
+            print *,"Outer radius set to ",disc_rad," kpc"
         else
             if ( constant_surf ) then
                 if ( Q_target<=0. ) then
@@ -578,18 +598,20 @@ subroutine disc_locs(tproffile)
                 endif
                 
                 call calc_max_q_surf_profile
+                print *,"Outer radius set to ",disc_rad," kpc"
             endif
             
             if ( surf_target>0. ) then
                 disc_rad=sqrt(disc_inner_rad**2+mtot/pi/surf_target)
-                print *,"Outer radius set to ",disc_rad
+                print *,"Outer radius set to ",disc_rad," kpc"
             endif
             
             ! radius - for power-law density
             rans(:,1) = (  rans(:,1)*(disc_rad**(dense_index+2.d0)-disc_inner_rad**(dense_index+2.d0)) &
                         +disc_inner_rad**(dense_index+2.d0)   )**(1./(dense_index+2.d0))  
             if ( dense_index==0.d0 ) then
-                print *,"Surface density:",mtot/pi/(disc_rad**2-disc_inner_rad**2)
+                print *,"Surface density:",mtot/pi/(disc_rad**2-disc_inner_rad**2)," *1e10 Msun/kpc**2"
+!                 print *,mtot,disc_rad,disc_inner_rad
             endif
         endif
 
