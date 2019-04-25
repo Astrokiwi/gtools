@@ -16,6 +16,7 @@ bins = np.arange(0.,91.,.25)
 G_kms_pc_msun = 0.0043022682
 
 rcut = 80. # only count particles within 80 pc
+# rcut = 5. # only count particles within 5 pc - i.e. close-by wind
 
 def v_esc(r,m_bh,m_hern,a_hern):
     return np.sqrt(2*G_kms_pc_msun*(m_bh/r + m_hern/(a_hern+r)))
@@ -63,16 +64,26 @@ def load_gizmo_get_outflow(run_id,output_dir,snap_id):
     xyz_p_in = np.array(f["/PartType0/Coordinates"])
     vel_p_in = np.array(f["/PartType0/Velocities"])
     mass_p_in = np.array(f["/PartType0/Masses"])
-    id_p = np.array(f["/PartType0/ParticleIDs"])-1
+    id_p_in = np.array(f["/PartType0/ParticleIDs"])-1
 
 #     id_p = np.zeros_like(id_p_in)
-    xyz_p = np.zeros_like(xyz_p_in)
-    vel_p = np.zeros_like(vel_p_in)
-    mass_p = np.zeros_like(mass_p_in)
+#     N=np.max(id_p)+1
     
-    xyz_p[id_p,:] = xyz_p_in
-    vel_p[id_p,:] = vel_p_in
-    mass_p[id_p] = mass_p_in
+    id_sortargs = np.argsort(id_p_in)
+
+    id_p  = id_p_in[id_sortargs]
+
+#     xyz_p = np.zeros([N,3])
+#     vel_p = np.zeros([N,3])
+#     mass_p = np.zeros([N])
+
+#     xyz_p = np.zeros_like(xyz_p_in)
+#     vel_p = np.zeros_like(vel_p_in)
+#     mass_p = np.zeros_like(mass_p_in)
+    
+    xyz_p = xyz_p_in[id_sortargs]
+    vel_p = vel_p_in[id_sortargs]
+    mass_p = mass_p_in[id_sortargs]
 #     id_p[id_p_in] = id_p_in
 
     mass_p*=1.e10 # to Msun
@@ -87,14 +98,16 @@ def load_gizmo_get_outflow(run_id,output_dir,snap_id):
 #     vrad = np.sum(xyz_p*vel_p,axis=1)/rad3d_p
 #     outflowing = (vrad>windcut)
     outflowing = (v_esc(rad3d_p,1.e6,1.e9,250.)<vmag) & (rad3d_p<rcut)
+    outflowing_ids = id_p[outflowing]
+#     print(outflowing_ids)
     
     vtot = np.sum(vmag)
     
-    return time,z_p,rad2d_p,outflowing,mass_p,vtot
+    return time,z_p,rad2d_p,outflowing,outflowing_ids,mass_p,vtot,id_p
     
 
 def calc_hist(run_id,output_dir,snap_id,dumpall,bins,step):
-    time,z_p,rad2d_p,outflowing,mass_p,vtot = load_gizmo_get_outflow(run_id,output_dir,snap_id)
+    time,z_p,rad2d_p,outflowing,outflowing_ids,mass_p,vtot,id_p = load_gizmo_get_outflow(run_id,output_dir,snap_id)
 
     z_p = z_p[outflowing]
     rad2d_p = rad2d_p[outflowing]
@@ -109,10 +122,16 @@ def calc_hist(run_id,output_dir,snap_id,dumpall,bins,step):
         if m_out>0.:
             wind_theta = np.median(theta_p)
         
-            last_time,z_p_old,rad2d_p_old,last_outflowing,dummy,vtot_old = load_gizmo_get_outflow(run_id,output_dir,snap_id-step)
-        
-            newly_outflowing = outflowing & ~last_outflowing
-            nolonger_outflowing = last_outflowing & ~outflowing
+            last_time,z_p_old,rad2d_p_old,last_outflowing,last_outflowing_ids,dummy,vtot_old,id_p_old = load_gizmo_get_outflow(run_id,output_dir,snap_id-step)
+            
+            newly_outflowing_ids = np.setdiff1d(outflowing_ids,last_outflowing_ids,assume_unique=True)
+            nolonger_outflowing_ids = np.setdiff1d(last_outflowing_ids,outflowing_ids,assume_unique=True)
+            
+#             print(outflowing_ids.size,last_outflowing_ids.size,newly_outflowing_ids.size,nolonger_outflowing_ids.size)
+            
+            
+#             newly_outflowing = outflowing & ~last_outflowing
+#             nolonger_outflowing = last_outflowing & ~outflowing
             particle_mass = mass_p[0]
         
             dt = (time-last_time)*1.e6
@@ -123,8 +142,8 @@ def calc_hist(run_id,output_dir,snap_id,dumpall,bins,step):
 #             np.savetxt("data/oldflow%03d.dat"%snap_id,out_data2)
             
         
-            outflow_rate = particle_mass*np.sum(newly_outflowing)/dt
-            inflow_rate = particle_mass*np.sum(nolonger_outflowing)/dt
+            outflow_rate = particle_mass*newly_outflowing_ids.size/dt
+            inflow_rate = particle_mass*nolonger_outflowing_ids.size/dt
             dv = (vtot-vtot_old)/dt
             
         else:
@@ -250,6 +269,8 @@ def dump_full_evolution(run_ids,output_dirs):
         print("Reading and analysing angles")
 
         snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
+#         snapf=100
+#         print("Forcing max snapf to 100")
 #             step = 10
         step = 1
         snapi = step
@@ -257,7 +278,8 @@ def dump_full_evolution(run_ids,output_dirs):
 #             snap_strs = ["%03d" % i for i in range(0,snapf,step)]
         snap_ids = range(snapi,snapf,step)
         bins = np.arange(0.,91.,1.)
-        with Pool(processes=80) as pool:
+        
+        with Pool(processes=100) as pool:
 #             with Pool(processes=8) as pool:
             output_data = pool.starmap(calc_hist,zip(it.repeat(run_id),it.repeat(output_dir),snap_ids,it.repeat(False),it.repeat(bins),it.repeat(step)))
 #         print(output_data)
@@ -286,10 +308,11 @@ if __name__ == '__main__':
         run_id = sys.argv[1]
         output_dir = sys.argv[2]
         snap_str = sys.argv[3]
+        snap_id = int(snap_str)
         bins = np.arange(0.,91.,.25)
 #         theta_edges,theta_histogram,wind_theta,grad,gradgrad = calc_hist(run_id,output_dir,snap_str,True,bins)
 #         output_data = np.array([theta_edges[:-1],theta_histogram,grad,gradgrad]).T
-        theta,cumsum,smoothed,grad,gradgrad = calc_hist(run_id,output_dir,snap_str,True,bins)
+        theta,cumsum,smoothed,grad,gradgrad = calc_hist(run_id,output_dir,snap_id,True,bins,1)
         output_data = np.array([theta,cumsum,smoothed,grad,gradgrad]).T
         np.savetxt("data/quickangle"+run_id+output_dir+snap_str+".dat",output_data)
     else:
@@ -327,6 +350,6 @@ if __name__ == '__main__':
             output_dirs = ["aniso_4_biggerrad","aniso_4_bigrad"]
             print(run_ids)
             print(output_dirs)
-            dump_full_evolution(run_ids,output_dirs)
+        dump_full_evolution(run_ids,output_dirs)
     
 
