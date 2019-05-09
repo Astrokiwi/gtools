@@ -1,0 +1,31 @@
+106
+weakflow:outflowRate                 0.0546
+medflow:outflowRate                 0.546
+strongflow:outflowRate                 5.46
+
+110
+settled:outflowVel                  10.
+vesc:outflowVel                  100.
+rapid:outflowVel                  500.
+
+100-104
+defaultaniso:intrinsic_tau0              5.
+intrinsic_tau_transition    40.
+intrinsic_index0            10.
+intrinsic_index1            50.5
+AGN_isotropy   1.e2
+thiniso:intrinsic_tau0              1.
+intrinsic_tau_transition    40.
+intrinsic_index0            50.
+intrinsic_index1            252.5
+AGN_isotropy   1.e2
+iso:intrinsic_tau0              1.
+intrinsic_tau_transition    40.
+intrinsic_index0            1.e9
+intrinsic_index1            1.e9
+AGN_isotropy   1.e2
+doubleiso:intrinsic_tau0              1.
+intrinsic_tau_transition    40.
+intrinsic_index0            1.e9
+intrinsic_index1            1.e9
+AGN_isotropy   1.
