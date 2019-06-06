@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
 #     gridMode = False
 #     uniqueMode = False
-    gridMode = True
+    gridMode = False
     uniqueMode = False
     
 #     append_name = "_high_hcn"
@@ -47,11 +47,20 @@ if __name__ == '__main__':
 #     includedVals = ["rad2d_p","radrad_p"]
 #     includedVals = ["co1","co2"]
 #     includedVals = ["hcn2","nH_p","TK_p","tau","flux_p"]
-    includedVals = ["nH_p","TK_p","tau","flux_p"]
+#     includedVals = ["nH_p","TK_p","tau","flux_p"]
+#     includedVals = ["nH_p","tau"]
+    includedVals = ["nH_p","TK_p","tau"]
+#     includedVals = ["phi","vrad"]
+#     includedVals = ["phi","vcirc"]
+#     includedVals = ["vrad","TK_p",""]
+#     includedVals = ["TK_p","vel"]
+#     includedVals = ["tau","pratio"]
+#     includedVals = ["p_p","prad"]
+#     includedVals = ["rad_p","vrad"]
 #     includedVals = ["hcn2","nH_p"]
 #     includedVals = ["hcn1","hcn2","co1","co2"]
 #     includedVals = ["rad_p","radrad_p","nH_p"]
-#     includedVals = ["dustTemp","TK_p","vrad"]
+#     includedVals = ["dustTemp","TK_p","nH_p"]
     #includedVals = ["rad2d_p","hz_rat"]
     #includedVals = ["mJ_p","nH_p","TK_p"]
 #     includedVals = ["arad_p","radrad_p"]
@@ -77,7 +86,8 @@ if __name__ == '__main__':
     
     
 #     rcut = 80.
-    rcut = 1.e9
+#     rcut = 1.e9
+    rcut = 2.
 
     m_bh = 1.e6
 #     m_bh = .05e6
@@ -85,8 +95,8 @@ if __name__ == '__main__':
 #     snapi = 0
 
     snapi = 0
-#     snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
-    snapf = 100
+    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False)
+#     snapf = 100
     
     movieDir = gizmo_tools.getMovieDir()
 
