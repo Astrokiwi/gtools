@@ -55,13 +55,13 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
     xyzray[:,1] = np.cos(phis)*np.sin(thetas)
     xyzray[:,2] = np.sin(phis)
 
-    outp = np.zeros((nray_phi,nruns*4+1))
+    outp = np.zeros((nray_phi,nruns*6+1))
     outp[:,0] = phis_basis
 
-    gizmoDir = gizmo_tools.getGizmoDir()
 
     for irun in range(nruns):
         run_id = run_ids[irun]
+        gizmoDir = gizmo_tools.getGizmoDir(run_id)
         output_dir = output_dirs[irun]
         snap_str = snap_strs[irun]
 #         run_id = sys.argv[1+irun*3]
@@ -83,7 +83,7 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
         h_p*=1.e3 # to pc
 
         opac_p = np.array(f["/PartType0/AGNOpacity"]) # internal units: kpc**2/1e10 solar mass
-        opac_p = 1.e-4 # to pc**2/solar mass
+        opac_p*= 1.e-4 # to pc**2/solar mass
 
 
     #     u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
@@ -101,6 +101,8 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
 
         tau_all = sph_plotter.sph_ray_integrate(xyz,m_p*opac_p,h_p,xyzray,nray,n)
         tau = np.mean(tau_all.reshape(-1,nray_theta),axis=1)
+        tau_low = np.min(tau_all.reshape(-1,nray_theta),axis=1)
+        tau_high = np.max(tau_all.reshape(-1,nray_theta),axis=1)
 
     #    phideg = phis_basis/(2.*np.pi)*360
 
@@ -112,10 +114,12 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
         sigma_low*=sigma_convert
         sigma_high*=sigma_convert
     
-        outp[:,irun*4+1] = sigma
-        outp[:,irun*4+2] = sigma_low
-        outp[:,irun*4+3] = sigma_high
-        outp[:,irun*4+4] = tau
+        outp[:,irun*6+1] = sigma
+        outp[:,irun*6+2] = sigma_low
+        outp[:,irun*6+3] = sigma_high
+        outp[:,irun*6+4] = tau
+        outp[:,irun*6+5] = tau_low
+        outp[:,irun*6+6] = tau_high
 
     #     print("Plotting")
     #     P.plot(phideg,sigma,label=run_id+output_dir+snap_str)
@@ -149,12 +153,50 @@ if __name__ == '__main__':
         
         calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile)
     else:
-        for snap in ["100","200","500","1000"]:
-            outpFile = "data/2014q2redo_sigangle_"+snap+".dat"
-            output_dirs=["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
-            nruns = len(output_dirs)
-            run_ids = ["2014"]*nruns
-            snap_strs = [snap]*nruns
+#         for snap in ["100","200","500","1000"]:
+#         run_groups = [["run_a0_e1","run_a1_e1","run_a2_e1","run_a3_e1"],["run_a2_e01_T1000","run_a2_e01_T300","run_a2_e01_T30","run_a2_e01"],["run_a2_e01","run_a2_e05","run_a2_e1","run_a2_e2"],["run_a2_e01","run_a2_e01_SN100","run_a2_e01_SN1000"]]
+#         run_groups = [["a0_e1","a1_e1","a2_e1","a3_e1"],["a2_e01_T1000","a2_e01_T300","a2_e01_T30","a2_e01"],["a2_e01","a2_e05","a2_e1","a2_e2"],["a2_e01","a2_e01_SN100","a2_e01_SN1000"]]
+#         group_names = ["aniso","mintemp","edd","SN"]
+#         run_groups = [["run_a2_e01","run_a2_e01_SN100","run_a2_e01_SN1000"]]
+#         group_names = ["SN"]
+#         run_groups = [["run_a2_e01","run_a2_e02","run_a2_e05","run_a2_e1","run_a2_e2"]]
+#         group_names = ["edd"]
+#         run_groups = [["blobrot","blobclose"]]
+#         group_names = ["blob"]
 
-            calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile)
+#         run_groups = [["SF_test_high_rho_floor_30_thinner_Q2_cut"]]
+#         group_names = ["Q2_basis"]
+#         snaps = ["025","050","075","100"]
+
+        run_groups = [  ["longrun_weakflow_settled_defaultaniso","longrun_weakflow_vesc_defaultaniso","longrun_weakflow_rapid_defaultaniso"],
+                        ["longrun_weakflow_settled_defaultaniso_polar","longrun_weakflow_vesc_defaultaniso_polar","longrun_weakflow_rapid_defaultaniso_polar"]]
+        group_names = ["equatorial","polar"]
+        
+        
+        
+        snaps = ["100"]
+        
+        for igroup,group_name in enumerate(group_names):
+
+            output_dirs = run_groups[igroup]
+            
+            for snap in snaps:
+#             for snap in ["100"]:
+                outpFile = "data/prodrun_"+group_name+snap+".dat"
+#                 output_dirs = ["run_a0_e1","run_a1_e1","run_a2_e01","run_a2_e01_T1000","run_a2_e01_T300","run_a2_e01_T30","run_a2_e05","run_a2_e1","run_a2_e2","run_a3_e1"]
+                nruns = len(output_dirs)
+#                 run_ids = ["2022"]*nruns
+#                 run_ids = ["3001"]*nruns
+#                 run_ids = ["2030"]*nruns
+                run_ids = ["3032"]*nruns
+                snap_strs = [snap]*nruns
+
+                calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile)
+
+
+#             output_dirs=["q2edd05redo","q2edd10_aniso1redo","q2edd10_aniso3redo","q2edd10redo","q2edd20redo","q2redo"]
+#             nruns = len(output_dirs)
+#             run_ids = ["2014"]*nruns
+
+
 

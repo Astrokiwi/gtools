@@ -34,6 +34,12 @@ def dump_rad0(infile):
     np.save("rad0.npy",rad_out)
 #     sys.exit()
     
+def string_to_list_or_float(s):
+    if s is None:
+        return None
+    if "," in s:
+        return [float(x) for x in s.split(",")]
+    return float(s)
 
 # joblib doesn't dump exceptions well, just print them
 def plotter_parallel_exception_wrapper(*args,**kwargs):
@@ -67,8 +73,9 @@ if __name__ == '__main__':
     default_values["noring"]=False
     default_values["data_ranges"]=""
     default_values["savemap"]=False
+    default_values["gaussian"]=None
     
-    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap"]
+    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
@@ -95,6 +102,7 @@ if __name__ == '__main__':
     parser.add_argument('--absurd',help="I'll try spinning, that's a good trick",action='store_true')
     parser.add_argument('--noring',help="Edge on ring, not wrapped",action='store_true')
     parser.add_argument('--savemap',help="Save maps as data file",action='store_true')
+    parser.add_argument('--gaussian',type=str,help="Gaussian filter size - same value for all plots, or separated by commas")
     args = parser.parse_args()
     
 #     run_id = args.run_id
@@ -124,17 +132,13 @@ if __name__ == '__main__':
     else:
         smooth_str = "slice"
     
-    if "," in rad:
-        rad = [float(x) for x in rad.split(",")]
-    else:
-        rad = float(rad)
+    rad = string_to_list_or_float(rad)
+    gaussian = string_to_list_or_float(gaussian)
     
     if len(data_ranges)<=0:
         data_ranges = None
     else:
         data_ranges=[[float(y) for y in x.split(",")] for x in data_ranges.split("+")]
-#     if not rads is "":
-#         plotRads = 
     
     toplot = plot.split(",")
     outp_plot = "".join(toplot)
@@ -148,50 +152,10 @@ if __name__ == '__main__':
     visibleAxes=not noaxes
     print("Running")
 
-    #run_id = sys.argv[1]
-    #output_dir = sys.argv[2]
-    
-#     if ( len(sys.argv)>3 ):
-#         nprocs = int(sys.argv[3])
-#     else:
-#         nprocs = default_procs
-# 
-#     if ( len(sys.argv)>4 ):
-#         maxsnapf = int(sys.argv[4])
-#     else:
-#         maxsnapf = -1
-
-    #snapi = int(sys.argv[3])
-    #snapf = int(sys.argv[4])
-
-    #determine which files to look at
-
-
-#     snapi = 0
-#     gizmoDir = gizmo_tools.gizmoDir()
-#     movieDir = gizmo_tools.movieDir()
-#     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
-# 
-#     fnames = os.listdir(fullDir)
-#     sort_nicely(fnames)
-#     fnames = np.array(fnames)
-#     #fnames.sort()
-#     snapshotfilebools = np.array([x.startswith("snapshot") for x in fnames])
-#     snapshotfiles = fnames[snapshotfilebools]
-# 
-#     snapf = 0
-#     ctime = os.path.getmtime(fullDir+"/snapshot_000.hdf5")
-#     for fname in snapshotfiles[1:]:
-#         new_snapf = int(fname[9:len(fname)-5])
-#         new_ctime = os.path.getmtime(fullDir+"/"+fname)
-#         if ( new_ctime>ctime ) :
-#             ctime = new_ctime
-#             snapf = new_snapf
-    
     snapi = 0
     if snap0>0:
         snapi=snap0
-    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
+    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False)
 
     gizmoDir = gizmo_tools.getGizmoDir(run_id)
     movieDir = gizmo_tools.getMovieDir()
@@ -208,8 +172,10 @@ if __name__ == '__main__':
 
     print("nfiles:",snapf-snapi+1)
     
-    infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in range(snapi,snapf+1)]
-    outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in range(snapi,snapf+1)]
+    isnaps = range(snapi,snapf+1)
+    
+    infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in isnaps]
+    outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
     
     nfiles = len(infiles)
     if absurd:
@@ -230,12 +196,17 @@ if __name__ == '__main__':
     if "rad0" in toplot:
         dump_rad0(infiles[0])
 
-    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=flatPlot,plot=toplot,L=L,scale=rad) for i in range(snapi,snapf+1))
-    maps=Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap) for i in range(snapf+1-snapi))
+    maps=Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian) for i in range(snapf+1-snapi))
+#     if len(maps)==1:
+#         maps = [maps]
     if savemap:
         for itime,maps_timeslice in enumerate(maps):
+            idump = isnaps[itime]
             for iplot,map in enumerate(maps_timeslice):
-                outfile = "../data/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+"_%03d_%03d.dat"%(itime,iplot)
+                plot_str = toplot[iplot]
+                if toplot.count(plot_str)>0:
+                    plot_str+="_%03d"%toplot[:iplot].count(toplot[iplot])
+                outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+suffix+"_%03d"%idump+"_"+plot_str+".dat"
                 np.savetxt(outfile,map)
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='viridis',flat=True,ring=True,plot=['dt'],L=200,scale=15.,pixsize=2) for i in range(snapi,snapf+1))

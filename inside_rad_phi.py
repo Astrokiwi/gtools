@@ -42,25 +42,21 @@ if __name__=='__main__':
                     if ii==n_mangles-1:
                         coords[ii] = irun%mangle_n[ii]
                     coords[ii] = (irun//np.prod(mangle_n[ii+1:]))%mangle_n[ii]
-    #             iplot = coords[plot_axis]
                 ix = coords[iaxis]
                 iy = coords[jaxis]
                 ic = coords[color_axis]
                 color_label = key_bases[color_axis][ic]
-    #             color_label = run_dir
-                print(coords,iaxis,jaxis,ix,iy,sp.shape)
-                t,data=gizmo_tools.load_gizmo_pandas(run_id,run_dir,snap_str,["Masses","Coordinates","Velocities","AGNIntensity"])
+                t,data=gizmo_tools.load_gizmo_pandas(run_id,run_dir,snap_str,["Masses","Coordinates"])
                 print(run_dir,"found")
                 gizmo_tools.calculate_phi(data)
-                gizmo_tools.calculate_vrad(data)
-                bin_N,x = np.histogram(data["phi"],phi_bin_edges)
-                bin_vrad_sum,x = np.histogram(data["phi"],phi_bin_edges,weights=data["vrad"])
-    #             bin_vrad_sum,x = np.histogram(data["phi"],phi_bin_edges,weights=data["AGNIntensity"]*data["rad3d"]**2)
-                bin_vrad_mean = bin_vrad_sum/bin_N
-                bin_vrad_mean*=np.cos(np.radians(phi_centres))
-                bin_vrad_mean=np.cumsum(bin_vrad_mean)
+                phi_indices = np.digitize(data["phi"],phi_bin_edges)-1
+                phi_slices = [(phi_indices==i) for i in range(len(phi_bin_edges)-1)]
+                nbin = np.array([np.sum(slice) for slice in phi_slices])
+                data["rad3d"] = np.sqrt(data["Coordinates_x"]**2+data["Coordinates_y"]**2+data["Coordinates_z"]**2)
+                n_inside = np.array([np.sum(data["rad3d"][slice]<1.) for slice in phi_slices])
+                inside_frac = n_inside/nbin
                 print(ix,iy,sp.shape)
-                sp[ix,iy].plot(phi_centres,bin_vrad_mean,label=color_label,color=colors[ic])
+                sp[ix,iy].plot(phi_centres,1.-inside_frac,label=color_label,color=colors[ic])
             except OSError:
                 print(run_dir," not found")
                 continue
@@ -70,15 +66,15 @@ if __name__=='__main__':
             for iy in range(ny):
                 sp[ix,iy].set_title(key_bases[jaxis][iy]+"_"+key_bases[iaxis][ix])
         sp[0,0].legend(loc='best',fontsize='xx-small')
-        ytick_values = [-100,-70,-50,-20,0,20,50,70,100,200,500,700,1000]
         for sp_row in sp:
             for p in sp_row:
                 p.legend(loc='best',fontsize='xx-small')
-                p.plot(x,y,linestyle=':')
+#                 p.plot(x,y,linestyle=':')
                 p.set_xticks(phi_bin_edges)
-                p.set_yscale("symlog",linthreshy=100.)
-                p.set_yticks(ytick_values)
-                p.set_yticklabels(ytick_values)
-        plt.savefig("../figures/vrad_phi_testflows{}.png".format(snap_str),dpi=150)
+                p.set_ylim(-.1,1.1)
+#                 p.set_yscale("symlog",linthreshy=100.)
+#                 p.set_yticks(ytick_values)
+#                 p.set_yticklabels(ytick_values)
+        plt.savefig("../figures/inside_rad_phi_testflows{}.png".format(snap_str),dpi=150)
         plt.close()
         

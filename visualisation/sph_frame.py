@@ -25,6 +25,9 @@ from difflib import SequenceMatcher
 
 import itertools
 
+# from skimage import exposure
+
+
 #from enum import Enum
 
 def similar(a, b):
@@ -208,6 +211,8 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #     print("calculating nerrors")
 #     nerrors_in = np.sum(~np.isfinite(val_p))
     
+    outmap = None
+    
     if ( mode==weightslice ):
         map = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
     elif (mode==densslice ):
@@ -250,6 +255,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #     nerrors = map[0,0]
     
 #     print(nerrors_in,nerrors)
+    
     
     if ( mode==vec2dslice ):
         #map1/=1.e5
@@ -326,7 +332,10 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                 verboseprint(np.nanmin(map),np.nanmax(map))
                 
             if gaussian is not None:
-                map = gaussian_filter(map,gaussian)
+                if gaussian>0.:
+                    gaussian_pix = int(np.floor(L*gaussian/width))
+                    if gaussian_pix>=1:
+                        map = gaussian_filter(map,gaussian)
             
 
             if ( dolog ):
@@ -336,6 +345,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #                 print(map)
 #                 raise Exception("No finite values in map")
 #             print(np.min(map[finiteIndices]),np.max(map[finiteIndices]))
+#             map = exposure.equalize_hist(map)
 
             mesh = safe_pcolormesh(sp,xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh)
             if ( visibleAxes ):
@@ -354,6 +364,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
     #mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap) 
     #sp.axis('equal')
+#     print(outmap.shape)
     return outmap
     
 #     return nerrors
@@ -432,7 +443,7 @@ def load_gadget(infile, plot_thing,
 #         need_to_load.append("opac")
 #         need_to_load.append("nH")
     
-    if any(x in need_to_load for x in ["vel_2d","vel_r","vel_x","vel_y","vel_z","vel_a"]+["v"+line for line in lines]+["vels"+line for line in lines]):
+    if any(x in need_to_load for x in ["vmag","vel_2d","vel_r","vel_x","vel_y","vel_z","vel_a"]+["v"+line for line in lines]+["vels"+line for line in lines]):
         need_to_load.append("vels")
 
     if ( "pres" in need_to_load ):
@@ -689,6 +700,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotLabel["vel_y"] = r"$v_{y}$"
     plotLabel["vel_z"] = r"$v_{z}$"
     plotLabel["vel_r"] = r"$v_{r}$ (km/s)"
+    plotLabel["vmag"] = r"$|v|_{max}$ (km/s)"
     plotLabel["vel_a"] = r"$v_{\theta}$"
     plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
     plotLabel["accel"] = r"$a$ (log cm/s/s)"
@@ -760,15 +772,19 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["vel_2d"] = [-250.,250.]*2
 #     plotRanges["vel_r"] = [-25.,25.]*2
 #     plotRanges["vel_r"] = [-3.e5,3.e5]*2
-    plotRanges["vel_r"] = [1.,4.]*2
+#     plotRanges["vel_r"] = [1.,4.]*2
+#     plotRanges["vel_r"] = [-1.e2,1.e2]*2
+    plotRanges["vel_r"] = [-25.,25.]*2
+    plotRanges["vmag"] = [0.,120.]*2
     plotRanges["vel_x"] = [-200.,200.]*2
     plotRanges["vel_y"] = [-200.,200.]*2
 #     plotRanges["vel_z"] = [-25.,25.]*2
     plotRanges["vel_z"] = [-2000.,2000.]*2
-    plotRanges["vel_a"] = [-100.,100.]*2
+#     plotRanges["vel_a"] = [-100.,100.]*2
+    plotRanges["vel_a"] = [-50.,50.]*2
     plotRanges["arad"] = [-9.,0.]*2
     plotRanges["accel"] = [-3.,0.]*2
-    plotRanges["AGNI"] = [-9.,-3.]*2
+    plotRanges["AGNI"] = [4.,6.]*2
 #     plotRanges["tau"] = [0.,5.]*2
     plotRanges["tau"] = [0.,7.]*2
 #     plotRanges["tau"] = [0.,1.]*2
@@ -831,6 +847,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotSliceTypes["dt"] = thisminslice
     plotSliceTypes["vel_2d"] = quantslice
     plotSliceTypes["vel_r"] = quantslice
+    plotSliceTypes["vmag"] = mslice # max
     plotSliceTypes["vel_x"] = quantslice
     plotSliceTypes["vel_y"] = quantslice
     plotSliceTypes["vel_z"] = quantslice
@@ -899,6 +916,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["dt"] = "dt_p"
     plotData["vel_2d"] = "vel2d"
     plotData["vel_r"] = "velr"
+    plotData["vmag"] = "vmag"
     plotData["vel_x"] = "vel_x"
     plotData["vel_y"] = "vel_y"
     plotData["vel_z"] = "vel_z"
@@ -938,7 +956,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     
     logSliceTypes = [   "temp","col","nH","dens","dust",
                         "view","emit","dt","arad","accel",
-                        "AGNI","opac","smooth","tdust","pres","vel_r"]
+                        "AGNI","opac","smooth","tdust","pres"]
     logSliceTypes+=lines
     logSliceTypes+=[line+"m" for line in lines]               
     # ,
@@ -995,6 +1013,7 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
         data.vel_x = data.vels[:,0]
         data.vel_y = data.vels[:,1]
         data.vel_z = data.vels[:,2]
+        data.vmag = np.sqrt(np.sum(data.vels**2,axis=1))
     
     if any(x in plot_thing for x in ["vthin","vlos"]+["v"+line for line in lines] + ["dv"+line for line in lines] + ["view"+line for line in lines]):
         if ringPlot:
@@ -1039,7 +1058,7 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
 
 def makesph_trhoz_frame(*args,**kwargs):
     try:
-        makesph_trhoz_frame_wrapped(*args,**kwargs)
+        return makesph_trhoz_frame_wrapped(*args,**kwargs)
     except Exception as e:
         print(repr(e))
 #         print(sys.exc_info())
@@ -1201,6 +1220,12 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             thisPlotRanges = plotRanges[plot_thing[irow]]
 #             thisPlotRanges = plotRanges[plot_thing[irow]]*2
 
+        if isinstance(gaussian,list):
+            plot_gaussian = gaussian[irow]
+        else:
+            plot_gaussian = gaussian
+
+
         # physical coordinates of region to plot, in pc
         if isinstance(scale,list):
             width = scale[irow]*2.
@@ -1302,11 +1327,10 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         for icol,view in enumerate(views):
             if ( view=='face' ):
                 outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
-                        cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=gaussian)
+                        cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian)
             elif ( view=='side' ):
                 outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
-                        cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=gaussian)
-
+                        cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian)
             if return_maps:
                 out_maps.append(outmap)
 
