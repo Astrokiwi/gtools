@@ -1137,10 +1137,10 @@ module sph_plotter
                         do hiy=iy0,iy1
                             !if ( opg(hix,hiy)<1.d0 ) then
                                 rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
-                                weight = fkern(rdist/h(ip))/h(ip)**2
-                            
+                                weight = fkern(rdist/h(ip))/h(ip)**2 ! column density (normalised) of this ray through particle
+                                ! m(ip) * weight = mass column density of this ray through particle
 
-                                this_opac = weight * m(ip) * op(ip)
+                                this_opac = weight * m(ip) * op(ip) ! optical depth of this ray through particle
                                 g(hix,hiy) = g(hix,hiy) + min(1.,this_opac)*v(ip)*exp(-opg(hix,hiy))
                                 !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
                                 opg(hix,hiy) = opg(hix,hiy) + this_opac

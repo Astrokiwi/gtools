@@ -231,6 +231,9 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         zarg = np.argsort(z_p)
 #         map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
         map = sph_plotter.sph_optical_depth_los_area(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
+        
+        total_luminosity = np.sum(map) * (width*2*3.086e+18/L)**2 / 3.839e33  # check normalisation
+        print("log10(L/Lsun) = {}, mean flux = {} erg/s/cm**2, fullwidth = {} pc".format(np.log10(total_luminosity),np.mean(map),width*2))
     elif (mode==weightviewslice ):
         zarg = np.argsort(z_p)
 #         map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
@@ -395,7 +398,7 @@ def load_gadget(infile, plot_thing,
     need_to_load = list(plot_thing)
     if centredens:
         need_to_load.append("nH")
-    if ( "view" in need_to_load ):
+    if ( "view" in need_to_load or "dusttau" in need_to_load):
         need_to_load.append("tdust")
         need_to_load.append("opac")
         need_to_load.append("dg")
@@ -606,7 +609,8 @@ def load_gadget(infile, plot_thing,
 #         opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
 #         data.opac = np.full((n),opacity)
 
-    if ( "view" in need_to_load or "vlos" in need_to_load or any(x in need_to_load for x in ["view"+line for line in lines]) ):
+    if ( "view" in need_to_load or "vlos" in need_to_load or any(x in need_to_load for x in ["view"+line for line in lines])
+            or "dusttau" in need_to_load ):
         if ( "view" in need_to_load ):
             data.brightness = 5.67e-5 * data.dustTemp**4. * data.dg/np.nanmax(data.dg) # erg/s/cm^2
         #opacity = 652. # cm^2/g, somewhat arbitrary
@@ -622,6 +626,8 @@ def load_gadget(infile, plot_thing,
         data.opac = np.full((n),opacity)
         data.opac*=data.dg/np.nanmax(data.dg) # take into account dust fraction
 
+        if "dusttau" in need_to_load:
+            data.dusttau = data.opac * data.m_p
 #         for line in lines:
 #             if not "view"+line in need_to_load:
 #                 continue
@@ -685,6 +691,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotLabel["nH"] = r"$\log_{10} n_{H}$ (cm$^{-3}$)"
     plotLabel["heat"] = r"$H$"
     plotLabel["dens"] = rhounit
+    plotLabel["dusttau"] = r"$\tau$"
     plotLabel["depth"] = r"$\tau$"
     plotLabel["vels"] = r"$\log_{10}v$ (km/s)"
     plotLabel["tdust"] = r"$\log_{10} T_d$ (K)"
@@ -752,6 +759,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
 #     plotRanges["nH"] = [-7.,7.]*2
     plotRanges["heat"] = [1e-2,1.e10]*2
     plotRanges["dens"] = drange+drange_s
+    plotRanges["dusttau"] = [0.,10.]
     plotRanges["depth"] = [0.,1.e3]*2
     plotRanges["vels"] = [0.,3.]*2
     plotRanges["tdust"] = [0.,3.]*2
@@ -836,6 +844,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotSliceTypes["nH"] = quantslice
     plotSliceTypes["heat"] = quantslice
     plotSliceTypes["dens"] = dslice
+    plotSliceTypes["dusttau"] = densslice
     plotSliceTypes["depth"] = zweightslice
     plotSliceTypes["vels"] = vec2dslice
     plotSliceTypes["tdust"] = quantslice
@@ -891,6 +900,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     
     plotCustomMass = dict()
     plotCustomMass["dust"] = "dust"
+    plotCustomMass["dusttau"] = "dusttau"
     for line in lines:
         plotCustomMass[line+"m"]=line+"m"
         plotCustomMass["v"+line]=line+"m"
@@ -904,6 +914,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["nH"] = "nH_p"
     plotData["heat"] = "heat"
     #plotData["dens"] = None
+#     plotData["dusttau"] = "dusttau"
     plotData["depth"] = "depth_p"
     plotData["vels"] = ["vel_x","vel_y","vel2d","vel_z"]
     plotData["tdust"] = "dustTemp"
@@ -1056,21 +1067,22 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
     return time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones
 
 
-def makesph_trhoz_frame(*args,**kwargs):
-    try:
-        return makesph_trhoz_frame_wrapped(*args,**kwargs)
-    except Exception as e:
-        print(repr(e))
-#         print(sys.exc_info())
-#         traceback.print_exc(file=sys.stdout)
-#         print(traceback.format_tb(sys.exc_info()[2]))
-#         traceback.print_stack()
-#         traceback.print_tb(sys.exc_info()[2])
-#         print("Raising back up")
-        raise(e)
+# def makesph_trhoz_frame(*args,**kwargs):
+#     try:
+#         return makesph_trhoz_frame_wrapped(*args,**kwargs)
+#     except Exception as e:
+#         print(repr(e))
+# #         print(sys.exc_info())
+# #         traceback.print_exc(file=sys.stdout)
+# #         print(traceback.format_tb(sys.exc_info()[2]))
+# #         traceback.print_stack()
+# #         traceback.print_tb(sys.exc_info()[2])
+# #         print("Raising back up")
+#         raise(e)
 
 
-def makesph_trhoz_frame_wrapped(infile,outfile,
+# def makesph_trhoz_frame_wrapped(infile,outfile,
+def makesph_trhoz_frame(infile,outfile,
                         scale = .7,
                         cmap="viridis",
                         L=256,
