@@ -31,10 +31,24 @@ run_id = "3001"
 snap_str = "020"
 
 
-cuts = [    ['temp',10.**0.,10.**3.],
-            ['temp',10.**3.,10.**5.],
-            ['tdust',10.,10.**2.],
+# for paper
+# cuts = [    ['temp',10.**0.,10.**3.],
+#             ['temp',10.**3.,10.**5.],
+#             ['tdust',10.,10.**2.],
+#             ['tdust',10.**2.,10.**4]
+#             ]
+# labels = [  r'$\log T_g\leq3$ (K)',
+#             r'$\log T_g\geq3$ (K)',
+#             r'$\log T_d\leq2$ (K)',
+#             r'$\log T_d\geq2$ (K)'
+#             ]
+
+# for TORUS2018
+cuts = [    ['tdust',10.,10.**2.],
             ['tdust',10.**2.,10.**4]
+            ]
+labels = [  r'$\log T_d\leq2$ (K)',
+            r'$\log T_d\geq2$ (K)'
             ]
 
 # cuts = [    ['temp',10.**0.,10.**2.5],
@@ -53,11 +67,6 @@ cuts = [    ['temp',10.**0.,10.**3.],
 #             r'$T_d\leq30.$ K',
 #             r'$T_d\geq30.$ K'
 #             ]
-labels = [  r'$\log T_g\leq3$ (K)',
-            r'$\log T_g\geq3$ (K)',
-            r'$\log T_d\leq2$ (K)',
-            r'$\log T_d\geq2$ (K)'
-            ]
 
 ncuts = len(cuts)
 
@@ -86,7 +95,7 @@ time,data,x,y,z,rad2d,deep_face,deep_side,mask_default,n,n_ones = sph_frame.load
 
 print("time=",time)
 
-fig,sp = P.subplots(ncuts,3,figsize=(6.,10.), gridspec_kw = {'width_ratios':[1,16,16],'height_ratios':[16]*ncuts})
+fig,sp = P.subplots(ncuts,3,figsize=(6.,2.5*ncuts), gridspec_kw = {'width_ratios':[1,16,16],'height_ratios':[16]*ncuts})
 cb_sp = sp[0,0]
 
 for irow in range(ncuts-1):

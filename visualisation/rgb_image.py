@@ -7,7 +7,7 @@ import matplotlib.pyplot as P
 import matplotlib.patches as mpatches
 # from skimage import exposure
 
-labels = ["CO(3-2)","CO(6-5)","HCN(4-3)","HCN(8-7)",r"H$_2$ (1-0) S(1)",r"H$_2$ (0-0) S(0)",r"H$_2$ (0-0) S(3)",r"F_{IR}"]
+labels = ["CO(3-2)","CO(6-5)","HCN(4-3)","HCN(8-7)",r"H$_2$ (1-0) S(1)",r"H$_2$ (0-0) S(0)",r"H$_2$ (0-0) S(3)",r"$F_{IR}$"]
 line_codes = ["co1m","co2m","hcn1m","hcn2m","h2_1m","h2_2m","h2_3m","view"]
 
 line_label_dict = dict(zip(line_codes,labels))

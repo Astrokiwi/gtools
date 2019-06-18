@@ -85,10 +85,10 @@ for output_dir in runs:
    
     for irow,infile in enumerate(infiles):
         time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = sph_frame.load_process_gadget_data(infile,rot,plot_thing,plotData,ringPlot=flattenedPlot,flatPlot=flattenedPlot)
-        sph_frame.makesph_plot(fig,sp[irow,1],cb_sp,x,y,deep_face,0.,data.nH_p,data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} n_{H}$ (cm$^{-3}$)",0.,8.,nH_cmap,sph_frame.weightslice)
-        sph_frame.makesph_plot(fig,sp[irow,2],cb_sp,rad2d,z,deep_side,0.,data.nH_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} n_{H}$ (cm$^{-3}$)",0.,8.,nH_cmap,sph_frame.weightslice)
-        sph_frame.makesph_plot(fig,sp[irow,3],cb_sp_temp,x,y,deep_face,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} T_g$ (K)",0.,5.,temp_cmap,sph_frame.weightslice)
-        sph_frame.makesph_plot(fig,sp[irow,4],cb_sp_temp,rad2d,z,deep_side,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} T_g$ (K)",0.,5.,temp_cmap,sph_frame.weightslice)
+        sph_frame.makesph_plot(fig,sp[irow,1],cb_sp,x,y,deep_face,0.,data.nH_p,data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} n_{H}$ (cm$^{-3}$)",0.,8.,nH_cmap,sph_frame.weightslice,contour=False)
+        sph_frame.makesph_plot(fig,sp[irow,2],cb_sp,rad2d,z,deep_side,0.,data.nH_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} n_{H}$ (cm$^{-3}$)",0.,8.,nH_cmap,sph_frame.weightslice,contour=False)
+        sph_frame.makesph_plot(fig,sp[irow,3],cb_sp_temp,x,y,deep_face,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_face,width,r"$\log_{10} T_g$ (K)",0.,5.,temp_cmap,sph_frame.weightslice,contour=False)
+        sph_frame.makesph_plot(fig,sp[irow,4],cb_sp_temp,rad2d,z,deep_side,0.,data.TK_p,data.m_p,data.h_p,L,mask,corners_side,width,r"$\log_{10} T_g$ (K)",0.,5.,temp_cmap,sph_frame.weightslice,contour=False)
         
         sp[irow,4].yaxis.set_label_position("right")
         sp[irow,4].set_ylabel("t={0:.2f} kyr".format(time*1.e3),size='x-large')

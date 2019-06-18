@@ -1,5 +1,8 @@
 print("Importing")
 
+import tblib.pickling_support
+tblib.pickling_support.install()
+
 # Import libraries to do our magic
 import numpy as np
 import sys
@@ -16,6 +19,7 @@ path.append("../")
 import gizmo_tools
 
 import argparse
+
 
 # def sort_nicely( l ):
 #     """ Sort the given list in the way that humans expect.
@@ -206,6 +210,9 @@ if __name__ == '__main__':
 #     maps=Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian) for i in range(snapf+1-snapi))
 #     if len(maps)==1:
 #         maps = [maps]
+    for result in maps:
+        if isinstance(result, sph_frame.ExceptionWrapper):
+            result.re_raise()
     if savemap:
         for itime,maps_timeslice in enumerate(maps):
             idump = isnaps[itime]
