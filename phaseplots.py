@@ -36,7 +36,8 @@ for iline,lineVal in enumerate(lines):
 
 labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
 dolog['nH_p'] = True
-ranges['nH_p'] = [-4,12]
+ranges['nH_p'] = [-4,8]
+# ranges['nH_p'] = [-4,12]
 # ranges['nH_p'] = [6,9]
 
 labels['flux_p'] = r"$\log \Phi$ (erg/cm$^{-2}$/s)"
@@ -72,7 +73,8 @@ ranges['z_p'] = [0,20.]
 
 labels['dustTemp'] = r"$\log T_d$ (K)"
 dolog['dustTemp'] = True
-ranges['dustTemp'] = [1.,4.]#[0.,0.5] #[0,150]
+# ranges['dustTemp'] = [1.,4.]#[0.,0.5] #[0,150]
+ranges['dustTemp'] = [1.,2.5]#[0.,0.5] #[0,150]
 
 labels['radrad_p'] = r"$a_{rad,r}$ (cm/s/s)"
 dolog['radrad_p'] = True

@@ -21,12 +21,31 @@ print("Loading table (short form)")
 #                                 ("coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
 #                                 )
 
-chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_240518tau.dat"),
-                                ("coolheat_tab_marta/shrunk_table_140618_m0.01_hsmooth_tau.dat"),
-                                ("coolheat_tab_marta/shrunk_table_labels_240518taunodust.dat"),
-                                ("coolheat_tab_marta/shrunk_table_140618_m0.01_hsmooth_taunodust.dat")
-                                )
+# chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_240518tau.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_140618_m0.01_hsmooth_tau.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_labels_240518taunodust.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_140618_m0.01_hsmooth_taunodust.dat")
+#                                 )
 
+# chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_161118tau.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_161118_m0.0001_hsmooth_tau.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_labels_161118taunodust.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_161118_m0.0001_hsmooth_taunodust.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_labels_161118taudense.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_161118_m0.0001_hsmooth_taudense.dat")
+#                                 )
+
+# tableDate="281118"
+# tableRes="0.0001"
+tableDate="060319"
+tableRes="0.1"
+chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
+                                ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+                                ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
+                                ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+                                ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
+                                ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+                                )
 interpTabVec = np.vectorize(chTab.interpTab)
 
 print("Running")
@@ -128,6 +147,10 @@ cs_p = np.sqrt(u_p) # cm/s
 
 vrad_p = (xyz[:,0]*vel_p[:,0]+xyz[:,1]*vel_p[:,1]+xyz[:,2]*vel_p[:,2])/rad_p
 vcirc_p = (xyz[:,1]*vel_p[:,0]-xyz[:,0]*vel_p[:,1])/rad2d_p
+
+vrad2d_p = (xyz[:,0]*vel_p[:,0]+xyz[:,1]*vel_p[:,1])/rad2d_p
+vmagwrap_p = np.sqrt(vrad2d_p**2+vel_p[:,2]**2)
+vmag3d_p = np.sqrt(np.sum(vel_p**2,axis=1))
 
 omega_p = vcirc_p/(rad_p * 3.08567758e16) # in Hz
 
@@ -270,11 +293,14 @@ print("packing and saving quickprof")
 
 print("packing")
 
-dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],vel_p[:,0],vel_p[:,1],vel_p[:,2],nH_p,TK_p,
-        agn_heat_p,depth_p,dustTemp,flux_p,dt_p,h_p,u_p,m_p,mJ_p,cs_p,
-        radaccel_p[:,0],radaccel_p[:,1],radaccel_p[:,2],radrad_p,a_p[:,0],a_p[:,1],a_p[:,2],arad_p,cs_p,omega_p,
-        surfs,vdisp_p,Q_approx_p,vcirc_p,vzdisp,id_p,ir_radaccel_p[:,0],ir_radaccel_p[:,1],ir_radaccel_p[:,2],ir_radrad_p,
-        ir_heat_p,p_p,rho_p,tau_p,opac_p,dustFrac]
+dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],vel_p[:,0],vel_p[:,1],vel_p[:,2],vrad_p,vcirc_p,
+        vrad2d_p,vmagwrap_p,vmag3d_p,nH_p,TK_p,flux_p,tau_p]
+
+# dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],vel_p[:,0],vel_p[:,1],vel_p[:,2],nH_p,TK_p,
+#         agn_heat_p,depth_p,dustTemp,flux_p,dt_p,h_p,u_p,m_p,mJ_p,cs_p,
+#         radaccel_p[:,0],radaccel_p[:,1],radaccel_p[:,2],radrad_p,a_p[:,0],a_p[:,1],a_p[:,2],arad_p,cs_p,omega_p,
+#         surfs,vdisp_p,Q_approx_p,vcirc_p,vzdisp,id_p,ir_radaccel_p[:,0],ir_radaccel_p[:,1],ir_radaccel_p[:,2],ir_radrad_p,
+#         ir_heat_p,p_p,rho_p,tau_p,opac_p,dustFrac]
 #dout = [rad_p,rad2d_p,xyz[:,0],xyz[:,1],xyz[:,2],rho_p,TK_p,agn_heat_p,depth_p]
 
 #thinslice = (np.abs(xyz[:,2])<1.) & (rad2d_p<.02)

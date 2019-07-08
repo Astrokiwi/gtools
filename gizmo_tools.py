@@ -115,26 +115,71 @@ def load_unit_conversions():
 #     print(unit_conversions)
 
 def check_requirements(gizmo_dataframe,reqs):
+    if type(reqs)==str:
+        return reqs in gizmo_dataframe
+    # otherwise, assume iterable
     for req in reqs:
         if not (req in gizmo_dataframe):
             return False
     return True
 
-def calculate_phi(gizmo_dataframe):
-    if not check_requirements(gizmo_dataframe,["Coordinates_x","Coordinates_y","Coordinates_z"]):
-        raise Exception("Coordinates not loaded")
-    if not ("rad2d" in gizmo_dataframe):
+def load_calc_reqs(gizmo_dataframe,reqs):
+    if type(reqs) == str:
+        return load_calc_req(gizmo_dataframe,reqs)
+    # otherwise assume iterable
+    status = True
+    for req in reqs:
+        status&=load_calc_req(gizmo_dataframe,req)
+    return status
+        
+def load_calc_req(gizmo_dataframe,req):
+    if req in gizmo_dataframe:
+        return True
+
+    if req=="rad2d":
         gizmo_dataframe["rad2d"] = np.sqrt(gizmo_dataframe["Coordinates_x"]**2+gizmo_dataframe["Coordinates_y"]**2)
+    elif req=="rad3d":
+        gizmo_dataframe["rad3d"] = np.sqrt(gizmo_dataframe["Coordinates_x"]**2+gizmo_dataframe["Coordinates_y"]**2+gizmo_dataframe["Coordinates_z"]**2)
+
+    if req in gizmo_dataframe:
+        return True
+    return False
+
+def calculate_phi(gizmo_dataframe):
+    load_calc_reqs(gizmo_dataframe,["Coordinates_x","Coordinates_y","Coordinates_z","rad2d"])
+#     if not check_requirements(gizmo_dataframe,["Coordinates_x","Coordinates_y","Coordinates_z"]):
+#         raise Exception("Coordinates not loaded")
+#     if not ("rad2d" in gizmo_dataframe):
+#         gizmo_dataframe["rad2d"] = np.sqrt(gizmo_dataframe["Coordinates_x"]**2+gizmo_dataframe["Coordinates_y"]**2)
     gizmo_dataframe["phi"] = np.arctan(np.abs(gizmo_dataframe["Coordinates_z"]/gizmo_dataframe["rad2d"]))*180./np.pi
 
 def calculate_vrad(gizmo_dataframe):
-    if not check_requirements(gizmo_dataframe,["Coordinates_x","Coordinates_y","Coordinates_z","Velocities_x","Velocities_y","Velocities_z"]):
-        raise Exception("Coordinates not loaded")
-    if not ("rad3d" in gizmo_dataframe):
-        gizmo_dataframe["rad3d"] = np.sqrt(gizmo_dataframe["Coordinates_x"]**2+gizmo_dataframe["Coordinates_y"]**2+gizmo_dataframe["Coordinates_z"]**2)
+    load_calc_reqs(gizmo_dataframe,["Coordinates_x","Coordinates_y","Coordinates_z","Velocities_x","Velocities_y","Velocities_z","rad3d"])
+#     if not check_requirements(gizmo_dataframe,["Coordinates_x","Coordinates_y","Coordinates_z","Velocities_x","Velocities_y","Velocities_z"]):
+#         raise Exception("Coordinates not loaded")
+#     if not ("rad3d" in gizmo_dataframe):
+#         gizmo_dataframe["rad3d"] = np.sqrt(gizmo_dataframe["Coordinates_x"]**2+gizmo_dataframe["Coordinates_y"]**2+gizmo_dataframe["Coordinates_z"]**2)
     gizmo_dataframe["vrad"] =  ((gizmo_dataframe["Coordinates_x"]*gizmo_dataframe["Velocities_x"])+
                                 (gizmo_dataframe["Coordinates_y"]*gizmo_dataframe["Velocities_y"])+
                                 (gizmo_dataframe["Coordinates_z"]*gizmo_dataframe["Velocities_z"]))/gizmo_dataframe["rad3d"]
+
+def load_value(f,gizmo_dataframe,value,internal_units=False):
+    hdf5_path = "/PartType0/"+value
+    indata = np.array(f[hdf5_path])
+    if indata.ndim>3:
+        raise Exception(">=3D array found in hdf5 datafile")
+    if indata.ndim<1:
+        raise Exception("<1D array found in hdf5 datafile??")
+    if indata.ndim==1:
+        gizmo_dataframe[value] = indata
+        if not internal_units:
+            gizmo_dataframe[value]*=unit_conversions[value]
+    else: # i.e. 2D array
+        for i in range(indata.shape[1]):
+            key = value+"_"+coord_suffixes[i]
+            gizmo_dataframe[key] = indata[:,i]
+            if not internal_units:
+                gizmo_dataframe[key]*=unit_conversions[value]
 
 def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
     global unit_conversions
@@ -159,22 +204,7 @@ def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
     gizmo_dataframe = pd.DataFrame()
     
     for value in values:
-        hdf5_path = "/PartType0/"+value
-        indata = np.array(f[hdf5_path])
-        if indata.ndim>3:
-            raise Exception("3D array found in hdf5 datafile")
-        if indata.ndim<1:
-            raise Exception("<1D array found in hdf5 datafile??")
-        if indata.ndim==1:
-            gizmo_dataframe[value] = indata
-            if not internal_units:
-                gizmo_dataframe[value]*=unit_conversions[value]
-        else: # i.e. 2D array
-            for i in range(indata.shape[1]):
-                key = value+"_"+coord_suffixes[i]
-                gizmo_dataframe[key] = indata[:,i]
-                if not internal_units:
-                    gizmo_dataframe[key]*=unit_conversions[value]
+        load_value(f,gizmo_dataframe,value,internal_units=internal_units)
             
     
     return header,gizmo_dataframe

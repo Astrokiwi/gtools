@@ -55,7 +55,10 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
     xyzray[:,1] = np.cos(phis)*np.sin(thetas)
     xyzray[:,2] = np.sin(phis)
 
-    outp = np.zeros((nray_phi,nruns*6+1))
+    n_raytraces = 3
+    n_datacolumns = n_raytraces*3
+
+    outp = np.zeros((nray_phi,nruns*n_datacolumns+1))
     outp[:,0] = phis_basis
 
 
@@ -85,6 +88,9 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
         opac_p = np.array(f["/PartType0/AGNOpacity"]) # internal units: kpc**2/1e10 solar mass
         opac_p*= 1.e-4 # to pc**2/solar mass
 
+        vel_p = np.array(f["/PartType0/Velocities"]) # km/s
+        vr_p = np.sum(vel_p*xyz,1)/np.sqrt(np.sum(xyz**2,1))
+
 
     #     u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
     #     u_p*=1.e10 # to erg/g
@@ -93,16 +99,23 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
 
         n = m_p.size
 
-        print("Raytracing")
+        print("Raytracing column density")
         sigma_all = sph_plotter.sph_ray_integrate(xyz,m_p,h_p,xyzray,nray,n)
         sigma = np.mean(sigma_all.reshape(-1,nray_theta),axis=1)
         sigma_low = np.min(sigma_all.reshape(-1,nray_theta),axis=1)
         sigma_high = np.max(sigma_all.reshape(-1,nray_theta),axis=1)
 
+        print("Raytracing optical depth")
         tau_all = sph_plotter.sph_ray_integrate(xyz,m_p*opac_p,h_p,xyzray,nray,n)
         tau = np.mean(tau_all.reshape(-1,nray_theta),axis=1)
         tau_low = np.min(tau_all.reshape(-1,nray_theta),axis=1)
         tau_high = np.max(tau_all.reshape(-1,nray_theta),axis=1)
+
+        print("Raytracing radial velocities")
+        radmomentum_all = sph_plotter.sph_ray_integrate(xyz,m_p*vr_p,h_p,xyzray,nray,n)
+        radmomentum = np.mean(radmomentum_all.reshape(-1,nray_theta),axis=1)
+        radmomentum_low = np.min(radmomentum_all.reshape(-1,nray_theta),axis=1)
+        radmomentum_high = np.max(radmomentum_all.reshape(-1,nray_theta),axis=1)
 
     #    phideg = phis_basis/(2.*np.pi)*360
 
@@ -114,12 +127,15 @@ def calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile):
         sigma_low*=sigma_convert
         sigma_high*=sigma_convert
     
-        outp[:,irun*6+1] = sigma
-        outp[:,irun*6+2] = sigma_low
-        outp[:,irun*6+3] = sigma_high
-        outp[:,irun*6+4] = tau
-        outp[:,irun*6+5] = tau_low
-        outp[:,irun*6+6] = tau_high
+        outp[:,irun*n_datacolumns+1] = sigma
+        outp[:,irun*n_datacolumns+2] = sigma_low
+        outp[:,irun*n_datacolumns+3] = sigma_high
+        outp[:,irun*n_datacolumns+4] = tau
+        outp[:,irun*n_datacolumns+5] = tau_low
+        outp[:,irun*n_datacolumns+6] = tau_high
+        outp[:,irun*n_datacolumns+7] = radmomentum
+        outp[:,irun*n_datacolumns+8] = radmomentum_low
+        outp[:,irun*n_datacolumns+9] = radmomentum_high
 
     #     print("Plotting")
     #     P.plot(phideg,sigma,label=run_id+output_dir+snap_str)
@@ -169,8 +185,11 @@ if __name__ == '__main__':
 #         snaps = ["025","050","075","100"]
 
         run_groups = [  ["longrun_weakflow_settled_defaultaniso","longrun_weakflow_vesc_defaultaniso","longrun_weakflow_rapid_defaultaniso"],
-                        ["longrun_weakflow_settled_defaultaniso_polar","longrun_weakflow_vesc_defaultaniso_polar","longrun_weakflow_rapid_defaultaniso_polar"]]
-        group_names = ["equatorial","polar"]
+                        ["longrun_weakflow_settled_defaultaniso_polar","longrun_weakflow_vesc_defaultaniso_polar","longrun_weakflow_rapid_defaultaniso_polar"],
+                        ["longrun_medflow_settled_defaultaniso_polar","longrun_medflow_vesc_defaultaniso","longrun_medflow_vesc_defaultaniso_polar"],
+                        ["newflow_settled_thin_up","newflow_vesc_thin_side","newflow_vesc_thin_45","newflow_vesc_thin_up"]
+                        ]
+        group_names = ["equatorial","polar","medflow","thin"]
         
         
         

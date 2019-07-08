@@ -41,6 +41,8 @@ rots = np.linspace(0.,np.pi*2.,360.) # smooth spin
 # rots = np.linspace(0.,np.pi*2.,64) # smooth-ish
 #rots = np.linspace(0.,np.pi*2.,2) # test
 
+rots+=10./360.*np.pi*2.
+
 titlesuffixes = [r" $\phi=%2d^\circ$"%(theta*180./np.pi) for theta in rots]
 # print(titlesuffixes)
 # sys.exit()
@@ -56,7 +58,7 @@ os.system("rm ../pics/sphrotplot"+run_id+output_dir+"%03d"%snapx+"_???.png")
 # for irot,phi in enumerate(rots):
 #     sph_frame.makesph_trhoz_frame(infile,outfile=outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['view'],L=600,cols=1,rot=[0.,phi],scale=40.)
 
-Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infile,outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['view'],L=800,views=['face'],rot=[0.,phi],scale=100.,visibleAxes=False) for irot,phi in enumerate(rots))
+Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infile,outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['view'],L=800,views=['side'],rot=[0.,phi],scale=100.,visibleAxes=False) for irot,phi in enumerate(rots))
 # Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infile,outfiles[irot],cmap='plasma',flat=True,ring=False,plot=['dens'],views=['face'],rot=[0.,phi],scale=15.,visibleAxes=False) for irot,phi in enumerate(rots))
 
 

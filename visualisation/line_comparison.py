@@ -33,10 +33,9 @@ import gizmo_tools
 import matplotlib.pyplot as plt
 
 import rgb_image
-
 # output_dirs = ["longrun_medflow_settled_defaultaniso_polar","longrun_medflow_vesc_defaultaniso","longrun_medflow_vesc_defaultaniso_polar","longrun_weakflow_rapid_defaultaniso","longrun_weakflow_rapid_defaultaniso_polar","longrun_weakflow_settled_defaultaniso","longrun_weakflow_settled_defaultaniso_polar","longrun_weakflow_vesc_defaultaniso","longrun_weakflow_vesc_defaultaniso_polar","newflow_settled_thin_up","newflow_vesc_thin_45","newflow_vesc_thin_side","newflow_vesc_thin_up"]
 # output_dirs = ["longrun_medflow_settled_defaultaniso_polar","longrun_medflow_vesc_defaultaniso","longrun_medflow_vesc_defaultaniso_polar","longrun_weakflow_rapid_defaultaniso","longrun_weakflow_rapid_defaultaniso_polar","longrun_weakflow_settled_defaultaniso","longrun_weakflow_settled_defaultaniso_polar","longrun_weakflow_vesc_defaultaniso","longrun_weakflow_vesc_defaultaniso_polar","newflow_settled_thin_up","newflow_vesc_thin_45","newflow_vesc_thin_side","newflow_vesc_thin_up"]
-output_dirs = ["newflow_vesc_thin_45","longrun_medflow_vesc_defaultaniso_polar"]
+# output_dirs = ["newflow_vesc_thin_45","longrun_medflow_vesc_defaultaniso_polar"] # for presentation
 # output_dirs = [ "longrun_weakflow_rapid_defaultaniso",
 #                 "longrun_weakflow_rapid_defaultaniso_polar",
 #                 "longrun_weakflow_settled_defaultaniso",
@@ -44,11 +43,29 @@ output_dirs = ["newflow_vesc_thin_45","longrun_medflow_vesc_defaultaniso_polar"]
 #                 "longrun_weakflow_vesc_defaultaniso",
 #                 "longrun_weakflow_vesc_defaultaniso_polar",
 #                 "longrun_medflow_vesc_defaultaniso"]
+
+# everything, for analysis
+output_dirs = [
+"longrun_medflow_settled_defaultaniso",
+"longrun_medflow_settled_defaultaniso_polar",
+"longrun_medflow_vesc_defaultaniso",
+"longrun_medflow_vesc_defaultaniso_polar",
+"longrun_weakflow_rapid_defaultaniso",
+"longrun_weakflow_rapid_defaultaniso_polar",
+"longrun_weakflow_settled_defaultaniso",
+"longrun_weakflow_settled_defaultaniso_polar",
+"longrun_weakflow_vesc_defaultaniso",
+"longrun_weakflow_vesc_defaultaniso_polar",
+"newflow_settled_thin_up",
+"newflow_vesc_thin_45",
+"newflow_vesc_thin_side",
+"newflow_vesc_thin_up"]
+
+
 # rads = [20.]*7*2+[10.,100.,10.,100.]
 # rads = [20.]*3*2+[10.,100.,10.,100.]
-rads = [20.]*3+[10.,100.]
 
-idump = 100
+# idump = 100
 
 # output_dirs = [ "longrun_weakflow_rapid_defaultaniso_polar",
 #                 "longrun_weakflow_settled_defaultaniso_polar",
@@ -58,18 +75,37 @@ idump = 100
 run_id = "3032"
 
 # line_codes = ["co1m","co2m","hcn1m","hcn2m","h2_1m","h2_2m","h2_3m"]*2+["view"]*4
-line_codes = ["hcn2m_001","co2m_001","h2_1m_001","view_002","view_003"]
 
-line_labels = [r"HCN(8-7), $422.796$ $\mu$m",r"CO(6-5), $433.438$ $\mu$m",r"H$_2$ (1-0) S(1), $2.121$ $\mu$m",r"$F_{IR}$",r"$F_{IR}$"]
+# line_codes = ["hcn2m_001","co2m_001","h2_1m_001","view_002","view_003"] # for presentation
+# rads = [20.]*3+[10.,100.]
 
+line_codes = ["co1m_000","co2m_000","hcn1m_000","hcn2m_000","h2_1m_000","h2_2m_000","h2_3m_000","view_000","co1m_001","co2m_001","hcn1m_001","hcn2m_001","h2_1m_001","h2_2m_001","h2_3m_001","view_001"]
+# rads = [20.]*7+[10.,100.]
+rads = [10.]*8+[100.]*8
+
+# line_labels = [r"HCN(8-7), $422.796$ $\mu$m",r"CO(6-5), $433.438$ $\mu$m",r"H$_2$ (1-0) S(1), $2.121$ $\mu$m",r"$F_{IR}$",r"$F_{IR}$"] # for presentation
+line_labels = line_codes # quick dump
+
+# clear
+# vranges = { "view":[0.,5.],
+#             "co1m":[-14.,-2.],
+#             "co2m":[-14.,-2.],
+#             "hcn1m":[-20.,-2.],
+#             "hcn2m":[-20.,-2.],
+#             "h2_1m":[-8.,0.],
+#             "h2_2m":[-20.,-10.],
+#             "h2_3m":[-8.,-0.]
+#             }
+
+# fair
 vranges = { "view":[0.,5.],
-            "co1m":[-14.,-2.],
-            "co2m":[-14.,-2.],
-            "hcn1m":[-20.,-2.],
-            "hcn2m":[-20.,-2.],
-            "h2_1m":[-8.,0.],
-            "h2_2m":[-20.,-10.],
-            "h2_3m":[-8.,-0.]
+            "co1m":[-20.,0.],
+            "co2m":[-20.,0.],
+            "hcn1m":[-20.,0.],
+            "hcn2m":[-20.,0.],
+            "h2_1m":[-20.,0.],
+            "h2_2m":[-20.,0.],
+            "h2_3m":[-20.,0.]
             }
 
 nruns = len(output_dirs)
@@ -78,13 +114,18 @@ nlines = len(line_codes)# len(rgb_image.labels)
 cmap = "inferno"
 # cmap = "bwr"
 
-def render_all():
+def render_all(idump):
     print("Rendering")
     snap_str = "{:03d}".format(idump)
     for output_dir in output_dirs:
         commands = []
-        commands.append("python sph_anim.py 3032 {run_name} --rad 10.,100.,10.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot view,view,view,view --gaussian=-1.,-1.,1.,10. &")
-        commands.append("python sph_anim.py 3032 {run_name} --rad 20. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m --gaussian=-1.,-1.,-1.,-1.,-1.,-1.,-1.,4.,4.,4.,4.,4.,4.,4. &")
+#         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,100.,10.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot view,view --gaussian=1.,10. &")
+# #         commands.append("python sph_anim.py 3032 {run_name} --rad 20. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m --gaussian=-1.,-1.,-1.,-1.,-1.,-1.,-1.,4.,4.,4.,4.,4.,4.,4. &")
+#         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m --gaussian=1.,1.,1.,1.,1.,1.,1.,10.,10.,10.,10.,10.,10.,10. &")
+
+        commands.append("python sph_anim.py 3032 {run_name} --rad 10.,100.,10.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot view,view &")
+        commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m &")
+
         for command in commands:
             formatted_command = command.format(run_name=output_dir,snap=snap_str)
             print(formatted_command)
@@ -168,7 +209,21 @@ def plot_lines_separately():
 
         plt.savefig("../../figures/line_montage_{}.png".format(plot_str),dpi=150)
 
-def plot_lines_together():
+def which_files_exist(run_id,output_dirs,idump):
+    output_dirs_which_exist = []
+    for output_dir in output_dirs:
+        file_exists = True
+        for line_code in line_codes:
+            infile = "../data/smoothsum_giz_{}_{}_{:03d}_{}.dat".format(run_id,output_dir,idump,line_code)
+            if not os.path.isfile(infile):
+                file_exists = False
+#                 print(infile," n'existe pas")
+                break
+        if file_exists:
+            output_dirs_which_exist.append(output_dir)
+    return output_dirs_which_exist
+
+def plot_lines_together(run_id,output_dirs,idump):
     ny = len(output_dirs)
     nx = len(line_codes)
     fig,sp = plt.subplots(ny+1,nx,figsize=(3.*nx,3.*ny+3./16.), gridspec_kw = {'width_ratios':[16]*nx,'height_ratios':[16]*ny+[1]},squeeze=False)
@@ -186,7 +241,7 @@ def plot_lines_together():
 
     for ix,line_code in enumerate(line_codes):
         for iy,output_dir in enumerate(output_dirs):
-            basefile = "../data/smoothsum_co1mco2mhcn1mhcn2mh2_1mh2_2mh2_3mviewgiz_{}_{}_000_%03d.dat".format(run_id,output_dir)
+#             basefile = "../data/smoothsum_co1mco2mhcn1mhcn2mh2_1mh2_2mh2_3mviewgiz_{}_{}_000_%03d.dat".format(run_id,output_dir)
             infile = "../data/smoothsum_giz_{}_{}_{:03d}_{}.dat".format(run_id,output_dir,idump,line_code)
             infile = [infile]
 
@@ -202,7 +257,7 @@ def plot_lines_together():
             
             mappable=rgb_image.produce_and_save_rgb_table_image(infile,ax=ax,rad=rads[ix],vrange=vrange,cmap='inferno')
             ax.set_title("")
-            if iy==1:
+            if iy==ny-1:
                 ax.set_xlabel("pc")
             else:
                 ax.set_xlabel("")
@@ -212,17 +267,33 @@ def plot_lines_together():
 #             else:
 #                 ax.set_ylabel("")
 #                 ax.yaxis.set_visible(False)
-            ax.set_ylabel("")
-            ax.yaxis.set_visible(False)
             if iy==0:
-                sp[iy,ix].set_title(line_labels[ix])
+#                 sp[iy,ix].set_title(line_labels[ix])
+                ax.set_title(line_labels[ix])
                 plt.colorbar(mappable,cax=sp[ny,ix],orientation='horizontal')
-    plt.savefig("../../figures/lines_together_ewass.png",dpi=150)
+            if ix==0:
+                ax.set_ylabel(output_dir,fontsize=6)
+            else:
+                ax.yaxis.set_visible(False)
+                ax.set_ylabel("")
+
+#     plt.savefig("../../figures/lines_together_ewass.png",dpi=150)
+    plt.savefig("../../figures/lines_together_analysis_{}.png".format(idump),dpi=150)
 
 if __name__=='__main__':
     print("Running")
+#     render_all(100)
+#     render_all(200)
+#     render_all(300)
+    idumps = [100,200,300]
+
+
     if len(sys.argv)>=2:
-        render_all()
+        for idump in idumps:
+            render_all(idump)
     else:
+        for idump in idumps:
+            plot_lines_together(run_id,which_files_exist(run_id,output_dirs,idump),idump)
+#         print(which_files_exist(run_id,output_dirs,100))
 #         plot_lines_separately()
-        plot_lines_together()
+#         plot_lines_together(idump)

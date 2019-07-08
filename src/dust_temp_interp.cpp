@@ -441,12 +441,19 @@ CoolHeatTab::CoolHeatTab(const char* flabels,const char* ftab,const char* dustle
 
 
 // int main(int argc, char **argv) {
-//     CoolHeatTab *oldTable = new CoolHeatTab("coolheat_tab_marta/shrunk_table_labels_050517.dat","coolheat_tab_marta/shrunk_table_050517.dat");
+//     CoolHeatTab *testTable = new CoolHeatTab("coolheat_tab_marta/shrunk_table_labels_281118tau.dat",
+//                                         "coolheat_tab_marta/shrunk_table_281118_m0.0001_hsmooth_tau.dat",
+//                                         "coolheat_tab_marta/shrunk_table_labels_281118taunodust.dat",
+//                                         "coolheat_tab_marta/shrunk_table_281118_m0.0001_hsmooth_taunodust.dat",
+//                                         "coolheat_tab_marta/shrunk_table_labels_281118taudense.dat",
+//                                         "coolheat_tab_marta/shrunk_table_281118_m0.0001_hsmooth_taudense.dat");
 //     struct coolHeatDust outp;
 //     
-//     outp = oldTable->interpTab(1.e-1,1.e7,1.e8,1.e16);
+//     outp = testTable->interpTab(1.e3,3.e1,1.e8,5.);
 //     
 //     std::cout << "Heat:" << outp.dHeat << " Cool:" << outp.dCool << " Dust:" << outp.dustT << std::endl;
+//     std::cout << "co1:" << outp.line_co1 << " hcn1:" << outp.line_hcn1 << " h2_1:" << outp.line_h2_1 << std::endl;
+//     std::cout << "co2:" << outp.line_co2 << " hcn2:" << outp.line_hcn2 << " h2_2:" << outp.line_h2_2 << std::endl;
 // }
 
 
