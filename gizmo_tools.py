@@ -47,7 +47,7 @@ def getGizmoDir(irun):
     elif ( sname=="srv01921" ):
         return "/srv/djw1g16/gizmos"
     
-    raise Exception("Unknown server; add server and directory to gizmodatadir.py")
+    raise Exception("Unknown server; add server and directory to gizmo_tools.py")
 
 def getMovieDir():
     sname = socket.gethostname()
@@ -57,7 +57,7 @@ def getMovieDir():
     elif ( sname=="srv01921" ):
         return "/srv/djw1g16/movies"
     
-    raise Exception("Unknown server; add server and directory to gizmodatadir.py")
+    raise Exception("Unknown server; add server and directory to gizmo_tools.py")
 
 def lastConsecutiveSnapshot(run_id,output_dir,dumpsOrdered=True):
     """When models are rerun, the snapshot file with the largest number (e.g. snapshot_100.dat)
