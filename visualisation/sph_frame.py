@@ -550,6 +550,7 @@ def load_gadget(infile, plot_thing,
 #                                             )
 
             tableDate="281118"
+#             tableDate="181018"
             tableRes="0.0001"
             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
                                             ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
