@@ -15,8 +15,10 @@ bins = np.arange(0.,91.,.25)
 
 G_kms_pc_msun = 0.0043022682
 
-rcut = 80. # only count particles within 80 pc
+#rcut = 80. # only count particles within 80 pc
 # rcut = 5. # only count particles within 5 pc - i.e. close-by wind
+# rcut = 15. # only count particles within 15 pc - i.e. fairly close-by wind
+rcut = 80.e5 # count everything!
 
 def v_esc(r,m_bh,m_hern,a_hern):
     return np.sqrt(2*G_kms_pc_msun*(m_bh/r + m_hern/(a_hern+r)))
@@ -97,7 +99,10 @@ def load_gizmo_get_outflow(run_id,output_dir,snap_id):
     
 #     vrad = np.sum(xyz_p*vel_p,axis=1)/rad3d_p
 #     outflowing = (vrad>windcut)
-    outflowing = (v_esc(rad3d_p,1.e6,1.e9,250.)<vmag) & (rad3d_p<rcut)
+#     outflowing = (v_esc(rad3d_p,1.e6,1.e9,250.)<vmag) & (rad3d_p<rcut) # normal default
+
+    vout = np.sum(vel_p*xyz_p,axis=1)/rad3d_p
+    outflowing = (vout>10.) & (rad3d_p<rcut)
     outflowing_ids = id_p[outflowing]
 #     print(outflowing_ids)
     
@@ -268,7 +273,7 @@ def dump_full_evolution(run_ids,output_dirs):
         
         print("Reading and analysing angles")
 
-        snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir)
+        snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False)
 #         snapf=100
 #         print("Forcing max snapf to 100")
 #             step = 10
@@ -279,7 +284,7 @@ def dump_full_evolution(run_ids,output_dirs):
         snap_ids = range(snapi,snapf,step)
         bins = np.arange(0.,91.,1.)
         
-        with Pool(processes=100) as pool:
+        with Pool(processes=64) as pool:
 #             with Pool(processes=8) as pool:
             output_data = pool.starmap(calc_hist,zip(it.repeat(run_id),it.repeat(output_dir),snap_ids,it.repeat(False),it.repeat(bins),it.repeat(step)))
 #         print(output_data)
@@ -345,9 +350,24 @@ if __name__ == '__main__':
 #             output_dirs = ["treetest"]
 #             run_ids = ["2019"]*5
 #             output_dirs = ["restest0m"+x for x in ["02","04","06","08","1"]]
-            run_ids = ["2020"]*5
+#             run_ids = ["2020"]*5
 #             output_dirs = ["aniso_"+x for x in ["0","1","2","3","4"]]
-            output_dirs = ["aniso_4_biggerrad","aniso_4_bigrad"]
+#             output_dirs = ["aniso_4_biggerrad","aniso_4_bigrad"]
+            output_dirs = ['longrun_weakflow_settled_defaultaniso',
+             'longrun_weakflow_vesc_defaultaniso',
+             'longrun_weakflow_rapid_defaultaniso',
+             'longrun_weakflow_settled_defaultaniso_polar',
+             'longrun_weakflow_vesc_defaultaniso_polar',
+             'longrun_weakflow_rapid_defaultaniso_polar',
+             'longrun_medflow_settled_defaultaniso_polar',
+             'longrun_medflow_vesc_defaultaniso',
+             'longrun_medflow_vesc_defaultaniso_polar',
+             'newflow_settled_thin_up',
+             'newflow_vesc_thin_side',
+             'newflow_vesc_thin_45',
+             'newflow_vesc_thin_up']
+            run_ids = ["3032"]*len(output_dirs)
+
             print(run_ids)
             print(output_dirs)
         dump_full_evolution(run_ids,output_dirs)

@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     snapi = 0
 
-    gizmoDir = gizmo_tools.getGizmoDir()
+    gizmoDir = gizmo_tools.getGizmoDir(run_id)
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 
 
@@ -43,8 +43,10 @@ if __name__ == '__main__':
         time = header.attrs.get("Time")
         time*= 0.9778e9 # to yr
         time/=1.e6 # to Myr
+#         print(time)
 
         xyz = np.array(f["/PartType0/Coordinates"])
+        xyz*=1.e3
         rad_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2+xyz[:,2]**2)
         rad2d_p = np.sqrt(xyz[:,0]**2+xyz[:,1]**2)
         z_p = np.abs(xyz[:,2])
@@ -70,20 +72,24 @@ if __name__ == '__main__':
         else:
             radaccel_p = np.zeros((N_part,3))
 
-        if "/PartType0/AGNColDens" in f:
-            depth_p = np.array(f["/PartType0/AGNColDens"]) # surface density units
+#         if "/PartType0/AGNColDens" in f:
+#             depth_p = np.array(f["/PartType0/AGNColDens"]) # surface density units
+#         else:
+#             depth_p = np.zeros(N_part)
+        if "/PartType0/AGNDepth" in f:
+            tau_p = np.array(f["/PartType0/AGNDepth"]) # unitless
         else:
-            depth_p = np.zeros(N_part)
+            tau_p = np.zeros(N_part)
 
         agn_heat_p*=1e10/3.08568e+16# to erg/s/g
 
-        depth_p*=(1.989e+43/3.086e+21**2) # to g/cm**2
+#         depth_p*=(1.989e+43/3.086e+21**2) # to g/cm**2
 
         rho_p*=6.77e-22 # to g/cm**3
         u_p*=1.e10 # to erg/g
-        rad_p*=1. # already in kpc
+        rad_p*=1. # already in pc
         vel_p*=1. # in km/s
-        h_p*=1. # already in kpc
+        h_p*=1.e3 # to pc
         m_p*=1.989e+43 # 10^10 solar masses to g
         radaccel_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
         a_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
@@ -103,14 +109,14 @@ if __name__ == '__main__':
         gamma_minus_one = 5./3.-1.
         boltzmann_cgs = 1.38066e-16
 
-        depth_p/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
+#         depth_p/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
 
         nH_p = rho_p/(molecular_mass*proton_mass_cgs)
         TK_p = gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*u_p
 
         id_p = np.array(f["/PartType0/ParticleIDs"])
 
-        tracked_vals = [rad_p,vrad_p,radrad_p,TK_p,agn_heat_p,dt_p]
+        tracked_vals = [xyz[:,0],xyz[:,1],xyz[:,2],rad_p,vrad_p,radrad_p,TK_p,nH_p,h_p,agn_heat_p,tau_p]
         this_p = np.argwhere(id_p==i_track)[0][0]
     
         outp = [time]

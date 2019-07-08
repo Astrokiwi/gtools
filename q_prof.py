@@ -28,7 +28,7 @@ snap_str = sys.argv[3]
 
 Nbins = 50
 
-gizmoDir = gizmo_tools.getGizmoDir()
+gizmoDir = gizmo_tools.getGizmoDir(run_id)
 fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 
 
@@ -65,15 +65,20 @@ omega_p = vcirc_p/(rad2d_p*3.085678e18)
 N_part = rad_p.size
 
 
-print(np.min(u_p))
-print(np.min(cs_p))
+# print(np.min(u_p))
+# print(np.min(cs_p))
 
-r_cut = 50. # in pc
+r_cut = 70. # in pc
 vrad_cut = 50. # in km/s
+vrad_cut*=1.e5 # to cm/s
 low_u = 4.e9 # about 30 K
 
 disc_slice = (vrad_p<vrad_cut) & (rad_p<r_cut)
 ndisc = np.sum(disc_slice)
+
+
+print(N_part,ndisc)
+
 
 rad2d_p = rad2d_p[disc_slice]
 
@@ -87,8 +92,8 @@ omega_bin = bin_func(omega_p,disc_slice,bin_indices,nbins,np.mean)
 vcirc_bin = bin_func(vcirc_p,disc_slice,bin_indices,nbins,np.mean)
 rad2d_bin = bin_func(rad2d_p,[True]*ndisc,bin_indices,nbins,np.mean)
 mass_bin = bin_func(m_p,disc_slice,bin_indices,nbins,np.sum)
-area_bin = np.pi*(rbins[1:nbins+1]**2-rbins[:nbins]**2)*3.085678e18**2
-surface_density_bin = mass_bin/area_bin
+area_bin = np.pi*(rbins[1:nbins+1]**2-rbins[:nbins]**2)
+surface_density_bin = mass_bin/area_bin/3.085678e18**2
 
 omega2_bin = omega_bin**2
 omega2diff_bin = np.gradient(omega2_bin)/np.gradient(rad2d_bin)

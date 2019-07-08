@@ -29,9 +29,6 @@ INTERP_OBJS=dust_temp_interp.o
 test: ${INTERP_OBJS}
 	${CXX} ${OPTIONS} ${INCL} ${INTERP_OBJS} ${LIBS} -o ../tab_interp_test
 
-reverse:
-	gfortran -fbacktrace -O3 reverse_for_ICs.f90 -o ../reverse_for_ICs
-
 calc_neighbours:
 	f2py --opt=-O3 -c fort_calc_neighbours.f90 -m fort_calc_neighbours    
 
