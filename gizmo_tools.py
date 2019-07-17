@@ -140,6 +140,10 @@ def load_calc_req(gizmo_dataframe,req):
         gizmo_dataframe["rad2d"] = np.sqrt(gizmo_dataframe["Coordinates_x"]**2+gizmo_dataframe["Coordinates_y"]**2)
     elif req=="rad3d":
         gizmo_dataframe["rad3d"] = np.sqrt(gizmo_dataframe["Coordinates_x"]**2+gizmo_dataframe["Coordinates_y"]**2+gizmo_dataframe["Coordinates_z"]**2)
+    elif req=="nH":
+        gizmo_dataframe["nH"] = gizmo_dataframe["Density"]/(molecular_mass*proton_mass_cgs)
+    elif req=="temp":
+        gizmo_dataframe["temp"] = gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*gizmo_dataframe["InternalEnergy"]
 
     if req in gizmo_dataframe:
         return True
@@ -172,13 +176,13 @@ def load_value(f,gizmo_dataframe,value,internal_units=False):
         raise Exception("<1D array found in hdf5 datafile??")
     if indata.ndim==1:
         gizmo_dataframe[value] = indata
-        if not internal_units:
+        if not internal_units and value in unit_conversions:
             gizmo_dataframe[value]*=unit_conversions[value]
     else: # i.e. 2D array
         for i in range(indata.shape[1]):
             key = value+"_"+coord_suffixes[i]
             gizmo_dataframe[key] = indata[:,i]
-            if not internal_units:
+            if not internal_units and value in unit_conversions:
                 gizmo_dataframe[key]*=unit_conversions[value]
 
 def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
