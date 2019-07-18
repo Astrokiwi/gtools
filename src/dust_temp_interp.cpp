@@ -201,6 +201,57 @@ double CoolHeatTab::right_weight(double edges[], int nedges, int index, double v
 //     return outp;
 // } 
 
+// struct coolHeatDust* CoolHeatTab::interpTabArray(int n0, double* density, int n1, double* temperature, int n2, double* intensity, int n3, double* column_in) {
+struct coolHeatDustArray CoolHeatTab::interpTabArray(int n0, double* density, int n1, double* temperature, int n2, double* intensity, int n3, double* column_in) {
+//     if ( n0!=n1 || n1!=n2 || n2!=n3 ) {
+//         return NULL;
+//     }
+
+    int i;
+    
+    coolHeatDustArray dustStructs;
+    
+    dustStructs.dCool = new double[n0];
+    dustStructs.dHeat = new double[n0];
+    dustStructs.dustT = new double[n0];
+    dustStructs.opac_abs = new double[n0];
+    dustStructs.opac_scat = new double[n0];
+    dustStructs.dg = new double[n0];
+    dustStructs.column_out = new double[n0];
+    dustStructs.arad = new double[n0];
+    
+    dustStructs.line_co1 = new double[n0];
+    dustStructs.line_co2 = new double[n0];
+    dustStructs.line_hcn1 = new double[n0];
+    dustStructs.line_hcn2 = new double[n0];
+    dustStructs.line_h2_1 = new double[n0];
+    dustStructs.line_h2_2 = new double[n0];
+    dustStructs.line_h2_3 = new double[n0];
+    
+//     struct coolHeatDust *dustStructs = new coolHeatDust[n0];
+//     struct coolHeatDust *dustStructs = (struct coolHeatDust *)malloc(sizeof(struct coolHeatDust)*n0);
+    for ( i=0 ; i<n0 ; i++ ) {
+        struct coolHeatDust nextEntry = interpTab(density[i],temperature[i],intensity[i],column_in[i]);
+
+        dustStructs.dCool[i] = nextEntry.dCool;
+        dustStructs.dHeat[i] = nextEntry.dHeat;
+        dustStructs.dustT[i] = nextEntry.dustT;
+        dustStructs.opac_abs[i] = nextEntry.opac_abs;
+        dustStructs.opac_scat[i] = nextEntry.opac_scat;
+        dustStructs.dg[i] = nextEntry.dg;
+        dustStructs.column_out[i] = nextEntry.column_out;
+        dustStructs.arad[i] = nextEntry.arad;
+        dustStructs.line_co1[i] = nextEntry.line_co1;
+        dustStructs.line_co2[i] = nextEntry.line_co2;
+        dustStructs.line_hcn1[i] = nextEntry.line_hcn1;
+        dustStructs.line_hcn2[i] = nextEntry.line_hcn2;
+        dustStructs.line_h2_1[i] = nextEntry.line_h2_1;
+        dustStructs.line_h2_2[i] = nextEntry.line_h2_2;
+        dustStructs.line_h2_3[i] = nextEntry.line_h2_3;
+    }
+    return dustStructs;
+}
+
 // takes input values in *cgs units*
 struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, double intensity, double column_in) {
     if ( !this->data_loaded ) {

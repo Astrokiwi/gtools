@@ -5,6 +5,13 @@ import re
 import pandas as pd
 import h5py
 
+
+# for interpolating GIZMO tables
+import ctypes
+from sys import path
+path.append("src/")
+import tab_interp
+
 molecular_mass = 4./(1.+3.*.76)
 proton_mass_cgs = 1.6726e-24
 gamma_minus_one = 5./3.-1.
@@ -214,9 +221,63 @@ def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
     return header,gizmo_dataframe
 
 
+class cloudy_table:
+    """cloudy_table - a class to interface with the dust_temp_interp c++ libraries extracting from the GIZMO code.
+    Load in a set of tables with specified date and resolution strings, and with optional path, by instantiating this class.
+    Then pass particles dataframe to `interp` (after loading nH,temp,AGNIntensity,AGNDepth) and it returns 
+    """
+    struct_attributes = [
+             'arad',
+             'column_out',
+             'dCool',
+             'dHeat',
+             'dg',
+             'dustT',
+             'line_co1',
+             'line_co2',
+             'line_h2_1',
+             'line_h2_2',
+             'line_h2_3',
+             'line_hcn1',
+             'line_hcn2',
+             'opac_abs',
+             'opac_scat'
+             ]
+
+    def double_pointer_to_array(self,x,n):
+        """Turns C style arrays of known size into numpy arrays.
+        For use with struct of arrays returned by swig.
+        """
+        ptr = int(x)
+        type_size = ctypes.c_double * n
+        base_array = type_size.from_address(ptr)
+        numpy_array = np.array(base_array)
+        return numpy_array
 
 
+    def __init__(self,tableDate="281118",tableRes="0.0001",prefix=""):
+        self.load_table(tableDate,tableRes,prefix)
 
-
+    def load_table(self,tableDate="281118",tableRes="0.0001",prefix=""):
+        self.chTab = tab_interp.CoolHeatTab( (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
+                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+                                        (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
+                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+                                        (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
+                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+                                        )
+        
+    
+    def interp(self,particles):
+        tabStructs=self.chTab.interpTabArray( 
+                       particles["nH"].astype(np.float64),
+                       particles["temp"].astype(np.float64),
+                       particles["AGNIntensity"].astype(np.float64),
+                       particles["AGNDepth"].astype(np.float64)
+                       )
+        
+        n = len(particles)
+        for attr in self.struct_attributes:
+            particles[attr] = self.double_pointer_to_array(tabStructs.__getattr__(attr),n)
 
 

@@ -20,6 +20,28 @@ struct coolHeatDust {
     double fd,ft,fi,fc;*/
 };
 
+struct coolHeatDustArray {
+    double *dCool;
+    double *dHeat;
+    double *dustT;
+    double *opac_abs;
+    double *opac_scat;
+    double *dg;
+    double *column_out;
+    double *arad;
+    
+    double *line_co1;
+    double *line_co2;
+    double *line_hcn1;
+    double *line_hcn2;
+    double *line_h2_1;
+    double *line_h2_2;
+    double *line_h2_3;
+    
+    /*int id,it,ii,ic;
+    double fd,ft,fi,fc;*/
+};
+
 
 struct AGN_heat_table {
 
@@ -65,6 +87,10 @@ struct AGN_heat_table {
 class CoolHeatTab {
     public:
         struct coolHeatDust interpTab(double density, double temperature, double intensity, double column_in);
+
+//         struct coolHeatDust* interpTabArray(int n0, double* density, int n1, double* temperature, int n2, double* intensity, int n3, double* column_in);
+        struct coolHeatDustArray interpTabArray(int n0, double* density, int n1, double* temperature, int n2, double* intensity, int n3, double* column_in);
+
 
         //CoolHeatTab(std::string flabels,std::string ftab);
         CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab);

@@ -7,15 +7,39 @@ path.append("src/")
 import tab_interp
 
 import matplotlib.pyplot as plt
+import time
 
-run_id = "3001"
-run_names = ["a2_e01","a2_e02","a2_e05","a2_e1","a2_e2"]
-# run_names = ["a2_e01","a2_e02","a2_e05"]
-edds = [0.01,0.02,0.05,0.1,0.2]
+# run_id = "3001"
+# run_names = ["a2_e01","a2_e02","a2_e05","a2_e1","a2_e2"]
+# edds = [0.01,0.02,0.05,0.1,0.2]
+# nruns = len(run_names)
+# snap_str = "020"
+# max_rad = 5.
+
+bigstart = time.time()
+table_time = 0.
+
+run_id = "3032"
+run_names = [
+# "longrun_medflow_settled_defaultaniso",
+"longrun_medflow_settled_defaultaniso_polar",
+"longrun_medflow_vesc_defaultaniso",
+"longrun_medflow_vesc_defaultaniso_polar",
+"longrun_weakflow_rapid_defaultaniso",
+"longrun_weakflow_rapid_defaultaniso_polar",
+"longrun_weakflow_settled_defaultaniso",
+"longrun_weakflow_settled_defaultaniso_polar",
+"longrun_weakflow_vesc_defaultaniso",
+"longrun_weakflow_vesc_defaultaniso_polar",
+"newflow_settled_thin_up",
+"newflow_vesc_thin_45",
+"newflow_vesc_thin_side",
+"newflow_vesc_thin_up"]
+# edds = [0.01,0.02,0.05,0.1,0.2]
 nruns = len(run_names)
+snap_str = "100"
+max_rad = 100.
 
-# max_rad = 40.
-max_rad = 5.
 
 grain_size = 1. # microns
 grain_density = 3 # g/cm**3
@@ -32,34 +56,41 @@ print(grain_specific_emission_cross_section,grain_specific_emission_cross_sectio
 
 tableDate="281118"
 tableRes="0.0001"
-chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
-                                ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
-                                ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
-                                ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
-                                ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
-                                ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
-                                )
-interpTabVec = np.vectorize(chTab.interpTab)
+# chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
+#                                 ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+#                                 )
+# interpTabVec = np.vectorize(chTab.interpTab)
+
+cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes)
 
 # fig = plt.figure()
 
 for irun,run_name in enumerate(run_names):
-#     print(irun,run_name)
+    print(irun,run_name)
 # for run_name in [run_names[0]]:
-#     snap_str = "100"
-    snap_str = "020"
     header,particles = gizmo_tools.load_gizmo_pandas(run_id,run_name,snap_str,
         ["Masses","Coordinates","Velocities","AGNIntensity","AGNDepth","Density","InternalEnergy","SmoothingLength"])
     gizmo_tools.load_calc_reqs(particles,["nH","temp","rad3d"])
 
-    tabStructs = interpTabVec(  particles["nH"].astype(np.float64),
-                                particles["temp"].astype(np.float64),
-                                particles["AGNIntensity"].astype(np.float64),
-                                particles["AGNDepth"].astype(np.float64))
+    # this part is slow
+    start = time.time()
+#     tabStructs = interpTabVec(  particles["nH"].astype(np.float64),
+#                                 particles["temp"].astype(np.float64),
+#                                 particles["AGNIntensity"].astype(np.float64),
+#                                 particles["AGNDepth"].astype(np.float64))
+# 
+#     particles["dustTemp"] = np.array(list(map(lambda y: y.dustT, tabStructs)))
+#     particles["dg"] = np.array(list(map(lambda y: y.dg, tabStructs)))
+    cloudy_table.interp(particles)
+    end = time.time()
+    table_time+=end-start
 
-    particles["dustTemp"] = np.array(list(map(lambda y: y.dustT, tabStructs)))
-    particles["dg"] = np.array(list(map(lambda y: y.dg, tabStructs)))
-    particles["brightness"] = 5.67e-5 * particles["dustTemp"]**4. * particles["dg"]/np.nanmax(particles["dg"]) # erg/s/cm^2
+
+    particles["brightness"] = 5.67e-5 * particles["dustT"]**4. * particles["dg"]/np.nanmax(particles["dg"]) # erg/s/cm^2
     particles["emitArea"] = np.minimum(particles["dg"]*particles["Masses"]*grain_specific_emission_cross_section_astronomical,
                                             np.pi*particles["SmoothingLength"]**2)
     particles["luminosity"] = particles["emitArea"]*particles["brightness"]
@@ -75,19 +106,24 @@ for irun,run_name in enumerate(run_names):
 #     particles["luminosity"] = 1. # just mass effectively
     
     
+#     label = r"$\eta_\mathrm{{Edd}}={:4.2f}$".format(edds[irun]))
+    label = run_name
+    
     particles.sort_values("rad3d",inplace=True)
 
     lum_rad = particles["luminosity"].cumsum()
-    cut_rad_index = particles["rad3d"].searchsorted(max_rad)[0]
+#     cut_rad_index = particles["rad3d"].searchsorted(max_rad)[0] # pandas <0.24.0
+    cut_rad_index = particles["rad3d"].searchsorted(max_rad) # pandas >=0.24.0
 #     lum_cut = lum_rad.iloc[cut_rad_index]
 #     lum_rad/=lum_cut
     lum_sum = lum_rad.iloc[-1]
     lum_rad/=lum_sum
-    r0 = particles["rad3d"].min()
-    plt.plot(particles["rad3d"]-r0,lum_rad,label=r"$\eta_\mathrm{{Edd}}={:4.2f}$".format(edds[irun]))
+#     r0 = particles["rad3d"].min()
+#     plt.plot(particles["rad3d"]-r0,lum_rad,label=label)
+    plt.plot(particles["rad3d"],lum_rad,label=label)
     
-    outp = np.array([particles["rad3d"]-r0,lum_rad]).T
-    np.savetxt("../data/edd{:4.2f}.txt".format(edds[irun]),outp,header="% r-ri F/Ftot")
+#     outp = np.array([particles["rad3d"]-r0,lum_rad]).T
+#     np.savetxt("../data/edd{:4.2f}.txt".format(edds[irun]),outp,header="% r-ri F/Ftot")
     
 
 # plt.xlim([1.e-2,max_rad])
@@ -99,5 +135,11 @@ plt.xlabel(r"$r-r_i$ (pc)")
 plt.ylabel(r"$F(<r)/F_{tot}$")    
 plt.legend()
 # plt.savefig("../figures/lumrad_test.png")
-plt.savefig("../figures/lumrad_3001.pdf")
+# plt.savefig("../figures/lumrad_3001.pdf")
+plt.savefig("../figures/lumrad_3032.pdf")
 plt.close('all')
+
+bigend = time.time()
+
+print("table time:",table_time)
+print("total time:",bigend-bigstart)
