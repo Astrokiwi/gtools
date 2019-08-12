@@ -1,10 +1,12 @@
 import socket
+import getpass
 import os
 import numpy as np
 import re
 import pandas as pd
 import h5py
 
+import pynbody
 
 # for interpolating GIZMO tables
 import ctypes
@@ -43,26 +45,38 @@ def sort_nicely( l ):
 
 def getGizmoDir(irun):
     sname = socket.gethostname()
-
-    if ( sname=="trillian" ):
-        paths = ["/export/1/djw/gizmos","/export/2/djw/gizmos"]
-        for path in paths:
-            if os.path.isdir("{}/{}".format(path,irun)):
-                return path
-#         return "/export/1/djw/gizmos"
-        raise Exception("Directory not found on {}".format(sname))
-    elif ( sname=="srv01921" ):
-        return "/srv/djw1g16/gizmos"
+    uname = getpass.getuser()
     
-    raise Exception("Unknown server; add server and directory to gizmo_tools.py")
+    if uname=='djw1g16' or uname=='djw':
+        if sname=="trillian":
+            paths = ["/export/1/djw/gizmos","/export/2/djw/gizmos"]
+            for path in paths:
+                if os.path.isdir("{}/{}".format(path,irun)):
+                    return path
+    #         return "/export/1/djw/gizmos"
+            raise Exception("Directory not found on {}".format(sname))
+        elif sname=="srv01921":
+            return "/srv/djw1g16/gizmos"
+
+    if uname=='lb1g19':
+        if sname=="trillian":
+            return "/export/2/lb1g19"
+
+    raise Exception("Unknown server/username; add server, username and directory to gizmo_tools.py")
 
 def getMovieDir():
     sname = socket.gethostname()
+    uname = getpass.getuser()
 
-    if ( sname=="trillian" ):
-        return "/export/1/djw/movies"
-    elif ( sname=="srv01921" ):
-        return "/srv/djw1g16/movies"
+    if uname=='djw1g16' or uname=='djw':
+        if ( sname=="trillian" ):
+            return "/export/1/djw/movies"
+        elif ( sname=="srv01921" ):
+            return "/srv/djw1g16/movies"
+
+    if uname=='lb1g19':
+        if sname=="trillian":
+            return "/export/2/lb1g19"
     
     raise Exception("Unknown server; add server and directory to gizmo_tools.py")
 
@@ -220,6 +234,26 @@ def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
     
     return header,gizmo_dataframe
 
+def load_gizmo_nbody(run_id,output_dir,snap_str):
+    gizmoDir = getGizmoDir(run_id)
+    fullDir = gizmoDir+"/"+run_id+"/"+output_dir
+    fullFile = fullDir+"/snapshot_"+snap_str+".hdf5"
+
+    header = dict()
+
+    f = h5py.File(fullFile,"r")
+    file_header = f["/Header"]
+    header["time"]=file_header.attrs.get("Time")
+    header["time"]*= 0.9778e9 # to yr
+    header["time"]/=1.e6 # to Myr
+    f.close()
+    
+    snap = pynbody.load(fullFile)
+    snap.set_units_system(velocity="km s**-1",mass="1e10 Msol",distance="kpc")
+
+    
+    return header,snap
+    
 
 class cloudy_table:
     """cloudy_table - a class to interface with the dust_temp_interp c++ libraries extracting from the GIZMO code.
