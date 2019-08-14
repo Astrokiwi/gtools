@@ -497,7 +497,7 @@ module sph_plotter
 
 
     ! histogram along some radial ray
-    function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,broaden,nbins,nray,emission,n) result(rayhist)
+    function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,rayoffset_in,f,broaden,nbins,fullgal,nray,n) result(rayhist)
 !     function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,nbins,nray,n) result(rayhist)
         !$ use omp_lib
         implicit none
@@ -509,10 +509,10 @@ module sph_plotter
         real(kind=8), dimension(n) :: v ! value to sum along ray
 !         real(kind=8), dimension(n) :: broaden ! if <0, no broadening. If >0, width of gaussian broadening
         real(kind=8), dimension(n) :: broaden ! width of gaussian broadening
-        logical :: emission ! true = (optically thin) emission lines from whole galaxy, false = absorption line from ray from centre
+        logical :: fullgal ! true = (optically thin) emission lines from whole galaxy, false = absorption line from ray from offset
 
         
-        real(kind=8), dimension(nray,3) :: xyzray_in ! Ray from 0,0 in these directions
+        real(kind=8), dimension(nray,3) :: xyzray_in,rayoffset_in ! Ray directions and offset
         real(kind=8), dimension(nray,3) :: xyzray ! Ray from 0,0 in these directions - normalised
         
         real(kind=8) :: vmin,vmax
@@ -552,8 +552,8 @@ module sph_plotter
 
 !$OMP PARALLEL DO private(ibin,iray,dv2_normed,broad_weight,dotprod)&
 !$OMP& private(impact_pram,ip,weight,h2,gauss_weight)&
-!$OMP& shared(v,vmin,bin_width,broaden,gauss_norm,emission)&
-!$OMP& shared(rayhist,nray,nbins,xyzray,xyz,h,m,n,f)&
+!$OMP& shared(v,vmin,bin_width,broaden,gauss_norm,fullgal)&
+!$OMP& shared(rayoffset_in,rayhist,nray,nbins,xyzray,xyz,h,m,n,f)&
 !$OMP& default(none) schedule(static,1)
         do ibin=1,nbins
 !             print *,ibin,omp_get_thread_num()
@@ -565,23 +565,33 @@ module sph_plotter
                 if ( .not. f(ip) ) then
                     continue
                 endif
-                dv2_normed = ((v(ip)-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
-!                 if ( dv2_normed>50. ) then
-                if ( dv2_normed>25. ) then
-                    continue
+                if ( broaden(ip)>bin_width ) then
+                    dv2_normed = ((v(ip)-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
+    !                 if ( dv2_normed>50. ) then
+                    if ( dv2_normed>25. ) then
+                        continue
+                    endif
+                    gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
+                else
+                    if ( v(ip)<vmin+bin_width*(ibin-1) ) then
+                        continue
+                    endif
+                    if ( v(ip)>vmin+bin_width*(ibin) ) then
+                        continue
+                    endif
+                    gauss_weight = 1.
                 endif
-                gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
-                if ( .not. emission ) then
+                if ( .not. fullgal ) then
                     h2 = h(ip)**2
                 endif
                 do iray=1,nray
-                    if ( .not. emission ) then
-                        dotprod = sum(xyzray(iray,:)*xyz(ip,:))
+                    if ( .not. fullgal ) then
+                        dotprod = sum(xyzray(iray,:)*(xyz(ip,:)-rayoffset_in(iray,:)))
                         if ( dotprod<=0. ) then
                             continue
                         endif
                 
-                        impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
+                        impact_pram = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
                         if ( impact_pram>=h2 ) then
                             continue
                         endif

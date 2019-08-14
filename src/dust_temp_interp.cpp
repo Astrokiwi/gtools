@@ -105,6 +105,7 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile, boo
     lineArrays[4]=agn_line_h2_1;
     lineArrays[5]=agn_line_h2_2;
     lineArrays[6]=agn_line_h2_3;
+    
     if ( convertLines ) { // if we are preprocessing the tables, convert lines to erg/s/g. Output tables have this already done
             // divide lines by density to get emission per gram
             //     molecular_mass = 4./(1.+3.*.76)
@@ -155,7 +156,7 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile, boo
     ntabs[2] = &agn_nintensity;
     tables[3] = agn_column_in_vals;
     ntabs[3] = &agn_ncolumn_in;
-    
+
 }
 
 /*! find index in (short) table where value fits to the right of
@@ -295,7 +296,7 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
             }    
         }
     }
-    
+        
 //     interpBetweenTables = false; // for test
 //     thisTable = &mainTable; // also for test
     
@@ -396,6 +397,7 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
         }
     
     }
+    
     // do extrapolation for density above max
     if ( values[0]>thisTable->agn_dense_vals[thisTable->agn_ndense-1] && !interpBetweenTables) {
 //         if ( ThisTask==0 ) std::cout << "extrapolation" << std::endl;

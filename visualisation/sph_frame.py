@@ -17,6 +17,7 @@ from sph_plotter import sph_plotter
 
 from sys import path, version, exit
 path.append("../src/")
+path.append("../")
 import tab_interp
 
 import sys
@@ -28,6 +29,8 @@ from difflib import SequenceMatcher
 
 import itertools
 
+import gizmo_tools
+import pandas as pd
 
 class ExceptionWrapper(object):
 
@@ -549,28 +552,34 @@ def load_gadget(infile, plot_thing,
 #                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taudense.dat")
 #                                             )
 
-            tableDate="281118"
+#             tableDate="281118"
 #             tableDate="181018"
-            tableRes="0.0001"
+#             tableRes="0.0001"
 #             tableDate="281118"
 #             tableRes="0.0001"
-#             tableDate="060319"
-#             tableRes="0.1"
-            chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
-                                            ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
-                                            )
-            interpTabVec = np.vectorize(chTab.interpTab)
+            tableDate="060319"
+            tableRes="0.1"
+            cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"../")
+#             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
+#                                             ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+#                                             )
+#             interpTabVec = np.vectorize(chTab.interpTab)
         data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
         data.flux_p*=1.989e+53/(3.086e21)**2/(3.08568e+16)
         
+        table_particles = pd.DataFrame()
+        table_particles["nH"] = data.nH_p
+        table_particles["temp"] = data.TK_p
+        table_particles["AGNIntensity"] = data.flux_p
+        table_particles["AGNDepth"] = data.tau
 
         verboseprint("Calculating dust/cooling/heating properties from table")
-        tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.tau.astype(np.float64))
-    
+#         tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.tau.astype(np.float64))
+        cloudy_table.interp(table_particles)
     
     if ( "col" in need_to_load ):
         if "/PartType0/AGNColDens" in f:
@@ -578,19 +587,22 @@ def load_gadget(infile, plot_thing,
             data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
             data.coldens/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
         else:
-            data.coldens = np.array(list(map(lambda y: y.column_out, tabStructs)))
+            data.coldens = table_particles["column_out"]
+#             data.coldens = np.array(list(map(lambda y: y.column_out, tabStructs)))
 
     if ( "tdust" in need_to_load ):
-        data.dustTemp = map(lambda y: y.dustT, tabStructs)
-        data.dustTemp = np.array(list(data.dustTemp))
+        data.dustTemp = table_particles["dustT"]
+#         data.dustTemp = map(lambda y: y.dustT, tabStructs)
+#         data.dustTemp = np.array(list(data.dustTemp))
 #         data.dustTemp = 10.**data.dustTemp
 #         print(np.max(data.dustTemp),np.min(data.dustTemp))
 #         data.dustTemp = data.dustTemp**4 # for test
     for line in lines:
         if line in need_to_load:
-            data.__dict__[line] = np.array(list(map(lambda y: y.__getattr__("line_"+line), tabStructs)))
+#             data.__dict__[line] = np.array(list(map(lambda y: y.__getattr__("line_"+line), tabStructs)))
+            data.__dict__[line] = table_particles["line_"+line]
         if line+"m" in need_to_load:
-            data.__dict__[line+"m"] = data.__dict__[line]*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
+            data.__dict__[line+"m"] = table_particles["line_"+line]*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
         
 
 #     if ( "co1" in need_to_load ):
@@ -615,8 +627,9 @@ def load_gadget(infile, plot_thing,
 #         data.hcn2m=data.hcn2*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
 
     if ( "dg" in need_to_load ):
-        data.dg = map(lambda y: y.dg, tabStructs)
-        data.dg = np.array(list(data.dg))
+#         data.dg = map(lambda y: y.dg, tabStructs)
+#         data.dg = np.array(list(data.dg))
+        data.dg = table_particles["dg"]
 
     if ( "dust" in need_to_load ):
         data.dust = data.dg * data.m_p

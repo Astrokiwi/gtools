@@ -1,5 +1,6 @@
-import pandas as pd
+# import pandas as pd
 import numpy as np
+import pickle
 
 base_dir = "/srv/djw1g16/gizmos/3032"
 
@@ -21,7 +22,7 @@ runs = [
 
 parameters_tofind = ["outflowRate","outflowThetaCentre","outflowThetaWidth","outflowVel"]
 
-run_parameters = {}
+run_parameters = dict()
 
 for run in runs:
     run_prams = dict(zip(parameters_tofind,[0]*len(parameters_tofind)))
@@ -35,6 +36,8 @@ for run in runs:
     run_parameters[run] = run_prams
 #     print(pram_file_name,run_prams)
 
+with open("data/runprams_{}.pkl".format("3032"),'wb') as f:
+    pickle.dump(run_parameters,f)
 
 # demonstration
 for run in runs:
@@ -44,6 +47,6 @@ for run in runs:
     surface_covered = (np.cos(np.radians(theta_min))-np.cos(np.radians(theta_max)))/2. # as a fraction of total surface
     steradians_covered = surface_covered*4.*np.pi
     run_prams["solid_angle"]=steradians_covered
-    # outflow_per_steradian = run_prams["outflowRate"]/steradians_covered
-    print("{:48}{:6.1f}{:6.1f}{:6.3f}{:6.3f}{:6.3f}".format(run,theta_min,theta_max,surface_covered,run_prams["outflowRate"],outflow_per_steradian))
+    outflow_per_steradian = run_prams["outflowRate"]/steradians_covered
+    print("{:48}{:6.1f}{:6.1f}{:6.3f}{:6.3f}{:6.3f}{:8.1e}".format(run,theta_min,theta_max,surface_covered,run_prams["outflowRate"],outflow_per_steradian,run_prams["outflowVel"]))
 
