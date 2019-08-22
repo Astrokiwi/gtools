@@ -2,7 +2,7 @@ module sph_plotter
     implicit none
     
     integer, parameter :: nkern = 1000
-    real(kind=8),dimension(nkern) :: kern_tab
+    real(kind=8),dimension(nkern) :: kern_tab,kern_tab2
     real(kind=8), save :: kern_norm
     
     logical :: kernel_initialized = .false.
@@ -514,6 +514,180 @@ module sph_plotter
         
         real(kind=8), dimension(nray,3) :: xyzray_in,rayoffset_in ! Ray directions and offset
         real(kind=8), dimension(nray,3) :: xyzray ! Ray from 0,0 in these directions - normalised
+        real(kind=8), allocatable, dimension(:,:) :: impact_pram_stored
+        real(kind=8), dimension(nray) :: local_rayhist
+        
+        real(kind=8) :: vmin,vmax
+        
+        real(kind=8), dimension(nbins,nray) :: rayhist ! ray value along los (surface density)
+
+        real(kind=8) :: ray_norm, dotprod
+        real(kind=8) :: h2 ! h squared to avoid square roots later
+        real(kind=8) :: weight,broad_weight
+        real(kind=8) :: dv2_normed, gauss_weight
+        real(kind=8), dimension(n) :: gauss_norm
+        
+        real(kind=8) :: local_broaden,local_impact_pram,local_v,local_m
+        
+        real(kind=8) :: bin_width
+        
+
+        logical, dimension(n) :: f ! mask
+
+        
+        integer :: iray,ip,ibin
+        
+        integer :: kk ! vector loop variable
+
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+                
+        ! 
+        do iray=1,nray
+            ray_norm = sqrt(sum(xyzray_in(iray,:)**2))
+            xyzray(iray,:) = xyzray_in(iray,:)/ray_norm
+        end do
+        
+        gauss_norm = broaden*sqrt(4.*atan(1.d0))
+        
+        rayhist = 0.d0
+        bin_width = (vmax-vmin)/nbins
+        
+        if ( .not. fullgal ) then
+            allocate(impact_pram_stored(n,nray))
+!             dotprod_stored = 0.
+
+            do ip=1,n
+                do iray=1,nray
+                    dotprod = 0.
+                    do kk=1,3
+                        dotprod = dotprod + xyzray(iray,kk)*(xyz(ip,kk)-rayoffset_in(iray,kk))
+                    end do
+        
+                    impact_pram_stored(ip,iray) = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
+                end do
+            end do
+        endif
+        
+!         print *,"integrating: MAX THREADS=",omp_get_max_threads(),nbins,nray,nbins*nray,nbins*nray/omp_get_max_threads()
+
+!$OMP PARALLEL DO private(ibin,iray,dv2_normed,broad_weight)&
+!$OMP& private(ip,weight,h2,gauss_weight,kk)&
+!$OMP& private(local_rayhist,local_broaden,local_impact_pram,local_v,local_m)&
+!$OMP& firstprivate(fullgal)&
+!$OMP& shared(v,vmin,bin_width,broaden,gauss_norm)&
+!$OMP& shared(rayoffset_in,rayhist,nray,nbins,xyzray,xyz,h,m,n,f)&
+!$OMP& shared(impact_pram_stored)&
+!$OMP& default(none) schedule(dynamic,1)
+        do ibin=1,nbins
+!             print *,ibin,omp_get_thread_num()
+            local_rayhist = 0.
+            do ip=1,n
+!             do ip=1,20000
+!                 if ( mod(ip,1000)==0 .and. ibin==1) then
+!                     print *,ip,"/",n
+!                 endif
+                if ( .not. f(ip) ) then
+                    continue
+                endif
+                local_broaden = broaden(ip)
+                local_v = v(ip)
+!                 if ( local_broaden>bin_width ) then
+                    dv2_normed = ((local_v-vmin-(bin_width*(ibin-1)))/local_broaden)**2
+    !                 if ( dv2_normed>50. ) then
+                    if ( dv2_normed>25. ) then
+                        continue
+                    endif
+                    gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
+!                 else
+!                     if ( local_v<vmin+bin_width*(ibin-1) ) then
+!                         continue
+!                     endif
+!                     if ( local_v>vmin+bin_width*(ibin) ) then
+!                         continue
+!                     endif
+!                     gauss_weight = 1.
+!                 endif
+                
+                local_m = m(ip)
+                
+                if ( .not. fullgal ) then
+                    h2 = h(ip)**2
+                    do iray=1,nray
+                        local_impact_pram = impact_pram_stored(ip,iray)
+                        if ( local_impact_pram>=h2 ) then
+                            continue
+                        endif
+!                         weight = local_m*fkern2(local_impact_pram/h2)/h2
+                        weight = local_m*fkern2(local_impact_pram/h2)/h2
+                        broad_weight = weight * gauss_weight/bin_width
+                        local_rayhist(iray) = local_rayhist(iray) + broad_weight
+                    end do
+                else
+                    do iray=1,nray
+                        broad_weight = local_m * gauss_weight/bin_width
+                        local_rayhist(iray) = local_rayhist(iray) + broad_weight
+                    end do
+                endif
+
+
+!                 do iray=1,nray
+!                     if ( .not. fullgal ) then
+! !                         dotprod = 0.
+! !                         do kk=1,3
+! ! !                         dotprod = sum(xyzray(iray,:)*(xyz(ip,:)-rayoffset_in(iray,:)))
+! !                             dotprod = dotprod + xyzray(iray,kk)*(xyz(ip,kk)-rayoffset_in(iray,kk))
+! !                         end do
+! !                         if ( dotprod<=0. ) then
+! !                             continue
+! !                         endif
+!                 
+! !                         impact_pram = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
+!                         local_impact_pram = impact_pram_stored(ip,iray)
+!                         if ( local_impact_pram>=h2 ) then
+!                             continue
+!                         endif
+!                 
+! !                         impact_pram = sqrt(impact_pram_stored(ip,iray))
+!                         weight = m(ip)*fkern2(local_impact_pram/h2)/h2
+!                     else
+!                         weight = m(ip) ! m is actually luminosity
+!                     endif
+!                             ! should we also weight by bin width?
+!                     broad_weight = weight * gauss_weight/bin_width
+! !                     rayhist(ibin,iray) = rayhist(ibin,iray) + broad_weight
+!                     local_rayhist(iray) = local_rayhist(iray) + broad_weight
+!                 end do
+            end do
+            rayhist(ibin,:) = local_rayhist
+        end do
+!$OMP END PARALLEL DO
+
+        if ( .not. fullgal ) then
+!             deallocate(dotprod_stored)
+            deallocate(impact_pram_stored)
+        endif
+    end function
+
+
+    function sph_ray_histogram_2(xyz,m,h,v,vmin,vmax,xyzray_in,rayoffset_in,f,broaden,nbins,fullgal,nray,n) result(rayhist)
+!     function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,nbins,nray,n) result(rayhist)
+        !$ use omp_lib
+        implicit none
+        
+        integer :: n,nray,nbins
+        
+        real(kind=8), dimension(n,3) :: xyz ! particle positions
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! value to sum along ray
+!         real(kind=8), dimension(n) :: broaden ! if <0, no broadening. If >0, width of gaussian broadening
+        real(kind=8), dimension(n) :: broaden ! width of gaussian broadening
+        logical :: fullgal ! true = (optically thin) emission lines from whole galaxy, false = absorption line from ray from offset
+
+        
+        real(kind=8), dimension(nray,3) :: xyzray_in,rayoffset_in ! Ray directions and offset
+        real(kind=8), dimension(nray,3) :: xyzray ! Ray from 0,0 in these directions - normalised
         
         real(kind=8) :: vmin,vmax
         
@@ -526,6 +700,8 @@ module sph_plotter
         real(kind=8), dimension(n) :: gauss_norm
         
         real(kind=8) :: bin_width
+        
+        integer :: index
         
 
         logical, dimension(n) :: f ! mask
@@ -551,20 +727,38 @@ module sph_plotter
 !         print *,"MAX THREADS=",omp_get_max_threads()
 
 !$OMP PARALLEL DO private(ibin,iray,dv2_normed,broad_weight,dotprod)&
-!$OMP& private(impact_pram,ip,weight,h2,gauss_weight)&
+!$OMP& private(impact_pram,ip,weight,h2,gauss_weight,index)&
 !$OMP& shared(v,vmin,bin_width,broaden,gauss_norm,fullgal)&
 !$OMP& shared(rayoffset_in,rayhist,nray,nbins,xyzray,xyz,h,m,n,f)&
-!$OMP& default(none) schedule(static,1)
-        do ibin=1,nbins
-!             print *,ibin,omp_get_thread_num()
+!$OMP& default(none) schedule(dynamic,1)
+        do index=0,nbins*nray-1
+            ibin = mod(index,nbins)+1
+            iray = index/nbins+1
             do ip=1,n
-!             do ip=1,20000
-!                 if ( mod(ip,1000)==0 .and. ibin==1) then
-!                     print *,ip,"/",n
-!                 endif
                 if ( .not. f(ip) ) then
                     continue
                 endif
+                if ( .not. fullgal ) then
+                    h2 = h(ip)**2
+                endif
+
+                if ( .not. fullgal ) then
+                    dotprod = sum(xyzray(iray,:)*(xyz(ip,:)-rayoffset_in(iray,:)))
+                    if ( dotprod<=0. ) then
+                        continue
+                    endif
+            
+                    impact_pram = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
+                    if ( impact_pram>=h2 ) then
+                        continue
+                    endif
+            
+                    impact_pram = sqrt(impact_pram)
+                    weight = m(ip)*fkern(impact_pram/h(ip))/h2
+                else
+                    weight = m(ip) ! m is actually luminosity
+                endif
+                
                 if ( broaden(ip)>bin_width ) then
                     dv2_normed = ((v(ip)-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
     !                 if ( dv2_normed>50. ) then
@@ -581,83 +775,13 @@ module sph_plotter
                     endif
                     gauss_weight = 1.
                 endif
-                if ( .not. fullgal ) then
-                    h2 = h(ip)**2
-                endif
-                do iray=1,nray
-                    if ( .not. fullgal ) then
-                        dotprod = sum(xyzray(iray,:)*(xyz(ip,:)-rayoffset_in(iray,:)))
-                        if ( dotprod<=0. ) then
-                            continue
-                        endif
-                
-                        impact_pram = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
-                        if ( impact_pram>=h2 ) then
-                            continue
-                        endif
-                
-                        impact_pram = sqrt(impact_pram)
-                        weight = m(ip)*fkern(impact_pram/h(ip))/h2
-                    else
-                        weight = m(ip) ! m is actually luminosity
-                    endif
-                            ! should we also weight by bin width?
-                    broad_weight = weight * gauss_weight/bin_width
-                    rayhist(ibin,iray) = rayhist(ibin,iray) + broad_weight
-                end do
+                        ! should we also weight by bin width?
+                broad_weight = weight * gauss_weight/bin_width
+                rayhist(ibin,iray) = rayhist(ibin,iray) + broad_weight
+
             end do
         end do
 !$OMP END PARALLEL DO
-
-        
-!         do ip=1,n
-!             if ( mod(ip,1000)==0 ) then
-!                 print *,ip,"/",n
-!             endif
-!             if ( .not. f(ip) ) then
-!                 continue
-!             endif
-!             h2 = h(ip)**2
-! !        !$OMP PARALLEL DO private(iray,dv2_normed,broad_weight,dotprod,impact_pram)&
-! !        !$OMP& shared(v,vmin,bin_width,broaden,weight,gauss_norm,rayhist,nray,nbins,ip,xyzray,xyz,h,m,h2)&
-! !        !$OMP& default(none)
-!             do iray=1,nray
-!                 dotprod = sum(xyzray(iray,:)*xyz(ip,:))
-!                 if ( dotprod<=0. ) then
-!                     continue
-!                 endif
-!                 
-!                 impact_pram = norm2crossp(xyz(ip,:),xyzray(iray,:))
-!                 if ( impact_pram>=h2 ) then
-!                     continue
-!                 endif
-!                 
-! !                 if ( broaden(ip)<0. ) then ! unbroadened
-!                     ibin = floor((v(ip)-vmin)/bin_width+1)
-!                     if ( ibin>=1 .and. ibin<=nbins ) then
-!     
-!                         impact_pram = sqrt(impact_pram)
-!                         weight = m(ip)*fkern(impact_pram/h(ip))/h2
-!         
-!                         rayhist(ibin,iray) = rayhist(ibin,iray) + weight
-!                     endif
-! !                 else
-! !                     impact_pram = sqrt(impact_pram)
-! !                     weight = m(ip)*fkern(impact_pram/h(ip))/h2
-! ! !        !$OMP PARALLEL DO private(ibin,dv2_normed,broad_weight)&
-! ! !        !$OMP& shared(v,vmin,bin_width,broaden,weight,gauss_norm,rayhist,iray,nbins,ip) default(none)
-! !                     do ibin=1,nbins
-! !                         ! should we also weight by bin width?
-! !                         dv2_normed = ((v(ip)-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
-! !                         broad_weight = weight * exp(-dv2_normed)/gauss_norm(ip)
-! !                         rayhist(ibin,iray) = rayhist(ibin,iray) + broad_weight
-! !                     end do
-! ! !        !$OMP END PARALLEL DO
-! !                 endif
-!             end do
-! ! !        !$OMP END PARALLEL DO
-!         end do
-        
     end function
 
     ! surface density along some radial ray
@@ -1384,12 +1508,18 @@ module sph_plotter
 !            write(*,"(I5,3E15.5)") ir,r,kern_tab(ir),sum
         end do
         kern_tab(:) = kern_tab(:)/norm ! Normalise so it all sums to 1.
+
         
         ! normalise 3d kernel
         kern_norm = 0.
         do ir=1,nkern
             r = (ir-1.)/(nkern-1.)
             kern_norm = kern_norm+fkern(r)/(nkern-1.)*3.14*r**2
+        end do
+
+        do ir=1,nkern
+            r = ((ir-1.)/(nkern-1.))
+            kern_tab2(ir) = fkern(sqrt(r))
         end do
         
         kernel_initialized = .true.
@@ -1438,5 +1568,81 @@ module sph_plotter
         
     end function fkern
     
+    function fkern2(x)
+        implicit none
+        
+        real(kind=8) :: x
+
+        integer :: ix
+        real(kind=8) :: fw,fs
+        real(kind=8) :: fkern2
+        
+        if ( x>=1. ) then
+            fkern2 = 0.
+            return
+        endif
+        
+        ix = floor(x*(nkern-1)+1)
+!         if ( ix<0 ) then
+!             print *,"bad ix",ix,x,nkern
+!             stop 'bad ix'
+!         endif
+        
+        if ( ix>=nkern ) then
+            fkern2 = 0.
+            return
+        else
+        
+            fw = x-(ix-1.)/(nkern-1.)
+            fs = 1./(nkern-1)
+        
+            fkern2 = kern_tab2(ix)+fw/fs*(kern_tab2(ix+1)-kern_tab2(ix))
+            if ( fkern2<0 ) then
+                stop '<0'
+            endif
+            return
+        endif
+        
+    end function fkern2
+    
 
 end module sph_plotter
+
+program test
+    use sph_plotter
+    implicit none
+    
+    integer,parameter :: n=10**5
+    real(kind=8),dimension(n) :: m,h,v,broaden
+    real(kind=8),dimension(n,3) :: r
+    logical,dimension(n) :: flag
+    
+    integer,parameter :: nray=3
+    real(kind=8), dimension(nray,3) :: ray_dir,ray_offset
+    
+    integer,parameter :: nbins=200
+
+    real(kind=8), dimension(nbins,nray) :: rayhist ! ray value along los (surface density)
+
+    
+    integer :: i
+    
+    ray_offset = 0.
+    do i=1,nray
+        ray_dir(i,:) = [0.,0.,1.*i]
+    end do
+    
+    call random_number(r)
+    r=r*2.d0-1.d0
+    call random_number(v)
+    v=v*2.d0-1.d0
+    
+
+    m=1.d0
+    h=1.d-2
+    broaden = 1.
+    flag = .true.
+    
+    rayhist = sph_ray_histogram(r,m,h,v,-1.d0,1.d0,ray_dir,ray_offset,flag,broaden,nbins,.false.,nray,n)    
+
+end program

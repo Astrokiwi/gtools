@@ -5,8 +5,11 @@ import numpy as np
 import re
 import pandas as pd
 import h5py
+import pickle
 
 import pynbody
+import matplotlib.cm
+import string
 
 # for interpolating GIZMO tables
 import ctypes
@@ -24,6 +27,28 @@ unit_conversions = None
 unit_names = None
 
 coord_suffixes = "xyz"
+
+#https://gist.github.com/thriveth/8560036 - colourblind colours from here
+colors = ['#377eb8', '#ff7f00', '#4daf4a',
+          '#f781bf', '#a65628', '#984ea3',
+          '#999999', '#e41a1c', '#dede00']
+ncolors = len(colors)
+markers = ["x","+",'|']
+cmap = matplotlib.cm.get_cmap('coolwarm')
+
+line_bases = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
+line_codes = ["line_"+line for line in line_bases]
+lineWavelengths_list = ['866.727', '433.438', '845.428', '422.796', '2.121', '28.18', '9.66']
+lineNames_list = ['CO(3-2)',
+ 'CO(6-5)',
+ 'HCN(4-3)',
+ 'HCN(8-7)',
+ 'H$_2$ (1-0) S(1)',
+ 'H$_2$ (0-0) S(0)',
+ 'H$_2$ (0-0) S(3)']
+
+lineNamesFull = {code: name+f" ${wavelength}$ $\\mu$m"
+                for code,wavelength,name in zip(line_bases,lineWavelengths_list,lineNames_list)}
 
 def sort_nicely( l ):
     """ Sort the given list in the way that humans expect.
@@ -165,6 +190,15 @@ def load_calc_req(gizmo_dataframe,req):
         gizmo_dataframe["nH"] = gizmo_dataframe["Density"]/(molecular_mass*proton_mass_cgs)
     elif req=="temp":
         gizmo_dataframe["temp"] = gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*gizmo_dataframe["InternalEnergy"]
+    elif req=="v_circ":
+        load_calc_req(gizmo_dataframe,"rad2d")
+        gizmo_dataframe["v_circ"] = -(gizmo_dataframe["Coordinates_x"]*gizmo_dataframe["Velocities_y"]-gizmo_dataframe["Coordinates_y"]*gizmo_dataframe["Velocities_x"])/gizmo_dataframe["rad2d"]
+    elif req=="v_rad":
+        load_calc_req(gizmo_dataframe,"rad3d")
+        gizmo_dataframe["v_rad"] = (gizmo_dataframe["Coordinates_x"]*gizmo_dataframe["Velocities_x"]+
+                                     gizmo_dataframe["Coordinates_y"]*gizmo_dataframe["Velocities_y"]+
+                                     gizmo_dataframe["Coordinates_z"]*gizmo_dataframe["Velocities_z"]
+                                     )/gizmo_dataframe["rad3d"]
 
     if req in gizmo_dataframe:
         return True
@@ -253,7 +287,68 @@ def load_gizmo_nbody(run_id,output_dir,snap_str):
 
     
     return header,snap
+
+def gridsize_from_n(n,aspect=1.):
+    nx = 1
+    ny = 1
     
+    while nx*ny<n:
+        if nx>aspect*ny:
+            ny+=1
+        else:
+            nx+=1
+    return nx,ny
+
+def load_run_parameters(rundir):
+    with open(f"data/runprams_{rundir}.pkl",'rb') as f:
+        run_parameters = pickle.load(f) 
+
+    for run_name,run_prams in run_parameters.items():
+        if run_prams['outflowVel']<50.:
+            run_prams['marker'] = markers[0]
+        elif run_prams['outflowVel']<200.:
+            run_prams['marker'] = markers[1]
+        else:
+            run_prams['marker'] = markers[2]
+        run_prams['color'] = cmap((run_prams['outflowThetaCentre']-20.)/50.)
+
+        run_prams['size'] = 24.*(1.+2.*np.log10(run_prams["outflowRate"]/0.0378))
+        run_prams['thickness'] = (run_prams["outflowThetaWidth"]-20.)/30.*1. + 1.
+    return run_parameters
+
+def run_parameters_names(run_parameters):
+    pairs = sorted(run_parameters.items(), key=lambda x: (-x[1]['outflowRate'],x[1]['outflowVel'],x[1]['outflowThetaCentre']))
+    thin_index = 0
+    thick_index = 0
+    ordered_keys = [x[0] for x in pairs]
+    all_names = []
+    
+    for key in ordered_keys:
+        run_prams = run_parameters[key]
+        if run_prams["outflowRate"]>0.1:
+            run_prams["name"] = string.ascii_uppercase[thick_index]
+            thick_index+=1
+        else:
+            run_prams["name"] = string.ascii_lowercase[thin_index]
+            thin_index+=1
+#         all_names+=run_prams["name"]
+#     sorted_names,sorted_keys = zip(*sorted(zip(all_names,ordered_keys)))   
+    return ordered_keys
+
+def run_parameters_table(run_parameters):
+    sorted_keys=run_parameters_names(run_parameters)
+    outp = ""
+#     for run_name,run_prams in run_parameters.items():
+    for key in sorted_keys:
+        run_prams = run_parameters[key]
+        outp+=  "{} & ${:6.4f}$ & ${:3.0f} & ${:2.0f}^\circ$ & ${:2.0f}^\circ$\\\\\n".format(
+                run_prams["name"],
+                run_prams["outflowRate"],
+                run_prams["outflowVel"],
+                run_prams["outflowThetaCentre"],
+                run_prams["outflowThetaWidth"]
+        )
+    return outp,sorted_keys
 
 class cloudy_table:
     """cloudy_table - a class to interface with the dust_temp_interp c++ libraries extracting from the GIZMO code.
