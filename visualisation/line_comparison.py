@@ -33,6 +33,10 @@ import gizmo_tools
 import matplotlib.pyplot as plt
 
 import rgb_image
+import config3032
+
+config3032.setup("../")
+
 # output_dirs = ["longrun_medflow_settled_defaultaniso_polar","longrun_medflow_vesc_defaultaniso","longrun_medflow_vesc_defaultaniso_polar","longrun_weakflow_rapid_defaultaniso","longrun_weakflow_rapid_defaultaniso_polar","longrun_weakflow_settled_defaultaniso","longrun_weakflow_settled_defaultaniso_polar","longrun_weakflow_vesc_defaultaniso","longrun_weakflow_vesc_defaultaniso_polar","newflow_settled_thin_up","newflow_vesc_thin_45","newflow_vesc_thin_side","newflow_vesc_thin_up"]
 # output_dirs = ["longrun_medflow_settled_defaultaniso_polar","longrun_medflow_vesc_defaultaniso","longrun_medflow_vesc_defaultaniso_polar","longrun_weakflow_rapid_defaultaniso","longrun_weakflow_rapid_defaultaniso_polar","longrun_weakflow_settled_defaultaniso","longrun_weakflow_settled_defaultaniso_polar","longrun_weakflow_vesc_defaultaniso","longrun_weakflow_vesc_defaultaniso_polar","newflow_settled_thin_up","newflow_vesc_thin_45","newflow_vesc_thin_side","newflow_vesc_thin_up"]
 # output_dirs = ["newflow_vesc_thin_45","longrun_medflow_vesc_defaultaniso_polar"] # for presentation
@@ -45,21 +49,25 @@ import rgb_image
 #                 "longrun_medflow_vesc_defaultaniso"]
 
 # everything, for analysis
-output_dirs = [
-"longrun_medflow_settled_defaultaniso",
-"longrun_medflow_settled_defaultaniso_polar",
-"longrun_medflow_vesc_defaultaniso",
-"longrun_medflow_vesc_defaultaniso_polar",
-"longrun_weakflow_rapid_defaultaniso",
-"longrun_weakflow_rapid_defaultaniso_polar",
-"longrun_weakflow_settled_defaultaniso",
-"longrun_weakflow_settled_defaultaniso_polar",
-"longrun_weakflow_vesc_defaultaniso",
-"longrun_weakflow_vesc_defaultaniso_polar",
-"newflow_settled_thin_up",
-"newflow_vesc_thin_45",
-"newflow_vesc_thin_side",
-"newflow_vesc_thin_up"]
+# output_dirs = [
+# "longrun_medflow_settled_defaultaniso",
+# "longrun_medflow_settled_defaultaniso_polar",
+# "longrun_medflow_vesc_defaultaniso",
+# "longrun_medflow_vesc_defaultaniso_polar",
+# "longrun_weakflow_rapid_defaultaniso",
+# "longrun_weakflow_rapid_defaultaniso_polar",
+# "longrun_weakflow_settled_defaultaniso",
+# "longrun_weakflow_settled_defaultaniso_polar",
+# "longrun_weakflow_vesc_defaultaniso",
+# "longrun_weakflow_vesc_defaultaniso_polar",
+# "newflow_settled_thin_up",
+# "newflow_vesc_thin_45",
+# "newflow_vesc_thin_side",
+# "newflow_vesc_thin_up"]
+
+
+# samples, for production
+output_dirs = ["longrun_medflow_vesc_defaultaniso_polar","newflow_vesc_thin_45"]
 
 
 # rads = [20.]*7*2+[10.,100.,10.,100.]
@@ -84,7 +92,9 @@ line_codes = ["co1m_000","co2m_000","hcn1m_000","hcn2m_000","h2_1m_000","h2_2m_0
 rads = [10.]*8+[100.]*8
 
 # line_labels = [r"HCN(8-7), $422.796$ $\mu$m",r"CO(6-5), $433.438$ $\mu$m",r"H$_2$ (1-0) S(1), $2.121$ $\mu$m",r"$F_{IR}$",r"$F_{IR}$"] # for presentation
-line_labels = line_codes # quick dump
+line_name_lookup = gizmo_tools.lineNamesFull.copy()
+line_name_lookup["vie"] = r"$F_{IR}$"
+line_labels = [line_name_lookup[line[:-5]] for line in line_codes]
 
 # clear
 # vranges = { "view":[0.,5.],
@@ -223,10 +233,13 @@ def which_files_exist(run_id,output_dirs,idump):
             output_dirs_which_exist.append(output_dir)
     return output_dirs_which_exist
 
-def plot_lines_together(run_id,output_dirs,idump):
+def plot_lines_together(run_id,output_dirs,idump,split=False):
     ny = len(output_dirs)
     nx = len(line_codes)
-    fig,sp = plt.subplots(ny+1,nx,figsize=(3.*nx,3.*ny+3./16.), gridspec_kw = {'width_ratios':[16]*nx,'height_ratios':[16]*ny+[1]},squeeze=False)
+    if split:
+        nx//=2
+        ny*=2
+    fig,sp = plt.subplots(ny+1,nx,figsize=(3.*nx,3.*ny+3./16.), gridspec_kw = {'width_ratios':[16]*nx,'height_ratios':[16]*ny+[1]},squeeze=False,constrained_layout=True)
 #     for irow in range(ny-1):
 #         for icol in range(nx-1):
 #             sp[irow,icol].get_shared_x_axes().join(sp[irow,icol], sp[irow+1,icol])
@@ -239,13 +252,19 @@ def plot_lines_together(run_id,output_dirs,idump):
             sp[irow,icol].set(adjustable='box-forced', aspect='equal')
 
 
-    for ix,line_code in enumerate(line_codes):
-        for iy,output_dir in enumerate(output_dirs):
+    for iline,line_code in enumerate(line_codes):
+        for idir,output_dir in enumerate(output_dirs):
 #             basefile = "../data/smoothsum_co1mco2mhcn1mhcn2mh2_1mh2_2mh2_3mviewgiz_{}_{}_000_%03d.dat".format(run_id,output_dir)
             infile = "../data/smoothsum_giz_{}_{}_{:03d}_{}.dat".format(run_id,output_dir,idump,line_code)
             infile = [infile]
 
             print("..subplot {}".format(infile[0]))
+            if split:
+                ix = iline%(len(line_codes)//2)
+                iy = iline//(len(line_codes)//2)+idir*2
+            else:
+                ix = iline
+                iy = idir
         
             ax = sp[iy,ix]
             if line_code in vranges:
@@ -255,9 +274,9 @@ def plot_lines_together(run_id,output_dirs,idump):
             else:
                 vrange = None
             
-            mappable=rgb_image.produce_and_save_rgb_table_image(infile,ax=ax,rad=rads[ix],vrange=vrange,cmap='inferno')
+            mappable=rgb_image.produce_and_save_rgb_table_image(infile,ax=ax,rad=rads[iline],vrange=vrange,cmap='inferno')
             ax.set_title("")
-            if iy==ny-1:
+            if iy==ny-1 or split and iy%2==1:
                 ax.set_xlabel("pc")
             else:
                 ax.set_xlabel("")
@@ -269,23 +288,26 @@ def plot_lines_together(run_id,output_dirs,idump):
 #                 ax.yaxis.set_visible(False)
             if iy==0:
 #                 sp[iy,ix].set_title(line_labels[ix])
-                ax.set_title(line_labels[ix])
+                ax.set_title(line_labels[iline])
                 plt.colorbar(mappable,cax=sp[ny,ix],orientation='horizontal')
             if ix==0:
-                ax.set_ylabel(output_dir,fontsize=6)
+#                 ax.set_ylabel(output_dir,fontsize=6)
+                ax.set_ylabel(config3032.run_parameters[output_dir]["name"])
             else:
                 ax.yaxis.set_visible(False)
                 ax.set_ylabel("")
 
 #     plt.savefig("../../figures/lines_together_ewass.png",dpi=150)
-    plt.savefig("../../figures/lines_together_analysis_{}.png".format(idump),dpi=150)
+#     plt.savefig("../../figures/lines_together_analysis_{}.png".format(idump),dpi=150)
+    plt.savefig("../../figures/lines_together_summary_{}.png".format(idump),dpi=150)
 
 if __name__=='__main__':
     print("Running")
 #     render_all(100)
 #     render_all(200)
 #     render_all(300)
-    idumps = [100,200,300]
+#     idumps = [100,200,300]
+    idumps = [100]
 
 
     if len(sys.argv)>=2:
@@ -293,7 +315,7 @@ if __name__=='__main__':
             render_all(idump)
     else:
         for idump in idumps:
-            plot_lines_together(run_id,which_files_exist(run_id,output_dirs,idump),idump)
+            plot_lines_together(run_id,which_files_exist(run_id,output_dirs,idump),idump,split=True)
 #         print(which_files_exist(run_id,output_dirs,100))
 #         plot_lines_separately()
 #         plot_lines_together(idump)

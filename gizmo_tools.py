@@ -299,8 +299,8 @@ def gridsize_from_n(n,aspect=1.):
             nx+=1
     return nx,ny
 
-def load_run_parameters(rundir):
-    with open(f"data/runprams_{rundir}.pkl",'rb') as f:
+def load_run_parameters(rundir,dir=""):
+    with open(f"{dir}data/runprams_{rundir}.pkl",'rb') as f:
         run_parameters = pickle.load(f) 
 
     for run_name,run_prams in run_parameters.items():
