@@ -9,6 +9,8 @@ mpl.use('Agg')
 import matplotlib.pyplot as P
 import itertools
 
+import config3032
+config3032.setup()
 
 # time_between_dump = 1.e-7
 time_between_dump = 1.e-5
@@ -270,15 +272,15 @@ def make_plot():
 # colourgroups = [[0,1,2],[0,1,2]]
 # irungroups = ["prodrun_equatorial","prodrun_polar"]
 
-titlegroups = [  ["longrun_weakflow_settled_defaultaniso","longrun_weakflow_vesc_defaultaniso","longrun_weakflow_rapid_defaultaniso"],
+titlegroups_unfilted = [  ["longrun_weakflow_settled_defaultaniso","longrun_weakflow_vesc_defaultaniso","longrun_weakflow_rapid_defaultaniso"],
                 ["longrun_weakflow_settled_defaultaniso_polar","longrun_weakflow_vesc_defaultaniso_polar","longrun_weakflow_rapid_defaultaniso_polar"],
-                ["longrun_medflow_settled_defaultaniso_polar","longrun_medflow_vesc_defaultaniso","longrun_medflow_vesc_defaultaniso_polar"],
+                ["longrun_medflow_settled_defaultaniso_polar","longrun_medflow_vesc_defaultaniso_polar","longrun_medflow_vesc_defaultaniso"],
                 ["newflow_settled_thin_up","newflow_vesc_thin_side","newflow_vesc_thin_45","newflow_vesc_thin_up"]
                 ]
+titlegroups = [[config3032.run_parameters[run]["name"] for run in titlegroup] for titlegroup in titlegroups_unfilted]
 colourgroups = [range(len(x)) for x in titlegroups]
 irungroups_base = ["equatorial","polar","medflow","thin"]
 irungroups = ["prodrun_"+x for x in irungroups_base]
-
 
 angle_maxes = [90.]*len(irungroups)
 itimes = [100]
