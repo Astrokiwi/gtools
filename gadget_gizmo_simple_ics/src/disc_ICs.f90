@@ -14,7 +14,11 @@ module IC_parameters
     real(kind=8) :: dense_index
     
     real(kind=8) :: hernquist_mass,hernquist_scale
-    
+    integer :: NumofBHs
+    real(kind=8), DIMENSION(:,:), ALLOCATABLE :: bh_pos, bh_vel
+    real(kind=8), DIMENSION(:),   ALLOCATABLE :: bh_mass
+    real(kind=8) :: eccentricity, bh_distance
+    logical      :: binary_bh
     real(kind=8) :: Q_target, rho_target, surf_target
     
     integer :: pot_type
@@ -60,6 +64,7 @@ program disc_ICs
     integer :: whitey
     
     integer :: ip,np
+    integer :: i=0,j=0,k=1          ! counter for BHs
     
     logical :: valid_command
     
@@ -89,6 +94,10 @@ program disc_ICs
     constant_surf = .false. ! if true, Q_target is *minimum* Q, and try to make surface density & 3d density constant 
     
     position_file = "" ! generate positions randomly
+
+    NumofBHs = -1
+    binary_bh = .FALSE.
+    eccentricity = 0.0
     
     ! hernquist type bulge potential
     hernquist_mass = 1.d9
@@ -165,7 +174,7 @@ program disc_ICs
                     read(invalue,*) c_scale
                 case("inv")
                     read(invalue,*) inwards_v
-                    
+
                 case("Q")
                     read(invalue,*) Q_target
                 case("CONST_SURF")
@@ -174,12 +183,12 @@ program disc_ICs
                     read(invalue,*) rho_target
                 case("surf")
                     read(invalue,*) surf_target
-                
+
                 case("flat")
                     pot_type = FLAT_POT
                 case("hernquist")
                     pot_type = HERNQUIST_POT
-                
+
                 case("hernquist_scale")
                     read(invalue,*) hernquist_scale
                     if ( pot_type/=HERNQUIST_POT ) then
@@ -190,7 +199,24 @@ program disc_ICs
                     if ( pot_type/=HERNQUIST_POT ) then
                         print *,"WARNING - potential parameters set for wrong profile"
                     endif
-
+                case("NumofBHs")
+                    read(invalue,*) NumofBHs 
+                    ALLOCATE(bh_pos(NumofBHs,3),bh_vel(NumofBHs,3),bh_mass(NumofBHs))
+                case("bh_pos")
+                    read(intext,*,iostat=ios) bh_pos(i,1),bh_pos(i,2),bh_pos(i,3)
+                    i = i + 1
+                case("bh_vel")
+                    read(intext,*,iostat=ios) bh_vel(j,1),bh_vel(j,2),bh_vel(j,3)
+                    j = j + 1
+                case("bh_mass")
+                    read(invalue,*) bh_mass(k)
+                    print *,"readin bh mass", bh_mass(k)
+                    k = k + 1
+                case("eccentricity")
+                    read(invalue,*) eccentricity
+                    binary_bh = .TRUE.
+                case("bh_distance")
+                    read(invalue,*) bh_distance
                 case("vlaw")
                     !read(invalue,*) v_flat
                     read(intext,*,iostat=ios) invariable,v0,v0rad,v_index
@@ -250,7 +276,19 @@ program disc_ICs
         endif
     end do
     close(15)
+
+    if(NumofBHs.GT.2.AND.(i.NE.NumofBHs.OR.j.NE.NumofBHs.OR.k.NE.NumofBHs)) &
+          stop "Number of BHs does not match Number of positions, velocities or masses"
     
+    if(NumofBHs.EQ.-1) THEN
+      ALLOCATE(bh_pos(1,3),bh_vel(1,3),bh_mass(1))
+      bh_pos(1,:) = 0.0
+      bh_vel(1,:) = 0.0
+      bh_mass(1)  = m_smbh
+    ENDIF
+
+    if(binary_bh) CALL calc_binary_positions(bh_mass,eccentricity,bh_distance,bh_pos,bh_vel)
+
     if ( T0==-1 ) then
         T0 = 30. ! default, arbitrary
     endif
@@ -379,7 +417,7 @@ function epicyclic_parameter(r) result(kappa)
     kappa = 0.
 
     ! smbh component
-    kappa = m_smbh/(r**2+c_scale**2) * (2*c_scale**2/(r**2+c_scale**2)+1)
+    kappa = SUM(bh_mass(:))/(r**2+c_scale**2) * (2*c_scale**2/(r**2+c_scale**2)+1)
 !     kappa = m_smbh/(r**2+c_scale**2) * (3.-2.*r**2/(r**2+c_scale**2)) ! wrong
 
     ! hernquist component
@@ -565,7 +603,8 @@ subroutine disc_locs(tproffile)
     real(kind=8), dimension(:,:),allocatable :: r_transformed
     
     ! unit conversions
-    m_smbh = m_smbh/1.d10
+    bh_mass(:) = bh_mass(:)/1.d10
+    bh_pos(:,:) = bh_pos(:,:)/1.d3
     hernquist_mass = hernquist_mass/1.d10
     v_large = v_large*1.d5*(tunit_cgs/runit_cgs) ! tunit/runit is basically 1 km/s anyway
     inwards_v = inwards_v*1.d5*(tunit_cgs/runit_cgs) ! tunit/runit is basically 1 km/s anyway
@@ -605,7 +644,7 @@ subroutine disc_locs(tproffile)
                 disc_rad=sqrt(disc_inner_rad**2+mtot/pi/surf_target)
                 print *,"Outer radius set to ",disc_rad," kpc"
             endif
-            
+
             ! radius - for power-law density
             rans(:,1) = (  rans(:,1)*(disc_rad**(dense_index+2.d0)-disc_inner_rad**(dense_index+2.d0)) &
                         +disc_inner_rad**(dense_index+2.d0)   )**(1./(dense_index+2.d0))  
@@ -679,8 +718,9 @@ subroutine disc_locs(tproffile)
             endif
     
             ! smbh potential
-            mrads = mrads + m_smbh*rads**2/(rads**2+c_scale**2)
+            mrads = mrads + SUM(bh_mass(:))*rads**2/(rads**2+c_scale**2)
             
+            print *,"total BH mass", SUM(bh_mass(:)), bh_mass(1), bh_mass(2)
             select case(pot_type)
                 case(FLAT_POT)
                     mrads = mrads + v_large**2*rads**2/G/dsqrt(rads**2+a_scale**2)
@@ -902,16 +942,31 @@ end subroutine temp_profile
 
 
 
+SUBROUTINE calc_binary_positions(bh_mass,eccentricity,distance,bh_pos,bh_vel)
+  USE Units
+  IMPLICIT NONE
+
+  real(kind=8), dimension(2)   :: bh_mass
+  real(kind=8)                 :: eccentricity, distance
+  real(kind=8), dimension(2,3) :: bh_pos, bh_vel
+
+  real(kind=8)                 :: total_bh_mass,red_mass,v
+
+  if(eccentricity.LT.0.0.OR.eccentricity.GT.1.0) stop "only closed orbits allowed"
+
+  total_bh_mass = bh_mass(1) + bh_mass(2)
+  red_mass      = bh_mass(1)*bh_mass(2)/total_bh_mass
+
+  bh_pos(1,1)   =  distance * bh_mass(2)/total_bh_mass
+  bh_pos(2,1)   = -distance * bh_mass(1)/total_bh_mass
+  bh_pos(:,2:3) = 0.0
 
 
+  v = SQRT(((1-eccentricity)*G*total_bh_mass**2)/(distance*bh_mass(1)*bh_mass(2)))
+  bh_vel(:,1) = 0.0
+  bh_vel(:,3) = 0.0
+  bh_vel(1,2) = v/(bh_mass(1)/bh_mass(2)+1.0)
+  bh_vel(2,2) =-v/(bh_mass(2)/bh_mass(1)+1.0)
 
-
-
-
-
-
-
-
-
-
+END SUBROUTINE
 
