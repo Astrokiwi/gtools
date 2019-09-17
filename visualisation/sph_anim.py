@@ -173,7 +173,7 @@ if __name__ == '__main__':
         print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
-    os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
+    os.system("rm ../pics_binary_rad_2_large/sphplot"+run_id+output_dir+"???.png")
 
 
     print("nfiles:",snapf-snapi+1)
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     isnaps = range(snapi,snapf+1)
     
     infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in isnaps]
-    outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
+    outfiles = ["../pics_binary_rad_2_large/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
     
     nfiles = len(infiles)
     if absurd:
@@ -247,7 +247,7 @@ if __name__ == '__main__':
     #for snapx in [37]:
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
+    cmd = "ffmpeg -y -r 5 -i ../pics_binary_rad_2_large/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
 
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_rhotempgiz_"+run_id+"_"+output_dir+".mp4"

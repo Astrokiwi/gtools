@@ -397,15 +397,28 @@ def load_gadget(infile, plot_thing,
                         centredens=False):
     global chTab
     global interpTabVec
+    global Binary_pos_1,Binary_pos_2,Binary_mass_1,Binary_mass_2, IsBinary
 
     data = GadgetData()
 
     f = h5py.File(infile,"r")
     
     header = f["/Header"]
+    BH_data=f["/BH_binary"]
     time = header.attrs.get("Time")
     time*= 0.9778e9 # to yr
     time/=1.e6 # to Myr
+    Binary_pos_1 = BH_data.attrs.get("Binary_pos_1") 
+    Binary_pos_2 = BH_data.attrs.get("Binary_pos_2")
+    Binary_mass_1= BH_data.attrs.get("Binary_mass_1")
+    Binary_mass_2= BH_data.attrs.get("Binary_mass_2")
+
+    if(isinstance(Binary_pos_1,np.ndarray) & isinstance( Binary_pos_2,np.ndarray)):
+      Binary_pos_1 = Binary_pos_1*1000.0        # now pc
+      Binary_pos_2 = Binary_pos_2*1000.0
+      IsBinary = True
+    else:
+      IsBinary = False
 
     data.xyz = np.array(f["/PartType0/Coordinates"]) # kpc
 
@@ -1407,6 +1420,9 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             if ( view=='face' ):
                 outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
+                if(IsBinary):
+                  row_axes[icol*2].scatter([Binary_pos_1[0]],[Binary_pos_1[1]],marker='x')
+                  row_axes[icol*2].scatter([Binary_pos_2[0]],[Binary_pos_2[1]],marker='+')
             elif ( view=='side' ):
                 outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
