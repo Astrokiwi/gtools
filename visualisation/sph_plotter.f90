@@ -5,7 +5,9 @@ module sph_plotter
     real(kind=8),dimension(nkern) :: kern_tab,kern_tab2
     real(kind=8), save :: kern_norm
     
-    logical :: kernel_initialized = .false.
+    logical, save :: kernel_initialized = .false.
+    logical, save :: parallel = .false.
+
     
     integer(kind=1), parameter :: DENSE_MODE = B'00000000' ! default
     integer(kind=1), parameter :: WEIGHT_MODE = B'00000001'
@@ -22,8 +24,23 @@ module sph_plotter
     integer, parameter :: SDEV_POS = 5
 
 
-
     contains
+    
+    subroutine set_parallel
+        implicit none
+        
+        parallel = .true.
+
+        return
+    end subroutine
+
+    subroutine set_serial
+        implicit none
+        
+        parallel = .false.
+
+        return
+    end subroutine
     
     function sph_vel_absorb(x,y,z,m,h,u,opac,vx,vy,vz,gx,gy,theta,phi,dv,nv,n) result(prof)
         implicit none
@@ -123,6 +140,7 @@ module sph_plotter
     end function sph_vel_absorb
     
     function sph_general(x,y,m,h,v,L,c,w,f,z,zslice,mode,n) result(g)
+        use omp_lib
         implicit none
         integer :: n,L
         real(kind=8), dimension(n) :: m,h ! mass, smoothing
@@ -132,6 +150,7 @@ module sph_plotter
         real(kind=8), dimension(2) :: c ! top-left corner
         real(kind=8) :: w ! width
         real(kind=8) :: zslice ! slice to measure value along
+
         integer(kind=1) :: mode
         
         real(kind=8), dimension(L,L) :: g ! output grid
@@ -152,6 +171,13 @@ module sph_plotter
         real(kind=8) :: rdist, weight
         real(kind=8) :: dz
         
+        if ( parallel ) then
+            print *,"parallel mode"
+        else
+            print *,"serial mode"
+            call    OMP_SET_NUM_THREADS(1)
+        endif
+        
         if ( .not. kernel_initialized ) then
             call kernel_init
         endif
@@ -169,8 +195,9 @@ module sph_plotter
         else
             mg = 0.d0
         endif
+        
+        allocate(g2(L,L))
         if ( btest(mode,SDEV_POS) ) then
-            allocate(g2(L,L))
             g2 = 0.d0
         endif
         r_cell = w/L
@@ -183,6 +210,11 @@ module sph_plotter
 !             print *,"m",n,count(isnan(v))
 !         endif
 
+!$OMP PARALLEL DO private(ip,ix,iy,hix,hiy,ix0,iy0,ix1,iy1,ih)&
+!$OMP& private(rdist,weight,dz)&
+!$OMP& shared(m,h,v,x,y,z,w,c,zslice,mode,f,L,r_cell,area_cell)&
+!$OMP& reduction(+:g,g2,mg)&
+!$OMP& default(none) schedule(dynamic,1)
         do ip=1,n
             if ( f(ip) .and. &
              (.not.btest(mode,DENSE_WEIGHT_POS) .or. &
@@ -252,6 +284,7 @@ module sph_plotter
                 
             endif
         end do
+!$OMP END PARALLEL DO
         
         if ( .not. btest(mode,MAX_POS) ) then
             if ( btest(mode,MIN_POS) .or. btest(mode,VORINOI_POS) ) then
@@ -269,9 +302,9 @@ module sph_plotter
             endif
         endif
         
-        if ( btest(mode,SDEV_POS) ) then
+!         if ( btest(mode,SDEV_POS) ) then
             deallocate(g2)
-        endif
+!         endif
 
 !         g(1,1) = count(isnan(v))
 
