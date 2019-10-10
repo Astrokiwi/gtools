@@ -11,6 +11,9 @@ import pynbody
 import matplotlib.cm
 import string
 
+from scipy import interpolate
+
+
 # for interpolating GIZMO tables
 import ctypes
 from sys import path
@@ -36,6 +39,19 @@ ncolors = len(colors)
 markers = ["x","+",'|']
 cmap = matplotlib.cm.get_cmap('coolwarm')
 
+dust_opacity_function = None
+
+def load_interpolate_opacity(opac_mu,
+                        opac_file="prams/simple_dust_opacity.txt"):
+    global dust_opacity_function
+    if dust_opacity_function is None:
+        dust_opacity_table = np.loadtxt(opac_file)
+        dust_opacity_function = interpolate.interp1d(dust_opacity_table[:,0],dust_opacity_table[:,1])
+    opacity=dust_opacity_function(opac_mu)
+#     print("Setting opacity to ",opacity," cm^2/g")
+    opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
+    return opacity
+
 line_bases = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
 line_codes = ["line_"+line for line in line_bases]
 lineWavelengths_list = ['866.727', '433.438', '845.428', '422.796', '2.121', '28.18', '9.66']
@@ -46,9 +62,14 @@ lineNames_list = ['CO(3-2)',
  'H$_2$ (1-0) S(1)',
  'H$_2$ (0-0) S(0)',
  'H$_2$ (0-0) S(3)']
+line_wavelengths = [866.727,433.438,845.428,422.796,2.121,28.18,9.66]
 
 lineNamesFull = {code: name+f" ${wavelength}$ $\\mu$m"
                 for code,wavelength,name in zip(line_bases,lineWavelengths_list,lineNames_list)}
+
+def derive_opacities(opac_path=""):
+    line_opacities = {line:load_interpolate_opacity(mu,opac_file=opac_path+"prams/simple_dust_opacity.txt") for line,mu in zip(line_bases,line_wavelengths)}
+
 
 def sort_nicely( l ):
     """ Sort the given list in the way that humans expect.
@@ -314,25 +335,40 @@ def load_run_parameters(rundir,dir=""):
 
         run_prams['size'] = 24.*(1.+2.*np.log10(run_prams["outflowRate"]/0.0378))
         run_prams['thickness'] = (run_prams["outflowThetaWidth"]-20.)/30.*1. + 1.
+        
     return run_parameters
 
 def run_parameters_names(run_parameters):
     pairs = sorted(run_parameters.items(), key=lambda x: (-x[1]['outflowRate'],x[1]['outflowVel'],x[1]['outflowThetaCentre']))
-    thin_index = 0
-    thick_index = 0
     ordered_keys = [x[0] for x in pairs]
-    all_names = []
-    
-    for key in ordered_keys:
-        run_prams = run_parameters[key]
-        if run_prams["outflowRate"]>0.1:
-            run_prams["name"] = string.ascii_uppercase[thick_index]
-            thick_index+=1
+
+    for run_name,run_prams in run_parameters.items():
+        if run_prams['outflowVel']<50.:
+            vel_str = "slow"
+        elif run_prams['outflowVel']<200.:
+            vel_str = "vesc"
         else:
-            run_prams["name"] = string.ascii_lowercase[thin_index]
-            thin_index+=1
-#         all_names+=run_prams["name"]
-#     sorted_names,sorted_keys = zip(*sorted(zip(all_names,ordered_keys)))   
+            vel_str = "rapid"
+        theta_str = "{:02d}".format(int(run_prams['outflowThetaCentre']))
+        mass_str = "heavy" if run_prams["outflowRate"]>0.1 else "light"
+        thick_str = "thick" if run_prams["outflowThetaWidth"]>40. else "thin"
+        
+        run_prams["name"]="_".join([mass_str,vel_str,theta_str,thick_str])
+
+#     thin_index = 0
+#     thick_index = 0
+#     all_names = []
+#     
+#     for key in ordered_keys:
+#         run_prams = run_parameters[key]
+#         if run_prams["outflowRate"]>0.1:
+#             run_prams["name"] = string.ascii_uppercase[thick_index]
+#             thick_index+=1
+#         else:
+#             run_prams["name"] = string.ascii_lowercase[thin_index]
+#             thin_index+=1
+# #         all_names+=run_prams["name"]
+# #     sorted_names,sorted_keys = zip(*sorted(zip(all_names,ordered_keys)))   
     return ordered_keys
 
 def run_parameters_table(run_parameters):
