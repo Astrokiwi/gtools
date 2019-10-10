@@ -26,6 +26,7 @@ gamma_minus_one = 5./3.-1.
 boltzmann_cgs = 1.38066e-16
 msun_g = 1.989e33
 
+
 unit_conversions = None
 unit_names = None
 
@@ -260,6 +261,63 @@ def load_value(f,gizmo_dataframe,value,internal_units=False):
             gizmo_dataframe[key] = indata[:,i]
             if not internal_units and value in unit_conversions:
                 gizmo_dataframe[key]*=unit_conversions[value]
+
+
+column_conversions = {
+    "Coordinates_x":"x",
+    "Coordinates_y":"y",
+    "Coordinates_z":"z",
+    "Velocities_x":"v\dx",
+    "Velocities_y":"v\dy",
+    "Velocities_z":"v\dz",
+    "Masses":"particle mass",
+    "InternalEnergy":"u",
+    "SmoothingLength":"h",
+}
+
+def dump_ascii(filename,gizmo_dataframe):
+
+    particles_adjusted = gizmo_dataframe\
+                    .join(pd.DataFrame({"itype":np.zeros(len(gizmo_dataframe))}))\
+                    .rename(columns=column_conversions)
+    # TORUS reads:
+    
+    # unread line (title)
+    # unread line
+    # unread line (time labels)
+    # # time, time_unit (overwritten in gadget/gizmo mode)
+    # unread line
+    # list of particle types. first 8 characters are junk, the rest are length 13 strings giving particle labels
+    # # list of numbers of each particle
+    # unread line ("units" title)
+    # # list of units for each column, 16 characters per unit (`1.0000000E+00   ` is fine, gets overwritten for Gadget/GIZMO)
+    # unread line
+    # unread line
+    # # labels of each column (must be same as number of units), 16 characters each
+    output_string = """# splash style ascii dump
+#
+# time:             time unit ()
+#   1.0000000E-03   1.0000000E+00
+#
+# npart:          gas  dark matter   boundary 1   boundary 2         star sink / black
+#       {:13d}            0            0            0            0            0
+# units:
+""".format(len(particles_adjusted))\
+        +"#  "+"1.0000000E+00   "*(len(particles_adjusted.keys())-1)+"\n"\
+        +"#  "+" "*16*(len(particles_adjusted.keys()))+"\n"\
+        +"#\n"\
+        +"# "+"".join("{:16s}".format(k) for k in particles_adjusted.keys())+"\n"\
+        +"  "+\
+            particles_adjusted.to_csv(
+                header=False,
+                index=False,
+                float_format='%15.7e')\
+                  .replace('\n','\n  ')\
+                  .replace(',',' ')
+
+    with open(filename,'w') as f:
+        f.write(output_string)
+    
 
 def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
     global unit_conversions
