@@ -399,7 +399,7 @@ def run_parameters_table(run_parameters):
 #     for run_name,run_prams in run_parameters.items():
     for key in sorted_keys:
         run_prams = run_parameters[key]
-        outp+=  "{} & ${:6.4f}$ & ${:3.0f} & ${:2.0f}^\circ$ & ${:2.0f}^\circ$\\\\\n".format(
+        outp+=  "{} & ${:6.4f}$ & ${:3.0f}$ & ${:2.0f}^\circ$ & ${:2.0f}^\circ$\\\\\n".format(
                 run_prams["name"],
                 run_prams["outflowRate"],
                 run_prams["outflowVel"],
