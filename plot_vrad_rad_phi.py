@@ -20,6 +20,8 @@ v_inits = [10,100,500]
 mdot_labels = [r"$\dot{{M}}={{{}}}$ M$_\odot$ yr$^{{-1}}$".format(mdot) for mdot in mdots]
 v_labels = [r"$v={{{}}}$ km s$^{{-1}}$".format(v) for v in v_inits]
 
+scale = .7
+
 if __name__=='__main__':
     if mode!="v" and mode!="p":
         raise Exception("mode must be v (velocity) or p (momentum)")
@@ -58,7 +60,7 @@ if __name__=='__main__':
     
     
     for ifig in range(nfig):
-         fig[ifig],sp[ifig,:,:] = plt.subplots(ny,nx,figsize=(3*nx,3*ny),sharex=True,sharey=True,squeeze=False,constrained_layout=True)
+         fig[ifig],sp[ifig,:,:] = plt.subplots(ny,nx,figsize=(3*nx*scale,3*ny*scale),sharex=True,sharey=True,squeeze=False,constrained_layout=True)
     
     for irun,run_dir in enumerate(run_dirs):
         if run_dir.encode() not in valid_rundirs:
