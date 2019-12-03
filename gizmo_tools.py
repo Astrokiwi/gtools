@@ -18,6 +18,7 @@ from scipy import interpolate
 import ctypes
 from sys import path
 path.append("src/")
+path.append("../src/")
 import tab_interp
 
 molecular_mass = 4./(1.+3.*.76)
@@ -69,6 +70,7 @@ lineNamesFull = {code: name+f" ${wavelength}$ $\\mu$m"
                 for code,wavelength,name in zip(line_bases,lineWavelengths_list,lineNames_list)}
 
 def derive_opacities(opac_path=""):
+    global line_opacities
     line_opacities = {line:load_interpolate_opacity(mu,opac_file=opac_path+"prams/simple_dust_opacity.txt") for line,mu in zip(line_bases,line_wavelengths)}
 
 
@@ -407,7 +409,7 @@ def run_parameters_names(run_parameters):
             vel_str = "vesc"
         else:
             vel_str = "rapid"
-        theta_str = "{:02d}".format(int(run_prams['outflowThetaCentre']))
+        theta_str = "{:02d}".format(int(90-run_prams['outflowThetaCentre']))
         mass_str = "heavy" if run_prams["outflowRate"]>0.1 else "light"
         thick_str = "thick" if run_prams["outflowThetaWidth"]>40. else "thin"
         
@@ -435,11 +437,11 @@ def run_parameters_table(run_parameters):
 #     for run_name,run_prams in run_parameters.items():
     for key in sorted_keys:
         run_prams = run_parameters[key]
-        outp+=  "{} & ${:6.4f}$ & ${:3.0f} & ${:2.0f}^\circ$ & ${:2.0f}^\circ$\\\\\n".format(
-                run_prams["name"],
+        outp+=  "{} & ${:6.4f}$ & ${:3.0f}$ & ${:2.0f}^\circ$ & ${:2.0f}^\circ$\\\\\n".format(
+                run_prams["name"].replace("_","\_"),
                 run_prams["outflowRate"],
                 run_prams["outflowVel"],
-                run_prams["outflowThetaCentre"],
+                90-run_prams["outflowThetaCentre"],
                 run_prams["outflowThetaWidth"]
         )
     return outp,sorted_keys
@@ -504,3 +506,5 @@ class cloudy_table:
             particles[attr] = self.double_pointer_to_array(tabStructs.__getattr__(attr),n)
 
 
+if __name__=='__main__':
+    print(run_parameters_table(load_run_parameters("3032"))[0])
