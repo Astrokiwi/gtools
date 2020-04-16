@@ -13,6 +13,7 @@ import string
 
 from scipy import interpolate
 
+import matplotlib.patches as patches
 
 # for interpolating GIZMO tables
 import ctypes
@@ -20,6 +21,8 @@ from sys import path
 path.append("src/")
 path.append("../src/")
 import tab_interp
+
+import matplotlib.pyplot as plt
 
 molecular_mass = 4./(1.+3.*.76)
 proton_mass_cgs = 1.6726e-24
@@ -91,6 +94,25 @@ def sort_nicely( l ):
 #     
 #     raise Exception("Unknown server; add server and directory to gizmodatadir.py")
 
+def box_connected_two_axes(small_ax,big_ax,box_corner,box_dims,color='blue'):
+    # draw boxes
+    for ax in [small_ax,big_ax]:
+        ax.add_patch(patches.Rectangle( box_corner,box_dims[0],box_dims[1],fill=False,color=color))
+    # link them up
+    for i0 in range(2):
+        for j0 in range(2):
+            corner_coordinates = (box_corner[0]+box_dims[0]*i0,box_corner[1]+box_dims[1]*j0)
+            a=big_ax.add_artist(patches.ConnectionPatch(
+                        xyA=corner_coordinates
+                        ,xyB=corner_coordinates
+                        ,coordsA="data"
+                        ,coordsB="data"
+                        ,axesA=big_ax
+                        ,axesB=small_ax
+                        ,color=color
+                        ))
+            a.set_in_layout(False) #otherwise matplotlib tries to stretch the plot to "fit" the lines in, and the imshow maps become tiny
+    
 
 def getGizmoDir(irun):
     sname = socket.gethostname()
@@ -349,7 +371,7 @@ def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
     
     return header,gizmo_dataframe
 
-def load_gizmo_nbody(run_id,output_dir,snap_str):
+def load_gizmo_nbody(run_id,output_dir,snap_str,load_vals=None):
     gizmoDir = getGizmoDir(run_id)
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     fullFile = fullDir+"/snapshot_"+snap_str+".hdf5"
@@ -366,8 +388,103 @@ def load_gizmo_nbody(run_id,output_dir,snap_str):
     snap = pynbody.load(fullFile)
     snap.set_units_system(velocity="km s**-1",mass="1e10 Msol",distance="kpc")
 
+    if load_vals is not None:
+        nbody_calc_vals(snap,load_vals)
     
     return header,snap
+
+def nbody_calc_vals(snap,vals,**kwargs):
+    """nbody_calc_vals
+    
+    wrapper for nbody_calc_val for when vals is an iterable
+    """
+    for val in vals:
+        nbody_calc_val(snap,val,**kwargs)
+
+def nbody_quickhist2d(snap,val1,val2,run_name="quickhist",cmap='viridis',log=False,logx=False,logy=False,**kwargs):
+    fig,sp = plt.subplots()
+    scale_x_func = np.log10 if logx else lambda x:x
+    scale_y_func = np.log10 if logy else lambda x:x
+    if type(val1)==str:
+        a1 = snap[val1]
+        sp.set_xlabel(val1)
+    else:
+        a1 = val1
+    if type(val2)==str:
+        a2 = snap[val2]
+        sp.set_ylabel(val2)
+    else:
+        a2 = val2
+    
+    v1 = scale_x_func(a1)
+    v2 = scale_y_func(a2)
+    
+    nonanslice = (np.isfinite(v1)) & (np.isfinite(v2))
+    
+    hist,xs,ys = np.histogram2d(v1[nonanslice],v2[nonanslice],bins=(100,100),**kwargs)
+    if log:
+        hist = np.log10(hist)
+    mappable = sp.pcolormesh(xs,ys,hist.T,cmap=cmap)
+    fig.colorbar(mappable)
+    fig.savefig(f"../figures/hist2d_{run_name}_{val1}_{val2}.png")
+    plt.close()
+
+
+def nbody_calc_val(snap
+                   ,val
+                   ,m_smbh = 1.e6
+                   ,smbh_soft = 0.01e-3
+                   ,m_hernquist = 1.e9
+                   ,a_hernquist = 250.e-3):
+
+    G_msun_kpcyr2_kpc2 = 4.49972292e-24
+#     G_msun_kms2_kpc2 = 4.49972292e-24
+    G_msun_km2s2_kpc = 4.3022682e-6
+
+    def accel_smbh_hernquist(r):
+        """accel_smbh_hernquist
+
+        Calculates acceleration due to a Plummer softend SMBH plus a Hernquist bulge.
+
+        Mass units are in Msun, length units are in kpc, time units are in years
+        """
+        x = r/a_hernquist
+        r2 = r**2
+        m =   m_smbh*r2/(r2+smbh_soft**2) + m_hernquist * (x/(1.+x))**2
+        accel = -(G_msun_kpcyr2_kpc2 * m/r2)
+        return pynbody.array.SimArray(accel,"kpc yr**-2")
+
+    def grav_accel(snap):
+        if "grav_accel" not in snap:
+            snap["grav_accel"]=accel_smbh_hernquist(snap["r"])
+
+    def t_dyn(snap):
+        grav_accel(snap)
+        if "tdyn" not in snap:
+            snap["tdyn"]=(snap["r"]/-snap["grav_accel"])**(1,2)
+ 
+    def phi(snap):
+        if "phi" not in snap:
+            snap["phi"]=pynbody.array.SimArray(-G_msun_km2s2_kpc*(
+                        m_hernquist/(a_hernquist+snap["r"]) +
+                        m_smbh/np.sqrt(snap["r"]**2+smbh_soft**2)
+                        )
+                        ,"km**2 s**-2")
+
+    def v_esc(snap):
+        phi(snap)
+        if "vesc" not in snap:
+            snap["vesc"]= np.sqrt(-2*snap["phi"])
+    
+    if val=='tdyn':
+        t_dyn(snap)
+    elif val=='phi':
+        phi(snap)
+    elif val=='vesc':
+        v_esc(snap)
+    elif val=='grav_accel':
+        grav_accel(snap)
+    
 
 def gridsize_from_n(n,aspect=1.):
     nx = 1
@@ -430,6 +547,15 @@ def run_parameters_names(run_parameters):
 # #         all_names+=run_prams["name"]
 # #     sorted_names,sorted_keys = zip(*sorted(zip(all_names,ordered_keys)))   
     return ordered_keys
+
+def run_parameters_angles(run_parameters):
+    """Extra size of outflow, "radiance" etc - uses phi=0° is disk plane coordinates, while outflowThetaCentre uses theta=0° is polar"""
+    for run_prams in run_parameters.values():
+        run_prams["outflowPhiTop"]=90.-run_prams["outflowThetaCentre"]-run_prams["outflowThetaWidth"]/2.
+        run_prams["outflowPhiBottom"]=90.-run_prams["outflowThetaCentre"]+run_prams["outflowThetaWidth"]/2.
+        run_prams["openingAngle"]=run_prams["outflowPhiTop"]*2
+        run_prams["coveringFraction"]=np.sin(np.radians(run_prams["outflowPhiBottom"]))-np.sin(np.radians(run_prams["outflowPhiTop"]))
+        run_prams["coveringSolidAngle"]=run_prams["coveringFraction"]*4*np.pi
 
 def run_parameters_table(run_parameters):
     sorted_keys=run_parameters_names(run_parameters)
@@ -507,4 +633,9 @@ class cloudy_table:
 
 
 if __name__=='__main__':
-    print(run_parameters_table(load_run_parameters("3032"))[0])
+    run_table = load_run_parameters("3032")
+    run_parameters_angles(run_table)
+    run_parameters_names(run_table)
+#     ordered_keys = run_parameters_names(run_table)
+#     print([(x,run_table[x]['name']) for x in ordered_keys])
+#     print(run_parameters_table(load_run_parameters("3032"))[0])
