@@ -571,6 +571,7 @@ module sph_plotter
         real(kind=8) :: impact_pram
 
         real(kind=8) :: cum_depth,this_depth,vlos
+        real(kind=8) :: min_vlos,max_vlos
         
         real(kind=8) :: bin_width
         
@@ -596,6 +597,10 @@ module sph_plotter
         
 !         rayhist = 0.d0
         bin_width = (vmax-vmin)/nbins
+
+!         print *,vmin,vmax,maxval(vel(:,2)),minval(vel(:,2))
+!         min_vlos = 1.e9
+!         max_vlos = -1.e9
 
 
 !$OMP PARALLEL DO private(iray,ibin,i,ip,h2)&
@@ -624,12 +629,29 @@ module sph_plotter
                 if ( .not. f(ip) ) then
                     cycle! particleloop
                 endif
+
+!                 vlos = sum(vel(ip,:)*xyzray(iray,:))
+!                 if ( vlos>50. .or. vlos<-50. ) then
+!                     print *,vlos," tau ",cum_depth
+!                 endif
+
+!                 cum_depth = 0. ! hack to include all particles
                 if ( cum_depth>25. ) then
                     exit! particleloop
                 endif
                 
                 h2 = h(ip)**2
                 impact_pram = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
+!                 if ( vlos>50. .or. vlos<-50. ) then
+!                     print *,vlos," tau ",cum_depth,h(ip),sqrt(impact_pram)
+!                     if (impact_pram>=h2) then
+!                         write(*,"(16F10.6)") xyz(ip,:),rayoffset_in(iray,:),xyz(ip,:)-rayoffset_in(iray,:),&
+!                                              xyzray(iray,:),vlos,vel(ip,:)
+!                         stop
+!                     endif
+!                 endif
+!                 impact_pram = 0. ! hack to include all particles
+                
                 if ( impact_pram>=h2 ) then
                     cycle! particleloop
                 endif
@@ -639,6 +661,9 @@ module sph_plotter
                 this_depth = cum_depth
                 cum_depth = cum_depth+op(ip)*fkern(impact_pram/h(ip))/h2
                 vlos = sum(vel(ip,:)*xyzray(iray,:))
+!                 min_vlos = min(vlos,min_vlos)
+!                 max_vlos = max(vlos,max_vlos)
+                
                 if ( broaden(ip)>bin_width ) then
                     do ibin=1,nbins
                         dv2_normed = ((vlos-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
@@ -666,6 +691,7 @@ module sph_plotter
             end do! particleloop
 !             close(15+iray)
             deallocate(zarg)
+!             print *,iray,min_vlos,max_vlos
 !             print *,iray,"final optical depth=",cum_depth,"outside vrange=",ib,"/",n
         end do
 
@@ -736,10 +762,10 @@ module sph_plotter
 
             do ip=1,n
                 do iray=1,nray
-                    dotprod = 0.
-                    do kk=1,3
-                        dotprod = dotprod + xyzray(iray,kk)*(xyz(ip,kk)-rayoffset_in(iray,kk))
-                    end do
+!                     dotprod = 0.
+!                     do kk=1,3
+!                         dotprod = dotprod + xyzray(iray,kk)*(xyz(ip,kk)-rayoffset_in(iray,kk))
+!                     end do
         
                     impact_pram_stored(ip,iray) = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
                 end do

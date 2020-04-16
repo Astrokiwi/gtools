@@ -25,3 +25,5 @@ def setup(dir=""):
 
     ordered_keys = gizmo_tools.run_parameters_names(run_parameters)
 
+def run_names_bigstring():
+    print("for i in {} ; do echo $i; done".format(" ".join(run_names)))
