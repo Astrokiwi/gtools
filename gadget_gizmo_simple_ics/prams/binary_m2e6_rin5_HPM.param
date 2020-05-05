@@ -1,0 +1,15 @@
+outfile data/binary_consdens_m2e6_rin5_HPM.dat
+mtot 690.294
+N 690294
+NumofBHs 2
+bh_mass 1.e6
+bh_mass 1.e6
+disc_rad 1.58
+#disc_rad 1.0
+disc_inner_rad 0.5
+disc_thick 0.01
+surf 4.4414d-2
+c_scale 1.e-5
+hernquist mode
+hernquist_scale .250
+hernquist_mass 1.d9

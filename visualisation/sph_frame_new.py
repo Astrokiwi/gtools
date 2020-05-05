@@ -231,15 +231,20 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #     nerrors_in = np.sum(~np.isfinite(val_p))
     
     outmap = None
-    
+    print('mode',mode)
+     
     if ( mode==weightslice ):
         map = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
+        print('huhu ich bin wirklich in weigthslice')
     elif (mode==densslice ):
         map = sph_plotter.sph_dense(x_p,y_p,m_p,h_p,L,corner,width,mask,n)
+        print('huhu ich bin wirklich in denseslice')
     elif (mode==zdensslice ):
         map = sph_plotter.sph_dense_slice(x_p,y_p,m_p,h_p,L,corner,width,z_p,zslice,mask,n)
+        print('huhu ich bin wirklich in zdensslice')
     elif (mode==zweightslice ):
         map = sph_plotter.sph_weight_slice(x_p,y_p,m_p,h_p,val_p,L,corner,width,z_p,zslice,mask,n)
+        print('huhu ich bin wirklich in zweightslice')
     elif (mode==vec2dslice ):
         map1 = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p[0],L,corner,width,mask,n)
         map2 = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p[1],L,corner,width,mask,n)
@@ -274,6 +279,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     elif mode==sdevslice:
         map = sph_plotter.sph_sdev(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
     
+    #cbax.set_axis_off()
 #     nerrors = map[0,0]
     
 #     print(nerrors_in,nerrors)
@@ -299,10 +305,16 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 
         qv = safe_pcolormesh(sp,xedges,yedges,norm_map,cmap=this_cmap,vmin=clow,vmax=chigh)
         sp.streamplot(xmids,ymids,map1,map2)
+
         if ( visibleAxes ):
-            cb = fig.colorbar(qv,label=cblabel,cax=cbax)
+          if(mode==2):
+                cb = fig.colorbar(qv,label=cblabel,cax=cbax[0])
+          elif(mode==4):
+                cb = fig.colorbar(qv,label=cblabel,cax=cbax[1])
+          elif(mode==3):
+                cb = fig.colorbar(qv,label=cblabel,cax=cbax[2])
         else:
-            cbax.set_axis_off()
+              cbax[1].set_axis_off()
 #         sp.set_xbound(corner[0],corner[0]+width)
 #         sp.set_ybound(corner[1],corner[1]+width)
 #         sp.set_xlim(corner[0],corner[0]+width)
@@ -335,9 +347,14 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                 plusmap[isminus]=0.
                 mesh1=safe_pcolormesh(sp,xedges,yedges,plusmap.T,cmap=this_cmap,vmin=clow,vmax=chigh,norm = colors.LogNorm())
                 if ( visibleAxes ):
-                    cb = fig.colorbar(mesh1,label=cblabel,cax=cbax)
+                  if(mode==2):
+                    cb = fig.colorbar(mesh1,label=cblabel,cax=cbax[0])
+                  elif(mode==4):
+                    cb = fig.colorbar(mesh1,label=cblabel,cax=cbax[1])
+                  elif(mode==3):
+                    cb = fig.colorbar(mesh1,label=cblabel,cax=cbax[2])
                 else:
-                    cbax.set_axis_off()
+                    cbax[0].set_axis_off()
             
             if ( np.sum(isminus)>0 ):
                 minusmap[isplus]=0.
@@ -345,7 +362,12 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             
                 mesh2=safe_pcolormesh(sp,xedges,yedges,minusmap.T,cmap=this_cmap2,vmin=clow,vmax=chigh,norm = colors.LogNorm())
                 if ( visibleAxes ):
-                    cb2 = fig.colorbar(mesh2,label=cblabel,cax=cbax2)
+                  if(mode==2):
+                    cb = fig.colorbar(mesh2,label=cblabel,cax=cbax[0])
+                  elif(mode==4):
+                    cb = fig.colorbar(mesh2,label=cblabel,cax=cbax[1])
+                  elif(mode==3):
+                    cb = fig.colorbar(mesh2,label=cblabel,cax=cbax[2])
                 else:
                     cbax2.set_axis_off()
             outmap = [plusmap.T,minusmap.T]
@@ -374,9 +396,14 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             else:
                 mesh = safe_pcolormesh(sp,xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh)
             if ( visibleAxes ):
-                cb = fig.colorbar(mesh,label=cblabel,cax=cbax)
+              if(mode==2):
+                cb = fig.colorbar(mesh,label=cblabel,cax=cbax[0])
+              elif(mode==4):
+                cb = fig.colorbar(mesh,label=cblabel,cax=cbax[1])
+              elif(mode==3):
+                cb = fig.colorbar(mesh,label=cblabel,cax=cbax[2])
             else:
-                cbax.set_axis_off()
+                cbax[2].set_axis_off()
 
             if ( contour ):
                 sp.contour(xedges,yedges,gaussian_filter(map.T,5),vmin=clow,vmax=chigh,colors='white',levels=8,linewidths=.5)
@@ -1071,7 +1098,7 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
     if (True): #Fixed_Binary):
       x_bin = Binary_pos_1[0]-Binary_pos_2[0]
       y_bin = Binary_pos_1[1]-Binary_pos_2[1]
-      rot[0] = rot[0] - math.atan2(y_bin,x_bin)
+      rot[0] = rot[0] #- math.atan2(y_bin,x_bin)
 
         
     # convert to pc
@@ -1114,6 +1141,11 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
             vyr = data.vel_x*np.sin(rot[0]) + data.vel_y*np.cos(rot[0])
 #             data.vel_y = vyr*np.cos(rot[1]) - data.vel_z*np.sin(rot[1])
             data.vthin = vyr*np.sin(rot[1]) + data.vel_z*np.cos(rot[1])
+
+            data.vel_x = data.vels[:,0]*np.cos(rot[0]) - data.vels[:,1]*np.sin(rot[0])
+            data.vel_y = data.vels[:,0]*np.sin(rot[0]) + data.vels[:,1]*np.cos(rot[0])
+            data.vel2d = (x*data.vel_x+y*data.vel_y)/np.sqrt(x**2+y**2)
+            data.vel_a = (-x*data.vel_y+y*data.vel_x)/np.sqrt(x**2+y**2)
         else:
             data.vthin = data.vel_z
 #         for vthinplot in "vco1","vco2","vhcn1","vhcn2":
@@ -1127,9 +1159,11 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
         rad2d = np.sqrt(x**2+y**2)
     else:   
         rad2d = x
+        rad2d_2 = y
 
     deep_face = z
     deep_side = y
+    deep_side_2= x
     
     if maskbounds:
         if maskbounds[0] in plotData:
@@ -1144,7 +1178,7 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
     # flat weighting - dummy value required for some functions because I'm not qwarging properly yet
     n_ones = np.ones(n)
 
-    return time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones
+    return time,data,x,y,z,rad2d,rad2d_2,deep_face,deep_side,deep_side_2,mask,n,n_ones
 
 
 def makesph_trhoz_frame(*args,**kwargs):
@@ -1194,6 +1228,8 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
                         gaussian=None,
                         return_maps=False
                         ):
+
+    global Binary_pos_1, Binary_pos_2
     if version[0]=='2':
         raise Exception("Requires Python 3.X. Current version:"+version)
 
@@ -1218,14 +1254,14 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
     if (len(rot)!=2):
         raise Exception("rot needs to be [theta,phi]")
         
-    if ( not all(view=='face' or view=='side' for view in views) ):
+    if ( not all(view=='face' or view=='side' or view=='side_2' for view in views) ):
         raise Exception("Views must be an array of size one or two containing only 'face' or 'side'")
     if ( not 'side' in views ):
         ringPlot = False # IRRELEVANT
     
     
     cols = len(views)
-    if ( cols!=1 and cols!=2 ):
+    if ( cols!=1 and cols!=2 and cols!=3 ):
         raise Exception("len(views)=1 or =2")
     
     if data_ranges is not None:
@@ -1235,6 +1271,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
     plotLabel, plotRanges, plotSliceTypes, plotCustomMass, plotData, logSliceTypes, extraBarTypes, plusMinusTypes, divergingTypes, symLogSliceTypes, customCmaps, customCmaps2 = pack_dicts(flatPlot,planenorm,cmap)
 
     nrows = len(plot_thing)
+    print("cols=",cols, "rows=",nrows)
 
     if ( visibleAxes ):
         # figure properties
@@ -1250,13 +1287,15 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
 #             cbax2right_index = 5
 #         
 #         else:
-            fig, ax = P.subplots(nrows,2*cols, gridspec_kw = {'width_ratios':([1, 16,16,1])[0:2*cols]})
+            fig, ax = P.subplots(nrows,cols, gridspec_kw = {'width_ratios':([16,16,16])[0:3*cols]})
             if ( nrows<2 ):
                 ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
             cbaxleft_index = 0
-            spleft_index = 1
-            spright_index = 2
-            cbaxright_index = 3
+            spleft_index = 0
+            spright_index = 1
+            cbaxright_index = 1
+            spright_index_2 = 2
+            cbaxright_index_2 = 2
     else:
         fig, ax = P.subplots(nrows,cols)
         if ( nrows<2 ):
@@ -1265,10 +1304,12 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         spleft_index = 0
         spright_index = 1
         cbaxright_index = 1
+        spright_index = 2
+        cbaxright_index = 2
         
     if not isinstance(infile,list):
         verboseprint("Loading",infile)
-        time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)
+        time,data,x,y,z,rad2d,rad2d_2,deep_face,deep_side,deep_side_2,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)
 #         time,data = load_gadget(infile,need_to_load,centredens=centredens)
         verboseprint("Plotting",infile,", t=%.4f Myr"% time)
 
@@ -1294,7 +1335,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         if isinstance(infile,list):
             thisfile = infile[irow]
             verboseprint("Loading",thisfile)
-            time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(thisfile,need_to_load,centredens,rot,plot_thing,plotData,ringPlot,flatPlot,maskbounds)
+            time,data,x,y,z,rad2d,rad2d_2,deep_face,deep_side,deep_side_2,mask,n,n_ones = load_process_gadget_data(thisfile,need_to_load,centredens,rot,plot_thing,plotData,ringPlot,flatPlot,maskbounds)
             verboseprint("Plotting",thisfile,", t=%.4f Myr"% time)
 
         # Process the tables we just made
@@ -1387,12 +1428,15 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             if ( type(plotCommand) is str ):
                 thisPlotQuantityFace = data.__dict__[plotCommand]
                 thisPlotQuantitySide = thisPlotQuantityFace
+                thisPlotQuantitySide_2 = thisPlotQuantityFace 
             elif ( type(plotCommand) is list ):
                 if thisSliceType==viewslice or thisSliceType==vec2dslice:
                     if ( len(plotCommand)!=4 ):
                         raise Exception("{} must have length 4 for view or vec2d slice".format(plotCommand))
                     thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
-                    thisPlotQuantitySide = [data.__dict__[plotCommand[2]],data.__dict__[plotCommand[3]]]
+                    thisPlotQuantitySide = [data.__dict__["vel_x"],data.__dict__[plotCommand[3]]]
+                    thisPlotQuantitySide_2 = [data.__dict__["vel_y"],data.__dict__[plotCommand[3]]]
+                    print("PlotQuantity",len(thisPlotQuantitySide[0]), "irow",irow,"plotCommand",plotCommand)
                 elif thisSliceType==weightviewslice:
                     if ( len(plotCommand)!=6 ):
                         raise Exception("{} must have length 6 for weighted view slice".format(plotCommand))
@@ -1405,13 +1449,16 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         else:
             thisPlotQuantityFace = None
             thisPlotQuantitySide = None
+            thisPlotQuantitySide_2 = None
 #             raiseprint("{} data type not found! - {}".format(plot_thing[irow],infile))
         
-        cbar2_axes = [None,None]
+        cbar2_axes = [None,None,None]
         if ( plot_thing[irow] in extraBarTypes ):
-            cbar2_axes[0]=ax[irow,cbax2left_index]
+            cbar2_axes[0]=ax[irow,0]
             if ( cols==2 ):
-                cbar2_axes[1]=ax[irow,cbax2right_index]
+                cbar2_axes[1]=ax[irow,0]
+            if ( cols==3 ):
+                cbar2_axes[2]=ax[irow,0]
         
         if ( plot_thing[irow] in customCmaps ):
             this_cmap = customCmaps[plot_thing[irow]]
@@ -1424,22 +1471,72 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             this_cmap2 = None
 
         row_axes = [ax[irow,spleft_index],ax[irow,cbaxleft_index]]
-        if ( cols==2 ):
+        if ( cols==2 or cols==3 ):
             row_axes += ax[irow,spright_index],ax[irow,cbaxright_index]
+        if ( cols==3 ):
+            row_axes += ax[irow,spright_index_2],ax[irow,cbaxright_index_2]
 
+        cbar_axes_1=fig.add_axes([0.92,0.66,0.03,0.28])
+        cbar_axes_2=fig.add_axes([0.92,0.36,0.03,0.28])
+        cbar_axes_3=fig.add_axes([0.92,0.05,0.03,0.28])
+        cbar_axes =[cbar_axes_1,cbar_axes_2,cbar_axes_3]
         # actually do the plot
         for icol,view in enumerate(views):
+            print('PlotLabel',thisPlotLabel)
             if ( view=='face' ):
-                outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
+                outmap=makesph_plot(fig,row_axes[icol*2],cbar_axes,x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
                 if(IsBinary):
+             #     row_axes[icol*2].scatter([(Binary_pos_1[0]**2+Binary_pos_1[1]**2)**0.5],[0.0],marker='x')
+             #     row_axes[icol*2].scatter([-(Binary_pos_2[0]**2+Binary_pos_2[1]**2)**0.5],[0.0],marker='+')
                   row_axes[icol*2].scatter([Binary_pos_1[0]],[Binary_pos_1[1]],marker='x')
                   row_axes[icol*2].scatter([Binary_pos_2[0]],[Binary_pos_2[1]],marker='+')
             elif ( view=='side' ):
-                outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
+                outmap=makesph_plot(fig,row_axes[icol*2],cbar_axes,rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
+            #    row_axes[icol*2].scatter([(Binary_pos_1[0]**2+Binary_pos_1[1]**2)**0.5],[0.0],marker='x')
+            #    row_axes[icol*2].scatter([-(Binary_pos_2[0]**2+Binary_pos_2[1]**2)**0.5],[0.0],marker='+')
+                row_axes[icol*2].scatter([Binary_pos_1[0]],[0.0],marker='x')
+                row_axes[icol*2].scatter([Binary_pos_2[0]],[0.0],marker='+')
+            elif ( view=='side_2' ):
+                print(icol,view,len(row_axes),len(thisPlotRanges),len(cbar2_axes))
+                outmap=makesph_plot(fig,
+                    row_axes[icol*2],
+                    cbar_axes,
+                    rad2d_2,
+                    z,
+                    deep_side_2,
+                    0.,
+                    thisPlotQuantitySide_2,
+                    thisMass,
+                    data.h_p,
+                    L,
+                    mask,
+                    corners_side,
+                    width,
+                    thisPlotLabel,
+                    thisPlotRanges[2],
+                    thisPlotRanges[3],
+                    this_cmap,
+                    thisSliceType,
+                    thisDoLog,
+                    cmap2=this_cmap2,
+                    planenorm=planenorm,
+                    cbar2=cbar2_axes[icol],
+                    plusminus=plusminus,
+                    visibleAxes=visibleAxes,
+                    diverging=thisDiverging,
+                    gaussian=plot_gaussian,
+                    symLog=thisSymLog)
+            #    row_axes[icol*2].scatter([0.0],[0.0],marker='x')
+            #    row_axes[icol*2].scatter([0.0],[0.0],marker='+')
+                row_axes[icol*2].scatter([Binary_pos_1[1]],[0.0],marker='x')
+                row_axes[icol*2].scatter([Binary_pos_2[1]],[0.0],marker='+')
+
             if return_maps:
                 out_maps.append(outmap)
+
+        
 
 #         if ( "heat" in plot_thing and plot_thing[irow]!='heat' ):
 #             for visax in [ax[irow,cbax2left_index],ax[irow,cbax2right_index]]:
@@ -1456,8 +1553,8 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
                 this_ax.yaxis.set_visible(False)
             for iax in range(nrows):
                 this_ax = ax[iax,0]
-                this_ax.yaxis.tick_left()
-                this_ax.yaxis.set_label_position("left")
+                this_ax.yaxis.tick_right()
+                this_ax.yaxis.set_label_position("right")
 
         else:
             for iax in range(nrows):
@@ -1466,8 +1563,13 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
                 this_ax.yaxis.set_label_position("left")
             for iax in range(nrows):
                 this_ax = ax[iax,1]
-                this_ax.yaxis.tick_right()
-                this_ax.yaxis.set_label_position("right")
+                this_ax.yaxis.tick_left()
+                this_ax.yaxis.set_label_position("left")
+                this_ax = ax[iax,2]
+                this_ax.yaxis.tick_left()
+                this_ax.yaxis.set_label_position("left")
+
+
 #                 this_ax.set_ylabel('pc')
 # 
 #                 this_ax.set_xlabel('pc')
@@ -1479,7 +1581,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
 #     print(infile,nerrors)
 
     if ( visibleAxes ):
-        if (nrows==2):
+        if (nrows==2 or nrows==3):
             fig.subplots_adjust(left=0.07,hspace=.07,bottom=.05,top=.95)
         else:
 #             fig.subplots_adjust(left=0.07,hspace=.07,bottom=.05,top=.9)
@@ -1566,6 +1668,8 @@ def makesph_binary_view(infile,outfile,
     spleft_index = 0
     spright_index = 1
     cbaxright_index = 1
+    spright_index_2 = 2
+    cbaxright_index_2 = 2
         
     fw_inches = 4.*cols
     fig.set_figwidth(fw_inches)
@@ -1581,7 +1685,7 @@ def makesph_binary_view(infile,outfile,
         print(rot[irow*cols+jcol])
         if not isinstance(infile,list):
           verboseprint("Loading",infile)
-          time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot[irow*cols+jcol],plot_thing,plotData,centredens,False,False,maskbounds)
+          time,data,x,y,z,rad2d,rad2d_2,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot[irow*cols+jcol],plot_thing,plotData,centredens,False,False,maskbounds)
 #         time,data = load_gadget(infile,need_to_load,centredens=centredens)
           verboseprint("Plotting",infile,", t=%.4f Myr"% time)
 
@@ -1656,11 +1760,13 @@ def makesph_binary_view(infile,outfile,
             thisPlotQuantitySide = None
 #             raiseprint("{} data type not found! - {}".format(plot_thing[irow],infile))
         
-        cbar2_axes = [None,None]
+        cbar2_axes = [None,None,None]
         if ( plot_thing[0] in extraBarTypes ):
             cbar2_axes[0]=ax[irow,cbax2left_index]
             if ( cols==2 ):
                 cbar2_axes[1]=ax[irow,cbax2right_index]
+            if ( cols==3 ):
+                cbar2_axes[2]=ax[irow,cbax2right_index]
         
         if ( plot_thing[0] in customCmaps ):
             this_cmap = customCmaps[plot_thing[0]]
@@ -1672,9 +1778,11 @@ def makesph_binary_view(infile,outfile,
         else:
             this_cmap2 = None
 
-        row_axes = [ax[irow,spleft_index],ax[irow,cbaxleft_index]]
-        if ( cols==2 ):
+        row_axes = [ax[irow,spright_index],ax[irow,cbaxright_index]]
+        if ( cols==2 or cols==3 ):
             row_axes += ax[irow,spright_index],ax[irow,cbaxright_index]
+        if ( cols==3 ):
+            row_axes += ax[irow,spright_index_2],ax[irow,cbaxright_index_2]
 
         # actually do the plot
         for view in views:

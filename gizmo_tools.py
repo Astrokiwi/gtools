@@ -87,6 +87,13 @@ def getGizmoDir(irun):
         if sname=="trillian":
             return "/export/2/lb1g19"
 
+    if uname=='supas356':
+        if sname in ("nesh-fe1","nesh-fe2","nesh-fe3","nesh-fe4"):
+            return "/sfs/fs2/work-sh1/supas356"
+
+        if sname in ("neshcl226","neshcl227"):
+            return "/sfs/fs2/work-sh1/supas356"
+          
     raise Exception("Unknown server/username; add server, username and directory to gizmo_tools.py")
 
 def getMovieDir():
@@ -102,7 +109,13 @@ def getMovieDir():
     if uname=='lb1g19':
         if sname=="trillian":
             return "/export/2/lb1g19"
-    
+
+    if uname=="supas356":
+        if sname in ("nesh-fe1","nesh-fe2","nesh-fe3","nesh-fe4"):
+            return "/sfs/fs2/work-sh1/supas356/movies"
+        if sname in ("neshcl226","neshcl227"):
+          return "/sfs/fs2/work-sh1/supas356/movies"
+
     raise Exception("Unknown server; add server and directory to gizmo_tools.py")
 
 def lastConsecutiveSnapshot(run_id,output_dir,dumpsOrdered=True):
@@ -387,14 +400,23 @@ class cloudy_table:
     def __init__(self,tableDate="281118",tableRes="0.0001",prefix=""):
         self.load_table(tableDate,tableRes,prefix)
 
-    def load_table(self,tableDate="281118",tableRes="0.0001",prefix=""):
-        self.chTab = tab_interp.CoolHeatTab( (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
-                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
-                                        (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
-                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
-                                        (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
-                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+    def load_table(self,tableDate="281118",tableRes="0.0001",prefix="/sfs/fs2/work-sh1/supas356/tables/"):
+        self.chTab = tab_interp.CoolHeatTab( (prefix+"shrunk_table_labels_"+tableDate+"tau.dat"),
+                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+                                        (prefix+"shrunk_table_labels_"+tableDate+"taunodust.dat"),
+                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+                                        (prefix+"shrunk_table_labels_"+tableDate+"taudense.dat"),
+                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
                                         )
+ 
+#    def load_table(self,tableDate="281118",tableRes="0.0001",prefix=""):
+#        self.chTab = tab_interp.CoolHeatTab( (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
+#                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+#                                        (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
+#                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+#                                        (prefix+"coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
+#                                        (prefix+"coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+#                                        )
         
     
     def interp(self,particles):

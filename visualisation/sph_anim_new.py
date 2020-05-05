@@ -11,7 +11,7 @@ import os
 from multiprocessing import Pool
 import functools
 
-import sph_frame
+import sph_frame_new
 import re
 
 from sys import path
@@ -50,7 +50,7 @@ def string_to_list_or_float(s):
 # joblib doesn't dump exceptions well, just print them
 def plotter_parallel_exception_wrapper(*args,**kwargs):
     try:
-        return sph_frame.makesph_trhoz_frame(*args,**kwargs)
+        return sph_frame_new.makesph_trhoz_frame(*args,**kwargs)
     except Exception as e:
         print(e) # should give some output at least
         raise(e) # might not work
@@ -63,8 +63,8 @@ if __name__ == '__main__':
     default_values["rad"]="15"
     #default_values["rads"]=""
     default_values["L"]=400
-    default_values["plot"]="dens,vels"
-    default_values["views"]="face,side"
+    default_values["plot"]="dens,vels,temp"
+    default_values["views"]="face,side,side_2"
     default_values["cmap"]="viridis"
     default_values["slice"]=False
     default_values["phi"]=0.
@@ -126,6 +126,7 @@ if __name__ == '__main__':
             else:
                 raise Exception("No default value for {} - it must be specified!".format(parseval))
 
+    print("slice",slice)
     flatPlot = not slice
     ringPlot = flatPlot
     if noring:
@@ -173,7 +174,7 @@ if __name__ == '__main__':
         print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
-    os.system("rm ../pics_HPM_test/sphplot"+run_id+output_dir+"???.png")
+    os.system("rm ../pics_analysis/sphplot"+run_id+output_dir+"???.png")
 
 
     print("nfiles:",snapf-snapi+1)
@@ -181,7 +182,7 @@ if __name__ == '__main__':
     isnaps = range(snapi,snapf+1)
     
     infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in isnaps]
-    outfiles = ["../pics_HPM_test/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
+    outfiles = ["../pics_analysis/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
     
     nfiles = len(infiles)
     if absurd:
@@ -203,7 +204,7 @@ if __name__ == '__main__':
         dump_rad0(infiles[0])
 
     def frame_i(i):
-        return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
+        return sph_frame_new.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
     
     with Pool(processes=nprocs) as pool:
         maps = pool.map(frame_i,range(snapf+1-snapi))
@@ -211,7 +212,7 @@ if __name__ == '__main__':
 #     if len(maps)==1:
 #         maps = [maps]
     for result in maps:
-        if isinstance(result, sph_frame.ExceptionWrapper):
+        if isinstance(result, sph_frame_new.ExceptionWrapper):
             result.re_raise()
     if savemap:
         for itime,maps_timeslice in enumerate(maps):
@@ -247,7 +248,7 @@ if __name__ == '__main__':
     #for snapx in [37]:
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 5 -i ../pics_HPM_MM/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
+    cmd = "ffmpeg -y -r 5 -i ../pics_HPM_radoff_long/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
 
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_rhotempgiz_"+run_id+"_"+output_dir+".mp4"

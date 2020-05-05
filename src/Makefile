@@ -22,7 +22,7 @@ OPTIONS = -O3 -ldl -Wall -mcmodel=medium
 interplib:
 	swig -python -c++ -o _tab_interp_module.cc tab_interp.i
 # 	python3 setup.py build_ext --inplace
-	python setup.py build_ext --inplace
+	python3 setup.py build_ext --inplace
 
 INTERP_OBJS=dust_temp_interp.o
 

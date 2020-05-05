@@ -182,17 +182,32 @@ if __name__ == '__main__':
     torque = np.zeros((nfiles,3),dtype=float)
     angmom_zyl = np.zeros((nfiles,3),dtype=float)
     torque_zyl = np.zeros((nfiles,3),dtype=float)
+    rot_vel_1 = np.zeros((nfiles,3),dtype=float)
+    rot_vel_2 = np.zeros((nfiles,3),dtype=float)
 
-    for i in range(nfiles):
+    delta_t=maps[1]['time']-maps[2]['time']
+
+    for i in range(1,nfiles):
       time[i] = maps[i]['time']
       dist[i] = math.sqrt((maps[i]['BH_pos_1'][0]-maps[i]['BH_pos_2'][0])**2 + (maps[i]['BH_pos_1'][1]-maps[i]['BH_pos_2'][1])**2 + (maps[i]['BH_pos_1'][2]-maps[i]['BH_pos_2'][2])**2)
       dist_1[i] = math.sqrt(maps[i]['BH_pos_1'][0]**2 + maps[i]['BH_pos_1'][1]**2 + maps[i]['BH_pos_1'][2]**2)
       dist_2[i] = math.sqrt(maps[i]['BH_pos_2'][0]**2 + maps[i]['BH_pos_2'][1]**2 + maps[i]['BH_pos_2'][2]**2)
 
-      angmom[i][0] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][2]-maps[i]['BH_pos_1'][2]*maps[i]['BH_vel_1'][1]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][2]-maps[i]['BH_pos_2'][2]*maps[i]['BH_vel_2'][1])
-      angmom[i][1] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][2]*maps[i]['BH_vel_1'][0]-maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][2]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][2]*maps[i]['BH_vel_2'][0]-maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][2])
-      angmom[i][2] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][1]-maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][0]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][1]-maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][0])
+#      angmom[i][0] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][2]-maps[i]['BH_pos_1'][2]*maps[i]['BH_vel_1'][1]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][2]-maps[i]['BH_pos_2'][2]*maps[i]['BH_vel_2'][1])
+#      angmom[i][1] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][2]*maps[i]['BH_vel_1'][0]-maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][2]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][2]*maps[i]['BH_vel_2'][0]-maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][2])
+#      angmom[i][2] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][1]-maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][0]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][1]-maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][0])
+      
+      rot_vel_1[i][0] =(maps[i]['BH_pos_1'][0]-maps[i-1]['BH_pos_1'][0])/delta_t/10**6
+      rot_vel_2[i][0] =(maps[i]['BH_pos_2'][0]-maps[i-1]['BH_pos_2'][0])/delta_t/10**6
+      rot_vel_1[i][1] =(maps[i]['BH_pos_1'][1]-maps[i-1]['BH_pos_1'][1])/delta_t/10**6
+      rot_vel_2[i][1] =(maps[i]['BH_pos_2'][1]-maps[i-1]['BH_pos_2'][1])/delta_t/10**6
+      rot_vel_1[i][2] =(maps[i]['BH_pos_1'][2]-maps[i-1]['BH_pos_1'][2])/delta_t/10**6
+      rot_vel_2[i][2] =(maps[i]['BH_pos_2'][2]-maps[i-1]['BH_pos_2'][2])/delta_t/10**6
 
+      angmom[i][0] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][1]*rot_vel_1[i][2]-maps[i]['BH_pos_1'][2]*rot_vel_1[i][1]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][1]*rot_vel_2[i][2]-maps[i]['BH_pos_2'][2]*rot_vel_2[i][1])
+      angmom[i][1] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][2]*rot_vel_1[i][0]-maps[i]['BH_pos_1'][0]*rot_vel_1[i][2]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][2]*rot_vel_2[i][0]-maps[i]['BH_pos_2'][0]*rot_vel_2[i][2])
+      angmom[i][2] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][0]*rot_vel_1[i][1]-maps[i]['BH_pos_1'][1]*rot_vel_1[i][0]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][0]*rot_vel_2[i][1]-maps[i]['BH_pos_2'][1]*rot_vel_2[i][0])
+ 
 
       torque[i][0] = (maps[i]['BH_pos_1'][1]*maps[i]['BH_force_1'][2]-maps[i]['BH_pos_1'][2]*maps[i]['BH_force_1'][1]) + (maps[i]['BH_pos_2'][1]*maps[i]['BH_force_2'][2]-maps[i]['BH_pos_2'][2]*maps[i]['BH_force_2'][1])
       torque[i][1] = (maps[i]['BH_pos_1'][2]*maps[i]['BH_force_1'][0]-maps[i]['BH_pos_1'][0]*maps[i]['BH_force_1'][2]) + (maps[i]['BH_pos_2'][2]*maps[i]['BH_force_2'][0]-maps[i]['BH_pos_2'][0]*maps[i]['BH_force_2'][2])
@@ -212,49 +227,52 @@ if __name__ == '__main__':
       z2       = maps[i]['BH_pos_2'][2]
       z2_dot   = maps[i]['BH_vel_2'][2]
 
-      angmom_zyl[0] = -maps[i]['BH_mass_1']*rho1*phi1_dot*z1 - maps[i]['BH_mass_2']*rho2*phi2_dot*z2
-      angmom_zyl[1] = maps[i]['BH_mass_1']*(rho1_dot*z1-rho1*z1_dot) + maps[i]['BH_mass_2']*(rho2_dot*z2-rho2*z2_dot)
-      angmom_zyl[1] = maps[i]['BH_mass_1']*rho1**2*phi1_dot + maps[i]['BH_mass_2']*rho2**2*phi2_dot
+#      angmom_zyl[0] = -maps[i]['BH_mass_1']*rho1*phi1_dot*z1 - maps[i]['BH_mass_2']*rho2*phi2_dot*z2
+#      angmom_zyl[1] = maps[i]['BH_mass_1']*(rho1_dot*z1-rho1*z1_dot) + maps[i]['BH_mass_2']*(rho2_dot*z2-rho2*z2_dot)
+#      angmom_zyl[1] = maps[i]['BH_mass_1']*rho1**2*phi1_dot + maps[i]['BH_mass_2']*rho2**2*phi2_dot
+#
+#      torque_zyl[0] = -maps[i]['BH_mass_1']*rho1*phi1_dot*z1 - maps[i]['BH_mass_2']*rho2*phi2_dot*z2
+#      torque_zyl[1] = maps[i]['BH_mass_1']*(rho1_dot*z1-rho1*z1_dot) + maps[i]['BH_mass_2']*(rho2_dot*z2-rho2*z2_dot)
+#      torque_zyl[1] = maps[i]['BH_mass_1']*rho1**2*phi1_dot + maps[i]['BH_mass_2']*rho2**2*phi2_dot
 
-      torque_zyl[0] = -maps[i]['BH_mass_1']*rho1*phi1_dot*z1 - maps[i]['BH_mass_2']*rho2*phi2_dot*z2
-      torque_zyl[1] = maps[i]['BH_mass_1']*(rho1_dot*z1-rho1*z1_dot) + maps[i]['BH_mass_2']*(rho2_dot*z2-rho2*z2_dot)
-      torque_zyl[1] = maps[i]['BH_mass_1']*rho1**2*phi1_dot + maps[i]['BH_mass_2']*rho2**2*phi2_dot
 
-
-ax0 = plt.subplot(221)
-ax1 = plt.subplot(222)
-ax12=ax1.twinx()
-ax2 = plt.subplot(223)
-ax22=ax2.twinx()
-ax3 = plt.subplot(224)
+ax3 = plt.subplot(111)
+#ax1 = plt.subplot(222)
+#ax12=ax1.twinx()
+#ax2 = plt.subplot(223)
+#ax22=ax2.twinx()
+#ax3 = plt.subplot(224)
 ax32=ax3.twinx()
 
-ax0.plot(time,dist)
+#ax0.plot(time,dist)
 #ax0.plot(time,dist_1)
 #ax0.plot(time,dist_2)
-ax0.set_xlabel(r'Time / Myr')
-ax0.set_ylabel(r'distance / pc')
+#ax0.set_xlabel(r'Time / Myr')
+#ax0.set_ylabel(r'distance / pc')
 
-ax1.plot(time,angmom[:,0],'b')
-ax1.set_xlabel(r'Time / Myr')
-ax1.set_ylabel(r'$L_x / M_{\odot} pc / yr$')
-ax12.plot(time,torque[:,0],'r')
-ax12.set_ylabel(r'$M_x / M_{\odot} pc^2 / yr^2$')
-ax12.yaxis.label.set_color('red')
+#ax1.plot(time,angmom[:,0],'b')
+#ax1.set_xlabel(r'Time / Myr')
+#ax1.set_ylabel(r'$L_x / M_{\odot} pc / yr$')
+#ax12.plot(time,torque[:,0],'r')
+#ax12.set_ylabel(r'$M_x / M_{\odot} pc^2 / yr^2$')
+#ax12.yaxis.label.set_color('red')
+#
+#ax2.plot(time,angmom[:,1],'b')
+#ax2.set_xlabel(r'Time / Myr')
+#ax2.set_ylabel(r'$L_y / M_{\odot} pc / yr$')
+#ax22.plot(time,torque[:,1],'r')
+#ax22.set_ylabel(r'$M_y / M_{\odot} pc^2 / yr^2$')
+#ax22.yaxis.label.set_color('red')
 
-ax2.plot(time,angmom[:,1],'b')
-ax2.set_xlabel(r'Time / Myr')
-ax2.set_ylabel(r'$L_y / M_{\odot} pc / yr$')
-ax22.plot(time,torque[:,1],'r')
-ax22.set_ylabel(r'$M_y / M_{\odot} pc^2 / yr^2$')
-ax22.yaxis.label.set_color('red')
-
-ax3.plot(time,angmom[:,2],'b')
+ax3.plot(time[100:],angmom[100:,2],'b')
+#ax3.plot(time[100:],rot_vel_1[100:],'b-')
+#ax3.plot(time[100:],rot_vel_2[100:],'b*')
 ax3.set_xlabel(r'Time / Myr')
-ax3.set_ylabel(r'$L_z / M_{\odot} pc / yr$')
-ax32.plot(time,torque[:,2],'r')
+ax3.set_ylabel(r'$L_z / M_{\odot} pc^2 / yr$')
+ax32.plot(time[100:],torque[100:,2],'r')
 ax32.set_ylabel(r'$M_z / M_{\odot} pc^2 / yr^2$')
 ax32.yaxis.label.set_color('red')
+ax3.yaxis.label.set_color('blue')
 
 plt.savefig('plot_torque.png')
 plt.show()
