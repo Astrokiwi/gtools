@@ -46,6 +46,18 @@ cmap = matplotlib.cm.get_cmap('coolwarm')
 
 dust_opacity_function = None
 
+binary_headers_unit_name_conversions = {
+        "Binary_pos_1":("BH_pos_1",1000.), # pc 
+        "Binary_pos_2":("BH_pos_2",1000.), # pc
+        "Binary_vel_1":("BH_vel_1",1000./0.9778e9), # pc/yr
+        "Binary_vel_2":("BH_vel_2",1000./0.9778e9), # pc/yr
+        "Binary_force_1":("BH_force_1",1e10 * 1000.0/(0.9778e9)**2),   # msun * pc / yr**2
+        "Binary_force_2":("BH_force_2",1e10 * 1000.0/(0.9778e9)**2),   # msun * pc / yr**2
+        "Binary_mass_1":("BH_mass_1",1.e10), # msun
+        "Binary_mass_2":("BH_mass_2",1.e10)  # msun
+
+    }
+
 def load_interpolate_opacity(opac_mu,
                         opac_file="prams/simple_dust_opacity.txt"):
     global dust_opacity_function
@@ -343,13 +355,14 @@ def dump_ascii(filename,gizmo_dataframe):
         f.write(output_string)
     
 
-def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
+def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False,gizmoDir=None):
     global unit_conversions
     
     if not internal_units:
         load_unit_conversions()
     
-    gizmoDir = getGizmoDir(run_id)
+    if gizmoDir is None:
+        gizmoDir = getGizmoDir(run_id)
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     fullFile = fullDir+"/snapshot_"+snap_str+".hdf5"
     
@@ -371,8 +384,9 @@ def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False):
     
     return header,gizmo_dataframe
 
-def load_gizmo_nbody(run_id,output_dir,snap_str,load_vals=None):
-    gizmoDir = getGizmoDir(run_id)
+def load_gizmo_nbody(run_id,output_dir,snap_str,load_vals=None,gizmoDir=None,load_binary_headers=False):
+    if gizmoDir is None:
+        gizmoDir = getGizmoDir(run_id)
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     fullFile = fullDir+"/snapshot_"+snap_str+".hdf5"
 
@@ -383,6 +397,15 @@ def load_gizmo_nbody(run_id,output_dir,snap_str,load_vals=None):
     header["time"]=file_header.attrs.get("Time")
     header["time"]*= 0.9778e9 # to yr
     header["time"]/=1.e6 # to Myr
+    
+    if load_binary_headers:
+        binary_header = f["/Header"]
+        for key,(label,unit) in binary_headers_unit_name_conversions.items():
+            print(key,label,unit)
+            value = binary_header.attrs.get(key)
+            if value is not None:
+                value*=unit
+            header[label] = value
     f.close()
     
     snap = pynbody.load(fullFile)
@@ -484,6 +507,10 @@ def nbody_calc_val(snap
         v_esc(snap)
     elif val=='grav_accel':
         grav_accel(snap)
+    elif val=='nH':
+        snap["nH"] = snap.gas['rho'].in_units("g cm**-3")/(molecular_mass*pynbody.array.SimArray(proton_mass_cgs,'g'))
+    elif val=="temp":
+        snap["temp"] = (gamma_minus_one/pynbody.array.SimArray(boltzmann_cgs,"erg K**-1")*(molecular_mass*pynbody.array.SimArray(proton_mass_cgs,'g'))*snap["u"]).in_units('K') 
     
 
 def gridsize_from_n(n,aspect=1.):
@@ -633,9 +660,13 @@ class cloudy_table:
 
 
 if __name__=='__main__':
-    run_table = load_run_parameters("3032")
-    run_parameters_angles(run_table)
-    run_parameters_names(run_table)
+    header,snap = load_gizmo_nbody("gizmo-for-agn-model/","binary_ecc0_MP0-001","384",gizmoDir="/srv/lb1g19/",load_binary_headers=True)
+    print(header,len(snap),snap)
+#     run_table = load_run_parameters("3032")
+#     run_parameters_angles(run_table)
+#     run_parameters_names(run_table)
+
+
 #     ordered_keys = run_parameters_names(run_table)
 #     print([(x,run_table[x]['name']) for x in ordered_keys])
 #     print(run_parameters_table(load_run_parameters("3032"))[0])

@@ -193,7 +193,8 @@ if __name__ == '__main__':
         
         
         
-        snaps = ["100"]
+#         snaps = ["100"]
+        snaps = ["end"]
         
         for igroup,group_name in enumerate(group_names):
 
@@ -202,13 +203,20 @@ if __name__ == '__main__':
             for snap in snaps:
 #             for snap in ["100"]:
                 outpFile = "data/prodrun_"+group_name+snap+".dat"
+
 #                 output_dirs = ["run_a0_e1","run_a1_e1","run_a2_e01","run_a2_e01_T1000","run_a2_e01_T300","run_a2_e01_T30","run_a2_e05","run_a2_e1","run_a2_e2","run_a3_e1"]
                 nruns = len(output_dirs)
 #                 run_ids = ["2022"]*nruns
 #                 run_ids = ["3001"]*nruns
 #                 run_ids = ["2030"]*nruns
                 run_ids = ["3032"]*nruns
-                snap_strs = [snap]*nruns
+                if snap=="end":
+                    snap_strs=["{:03d}".format(x) for x in 
+                        [gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False) for run_id,output_dir in zip(run_ids,output_dirs)]
+                            ]
+                else:
+                    snap_strs = [snap]*nruns
+                print(list(zip(output_dirs,snap_strs)))
 
                 calc_and_dump_sigma_angle(run_ids,output_dirs,snap_strs,outpFile)
 

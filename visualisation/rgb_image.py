@@ -7,12 +7,15 @@ import matplotlib.pyplot as P
 import matplotlib.patches as mpatches
 # from skimage import exposure
 
+from scipy import ndimage
+
+
 labels = ["CO(3-2)","CO(6-5)","HCN(4-3)","HCN(8-7)",r"H$_2$ (1-0) S(1)",r"H$_2$ (0-0) S(0)",r"H$_2$ (0-0) S(3)",r"$F_{IR}$"]
 line_codes = ["co1m","co2m","hcn1m","hcn2m","h2_1m","h2_2m","h2_3m","view"]
 
 line_label_dict = dict(zip(line_codes,labels))
 
-def produce_and_save_rgb_table_image(files,ax=None,outfile=None,rad=None,labels=None,intensities=[1.,1.,1.],max_contrast=False,cmap='plasma',vrange=None): #
+def produce_and_save_rgb_table_image(files,ax=None,outfile=None,rad=None,labels=None,intensities=[1.,1.,1.],max_contrast=False,cmap='plasma',vrange=None,printrange=False,gauss_rad=None): #
     rgb_mode = True
     if len(files)==1:# and len(intensities)==1:
         rgb_mode = False
@@ -30,6 +33,17 @@ def produce_and_save_rgb_table_image(files,ax=None,outfile=None,rad=None,labels=
         vmin = vrange[0]
         vmax = vrange[1]
     maps = [np.loadtxt(file) for file in files]
+
+    gauss_pix = None
+    if rad is None:
+        extent = None
+        if gauss_rad is not None:
+            gauss_pix = gauss_rad
+    else:
+        extent = [-rad,rad,-rad,rad]
+        if gauss_rad is not None:
+            gauss_pix = int(gauss_rad/(2*rad)*maps[0].shape[0]) # assume square
+
     for imap,map in enumerate(maps):
 #         finite_slice = np.isfinite(map)
 #         map-=np.nanmin(map[finite_slice])
@@ -39,7 +53,12 @@ def produce_and_save_rgb_table_image(files,ax=None,outfile=None,rad=None,labels=
 #         if imap==2:
 #         map = exposure.equalize_hist(map)
         map*=intensities[imap]
+        print(np.nanmin(map),np.nanmax(map))
         maps[imap]=map
+        if gauss_pix is not None:
+            maps[imap] = ndimage.gaussian_filter(maps[imap],gauss_pix)
+
+        
     rgb_map = np.array([map.T for map in maps]).T # to size x size x 3
 #     rgb_map = exposure.equalize_hist(rgb_map)
 #     if not rgb_mode:
@@ -47,10 +66,6 @@ def produce_and_save_rgb_table_image(files,ax=None,outfile=None,rad=None,labels=
 #     if rgb_mode:
 #         for imap in range(3):
 #             rgb_map[:,:,imap]*=intensities[imap]
-    if rad is None:
-        extent = None
-    else:
-        extent = [-rad,rad,-rad,rad]
 
     if ax is None:
         P.clf()

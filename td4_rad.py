@@ -9,6 +9,13 @@ import tab_interp
 # import matplotlib.pyplot as plt
 import time
 
+
+from multiprocessing import Pool
+from functools import partial
+
+from functools import wraps
+
+
 # run_id = "3001"
 # run_names = ["a2_e01","a2_e02","a2_e05","a2_e1","a2_e2"]
 # edds = [0.01,0.02,0.05,0.1,0.2]
@@ -36,10 +43,10 @@ run_names = [
 "newflow_vesc_thin_side",
 "newflow_vesc_thin_up"]
 # edds = [0.01,0.02,0.05,0.1,0.2]
-nruns = len(run_names)
-snap_str = "100"
-max_rad = 100.
-min_rad = 1.5
+# nruns = len(run_names)
+
+# max_rad = 100.
+# min_rad = 1.5
 
 lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
 line_codes = ["line_"+line for line in lines]
@@ -75,9 +82,22 @@ cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes)
 
 # fig,ax = plt.subplots(1,1,figsize=(6,6))
 
-for irun,run_name in enumerate(run_names):
+def clean_file_not_found(f):
+    """ Decorate a function to suppress OSErrors caused by file-not-found in numpy.loadtxt
+    """
+    
+    @wraps(f)
+    def g(*args,**kwargs):
+        try:
+            return f(*args,**kwargs)
+        except OSError:
+            print(" not found - skipping")
+    return g    
+
+@clean_file_not_found
+def calc_dump_lumrad(run_name,snap_str):
 # for irun,run_name in enumerate(["longrun_weakflow_settled_defaultaniso_polar"]):
-    print(irun,run_name)
+    print(run_name,snap_str)
 # for run_name in [run_names[0]]:
     header,particles = gizmo_tools.load_gizmo_pandas(run_id,run_name,snap_str,
         ["Masses","Coordinates","Velocities","AGNIntensity","AGNDepth","Density","InternalEnergy","SmoothingLength"])
@@ -85,7 +105,7 @@ for irun,run_name in enumerate(run_names):
 
     # this part is slow
     print("tabulating values")
-    start = time.time()
+#     start = time.time()
 #     tabStructs = interpTabVec(  particles["nH"].astype(np.float64),
 #                                 particles["temp"].astype(np.float64),
 #                                 particles["AGNIntensity"].astype(np.float64),
@@ -93,10 +113,12 @@ for irun,run_name in enumerate(run_names):
 # 
 #     particles["dustTemp"] = np.array(list(map(lambda y: y.dustT, tabStructs)))
 #     particles["dg"] = np.array(list(map(lambda y: y.dg, tabStructs)))
+
     cloudy_table.interp(particles)
-    end = time.time()
-    table_time+=end-start
+#     end = time.time()
+#     table_time+=end-start
 #     print("table time:",table_time)
+    print(particles.temp.min(),particles.temp.max(),particles.dg.median(),particles.dg.mean(),particles.line_co1.median(),particles.line_co1.mean())
 
 
     particles["brightness"] = 5.67e-5 * particles["dustT"]**4. * particles["dg"]/np.nanmax(particles["dg"]) # erg/s/cm^2
@@ -136,14 +158,14 @@ for irun,run_name in enumerate(run_names):
         lum_tot = lum_cum.iloc[-1]
         
         output_indices = lum_cum.searchsorted(output_linesteps*lum_tot)
-        np.savetxt("data/lumrads_{}_{}.dat".format(run_name,brightness_key),np.array([particles["rad3d"].values[output_indices],lum_cum.values[output_indices]]).T)
+        np.savetxt("data/lumrads_{}_{}_{}.dat".format(run_name,brightness_key,snap_str),np.array([particles["rad3d"].values[output_indices],lum_cum.values[output_indices]]).T)
         
         
         r_lum_indices = lum_cum.searchsorted(lum_factors*lum_tot)
         r_lums = particles["rad3d"].iloc[r_lum_indices]
         summary_outp+=[r_lums.values]
 #     print("Dumping output")
-    np.savetxt("data/summary_lumrads_{}.dat".format(run_name),summary_outp)
+    np.savetxt("data/summary_lumrads_{}_unextinguished_{}.dat".format(run_name,snap_str),summary_outp)
 #     np.savetxt("data/lumrads_{}.dat".format(run_name),np.array(full_outp).T,header=header_text)
 #         print(brightness_key,r_lums.values,r_lums.iloc[1]/r_lums.iloc[0])
 
@@ -183,3 +205,33 @@ for irun,run_name in enumerate(run_names):
 # 
 # print("table time:",table_time)
 # print("total time:",bigend-bigstart)
+
+
+if __name__=='__main__':
+# test
+#     snap_str = "100"
+#     calc_dump_lumrad(run_names[5],snap_str)
+
+# default for paper
+    snap_str = "100"
+    for irun,run_name in enumerate(run_names):
+        calc_dump_lumrad(run_name,snap_str)
+
+
+#     v_vs_pos_rays_for_pool = partial(v_vs_pos_rays,run_id,run_name,snap_str)
+# #     list(map(v_vs_pos_rays_for_pool,angles))
+#     with Pool(processes=3) as pool:
+#         pool.map(v_vs_pos_rays_for_pool,angles)
+
+# evolution
+#     snap_strs = ["{:03d}".format(x) for x in range(0,310,10)] 
+#     for run_name in run_names:
+#         one_run_rads = partial(calc_dump_lumrad,run_name)
+# #         list(map(one_run_rads,snap_strs))
+#         with Pool(processes=64) as pool:
+#             pool.map(one_run_rads,snap_strs)
+# #         for snap_str in snap_strs:
+# #             calc_dump_lumrad(run_name,snap_str)
+
+
+

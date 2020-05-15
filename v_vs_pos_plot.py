@@ -9,19 +9,24 @@ import pandas as pd
 
 run_id = "3032"
 run_names = [
-"longrun_medflow_settled_defaultaniso_polar",
-"longrun_medflow_vesc_defaultaniso",
 "longrun_medflow_vesc_defaultaniso_polar",
-"longrun_weakflow_rapid_defaultaniso",
-"longrun_weakflow_rapid_defaultaniso_polar",
-"longrun_weakflow_settled_defaultaniso",
-"longrun_weakflow_settled_defaultaniso_polar",
-"longrun_weakflow_vesc_defaultaniso",
-"longrun_weakflow_vesc_defaultaniso_polar",
-"newflow_settled_thin_up",
-"newflow_vesc_thin_45",
-"newflow_vesc_thin_side",
-"newflow_vesc_thin_up"]
+"newflow_vesc_thin"
+]
+
+# run_names = [
+# "longrun_medflow_settled_defaultaniso_polar",
+# "longrun_medflow_vesc_defaultaniso",
+# "longrun_medflow_vesc_defaultaniso_polar",
+# "longrun_weakflow_rapid_defaultaniso",
+# "longrun_weakflow_rapid_defaultaniso_polar",
+# "longrun_weakflow_settled_defaultaniso",
+# "longrun_weakflow_settled_defaultaniso_polar",
+# "longrun_weakflow_vesc_defaultaniso",
+# "longrun_weakflow_vesc_defaultaniso_polar",
+# "newflow_settled_thin_up",
+# "newflow_vesc_thin_45",
+# "newflow_vesc_thin_side",
+# "newflow_vesc_thin_up"]
 
 nruns = len(run_names)
 snap_str = "100"
@@ -29,18 +34,23 @@ snap_str = "100"
 nbins = 400
 dv_cent = 20.
 vmin=-200.
+# vmin=-100.
 # vmin=-1000.
 vmax=-vmin
 v_values = np.arange(vmin,vmax,(vmax-vmin)/nbins)
 
-# lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
-lines = ["co1","h2_1"]
+lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
+# lines = ["co1","h2_1"]
+# lines = ["h2_1","co1","hcn1"]
+# lines = ["hcn1"]
+
 line_codes = ["line_"+line for line in lines]
 
 nray_strip = 41
 nray = nray_strip*2
 
 x_values = np.linspace(-20,20,nray_strip)
+# x_values = np.linspace(-.5,.5,nray_strip)
 
 # max_clip = 10**20
 
@@ -164,17 +174,19 @@ scale = 2.
 
 # for run_name in ["newflow_vesc_thin_side_line"]:
 
-angles = np.arange(0.,90.,5.)
-# angles = [45.]
+# angles = np.arange(0.,90.,5.)
+angles = [0.,10.,20.]
 for rotate_phi in angles:
-    for run_name in ["longrun_medflow_vesc_defaultaniso_polar_line"]:
-        for suffix in ["_ext",""]:
+#     for run_name in ["longrun_medflow_vesc_defaultaniso_polar_line"]:
+    for run_name in run_names:
+#         for suffix in ["_ext",""]:
+        for suffix in ["_ext"]:
             for line in lines:
         #     for line in ["co1"]:
         #         line_fig,line_ax = plt.subplots(1,2,figsize=(2.*scale,6.*scale),constrained_layout=True)
                 line_fig,line_ax = plt.subplots(1,2,figsize=(4.*scale,3.*scale),constrained_layout=True)
         #         fig,ax = plt.subplots(1,2,figsize=(12.,4.))
-                ray_spectra = np.loadtxt("data/line_profs{}_{}_{}_{}deg.dat".format(suffix,run_name,line,rotate_phi))
+                ray_spectra = np.loadtxt("data/line_profs{}_{}_line_{}_{}deg.dat".format(suffix,run_name,line,rotate_phi))
         #         mask = np.ones(ray_spectra.shape,dtype=np.bool)
         #         mask[197:204,:] = False
         #         spectra_masked_centre = np.ma.masked_array(ray_spectra,mask=mask)
@@ -213,12 +225,15 @@ for rotate_phi in angles:
         #                 print(subplot_index,left_line,central_line,right_line)
 
                 for subplot_index in range(2):
-                    lines_mappable=line_ax[subplot_index].imshow(  vmaps[subplot_index,:,:]
-        #                                                         ,norm=mpl.colors.LogNorm()
-                                                                ,norm=mpl.colors.SymLogNorm(linthresh=1.e15)
+#                     print(vmaps[subplot_index,:,:])
+                    print(np.nanmax(vmaps[subplot_index,:,:]),np.nanmin(vmaps[subplot_index,:,:]))
+                    lines_mappable=line_ax[subplot_index].imshow(  np.flip(vmaps[subplot_index,:,:],1)
+                                                                ,norm=mpl.colors.LogNorm()
+#                                                                 ,norm=mpl.colors.SymLogNorm(linthresh=1.e15)
+                                                                ,vmin=1.e4
                                                                 ,interpolation='nearest'
                                                                 ,origin='lower'
-                                                                ,extent=[v_values[0],v_values[-1],x_values[0],x_values[-1]]
+                                                                ,extent=[x_values[0],x_values[-1],v_values[0],v_values[-1]]
                                                                 ,aspect='auto'
                                                                 ,cmap='jet'
                                                                 )
@@ -227,12 +242,12 @@ for rotate_phi in angles:
 
         #         ax[0].set_xlim([-500,500])
         #         ax[1].set_xlim([-500,500])
-                line_ax[0].set_xlabel(r"$v$ (km/s)")
-                line_ax[0].set_ylabel(r"$x$ (pc)")
-                line_ax[0].set_title("Vertical beams")
-                line_ax[1].set_xlabel(r"$v$ (km/s)")
-                line_ax[1].set_ylabel(r"$z$ (pc)")
-                line_ax[1].set_title("Horizontal beams")
+                line_ax[0].set_ylabel(r"$v$ (km/s)")
+                line_ax[0].set_xlabel(r"$z$ (pc)")
+                line_ax[0].set_title("Vertical slit")
+                line_ax[1].set_ylabel(r"$v$ (km/s)")
+                line_ax[1].set_xlabel(r"$x$ (pc)")
+                line_ax[1].set_title("Horizontal slit")
         #         ax[0].set_ylim([0.,None])
         #         ax[1].set_ylim([0.,None])
                 line_fig.savefig("pics/line_profs{}_{}_{}_{}deg.pdf".format(suffix,run_name,line,rotate_phi))

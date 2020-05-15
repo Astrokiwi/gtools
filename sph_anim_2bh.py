@@ -80,10 +80,8 @@ if __name__ == '__main__':
     default_values["data_ranges"]=""
     default_values["savemap"]=False
     default_values["gaussian"]=None
-#    default_values["opac_mu"]=None
     
     parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian"]
-    #,"opac_mu"]
 
     parser = argparse.ArgumentParser()
     parser.add_argument('run_id',help="name of superdirectory for runs")
@@ -111,7 +109,6 @@ if __name__ == '__main__':
     parser.add_argument('--noring',help="Edge on ring, not wrapped",action='store_true')
     parser.add_argument('--savemap',help="Save maps as data file",action='store_true')
     parser.add_argument('--gaussian',type=str,help="Gaussian filter size - same value for all plots, or separated by commas")
-#    parser.add_argument('--opac_mu',type=float,help="Wavelength in microns of dust opacity to use")
     args = parser.parse_args()
     
 #     run_id = args.run_id
@@ -176,7 +173,7 @@ if __name__ == '__main__':
         print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
-    os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
+    os.system("rm ../pics_test/sphplot"+run_id+output_dir+"???.png")
 
 
     print("nfiles:",snapf-snapi+1)
@@ -184,7 +181,7 @@ if __name__ == '__main__':
     isnaps = range(snapi,snapf+1)
     
     infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in isnaps]
-    outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
+    outfiles = ["../pics_test/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
     
     nfiles = len(infiles)
     if absurd:
@@ -196,10 +193,7 @@ if __name__ == '__main__':
         rads = np.sin(ungles)*rad/2.+rad
     else:
         thetas = np.full(nfiles,theta)
-        if isinstance(phi,list):
-            phis=[phi]*nfiles
-        else:
-            phis = np.full(nfiles,phi)
+        phis = np.full(nfiles,phi)
         if isinstance(rad,list):
             rads = [rad]*nfiles
         else: # if float
@@ -210,7 +204,6 @@ if __name__ == '__main__':
 
     def frame_i(i):
         return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
-        #,opac_mu=opac_mu)
     
     with Pool(processes=nprocs) as pool:
         maps = pool.map(frame_i,range(snapf+1-snapi))
@@ -221,29 +214,14 @@ if __name__ == '__main__':
         if isinstance(result, sph_frame.ExceptionWrapper):
             result.re_raise()
     if savemap:
-        plot_strs = list(np.repeat(toplot,len(toview)))
-#         for plot_str in toplot:
-#             if plot_str in ["vels"]: # n.b. list of things with 3 maps each
-#                 plot_strs+=[plot_str]*3
-#             else:
-#                 plot_strs+=[plot_str]
-    
         for itime,maps_timeslice in enumerate(maps):
             idump = isnaps[itime]
-            print(len(maps_timeslice))
             for iplot,map in enumerate(maps_timeslice):
-                print(iplot,idump,toplot,plot_strs)
-                plot_str = plot_strs[iplot]
+                plot_str = toplot[iplot]
                 if toplot.count(plot_str)>0:
-                    plot_str+="_%03d"%plot_strs[:iplot].count(plot_strs[iplot])
-                print("type=",type(map))
-                if type(map) is list:
-                    for imap,submap in enumerate(map):
-                        outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+suffix+"_%03d"%idump+"_"+plot_str+"_%03d.dat"%imap
-                        np.savetxt(outfile,submap)
-                else:
-                    outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+suffix+"_%03d"%idump+"_"+plot_str+".dat"
-                    np.savetxt(outfile,map)
+                    plot_str+="_%03d"%toplot[:iplot].count(toplot[iplot])
+                outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+suffix+"_%03d"%idump+"_"+plot_str+".dat"
+                np.savetxt(outfile,map)
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='viridis',flat=True,ring=True,plot=['dt'],L=200,scale=15.,pixsize=2) for i in range(snapi,snapf+1))
     #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=400,scale=15.) for i in range(snapi,snapf+1))
@@ -269,7 +247,7 @@ if __name__ == '__main__':
     #for snapx in [37]:
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
+    cmd = "ffmpeg -y -r 5 -i ../pics_test/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
 
 
     #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_rhotempgiz_"+run_id+"_"+output_dir+".mp4"

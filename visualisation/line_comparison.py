@@ -24,13 +24,14 @@ import os
 
 #from sys import path
 #path.append("../src/")
-import sph_frame
+# import sph_frame
 
 from sys import path
 path.append("../")
 import gizmo_tools
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 import rgb_image
 import config3032
@@ -66,8 +67,11 @@ config3032.setup("../")
 # "newflow_vesc_thin_up"]
 
 
-# samples, for production
+# samples, for paper plots
 output_dirs = ["longrun_medflow_vesc_defaultaniso_polar","newflow_vesc_thin_45"]
+
+# samples, for poster plots
+# output_dirs = ["longrun_medflow_vesc_defaultaniso_polar"]
 
 
 # rads = [20.]*7*2+[10.,100.,10.,100.]
@@ -87,14 +91,8 @@ run_id = "3032"
 # line_codes = ["hcn2m_001","co2m_001","h2_1m_001","view_002","view_003"] # for presentation
 # rads = [20.]*3+[10.,100.]
 
-line_codes = ["co1m_000","co2m_000","hcn1m_000","hcn2m_000","h2_1m_000","h2_2m_000","h2_3m_000","view_000","co1m_001","co2m_001","hcn1m_001","hcn2m_001","h2_1m_001","h2_2m_001","h2_3m_001","view_001"]
-# rads = [20.]*7+[10.,100.]
-rads = [10.]*8+[100.]*8
-
 # line_labels = [r"HCN(8-7), $422.796$ $\mu$m",r"CO(6-5), $433.438$ $\mu$m",r"H$_2$ (1-0) S(1), $2.121$ $\mu$m",r"$F_{IR}$",r"$F_{IR}$"] # for presentation
-line_name_lookup = gizmo_tools.lineNamesFull.copy()
-line_name_lookup["vie"] = r"$F_{IR}$"
-line_labels = [line_name_lookup[line[:-5]] for line in line_codes]
+
 
 # clear
 # vranges = { "view":[0.,5.],
@@ -107,22 +105,62 @@ line_labels = [line_name_lookup[line[:-5]] for line in line_codes]
 #             "h2_3m":[-8.,-0.]
 #             }
 
-# fair
-vranges = { "view":[0.,5.],
-            "co1m":[-20.,0.],
-            "co2m":[-20.,0.],
-            "hcn1m":[-20.,0.],
-            "hcn2m":[-20.,0.],
-            "h2_1m":[-20.,0.],
-            "h2_2m":[-20.,0.],
-            "h2_3m":[-20.,0.]
+# fair, no extinction
+# vranges = { "IRdustm":[-5.,5.],
+#             "co1m":[-20.,0.],
+#             "co2m":[-20.,0.],
+#             "hcn1m":[-20.,0.],
+#             "hcn2m":[-20.,0.],
+#             "h2_1m":[-20.,0.],
+#             "h2_2m":[-20.,0.],
+#             "h2_3m":[-20.,0.]
+#             }
+# line_codes = ["co1m_000","co2m_000","hcn1m_000","hcn2m_000","h2_1m_000","h2_2m_000","h2_3m_000","IRdustm_000","co1m_001","co2m_001","hcn1m_001","hcn2m_001","h2_1m_001","h2_2m_001","h2_3m_001","IRdustm_001"]
+# line_ids = [x[:-5] for x in line_codes]
+# extinction_suffix = "opticallythin"
+
+
+# with extinction
+vranges = { "viewIRdust":[-5.,5.],
+            "viewco1":[-20.,0.],
+            "viewco2":[-20.,0.],
+            "viewhcn1":[-20.,0.],
+            "viewhcn2":[-20.,0.],
+            "viewh2_1":[-20.,0.],
+            "viewh2_2":[-20.,0.],
+            "viewh2_3":[-20.,0.]
             }
+# line_codes_all = ["viewco1_000","viewco2_000","viewhcn1_000","viewhcn2_000","viewh2_1_000","viewh2_2_000","viewh2_3_000","viewIRdust_000","viewco1_001","viewco2_001","viewhcn1_001","viewhcn2_001","viewh2_1_001","viewh2_2_001","viewh2_3_001","viewIRdust_001"]
+line_codes_all = ["viewco1_000","viewco2_000","viewhcn1_000","viewhcn2_000","viewh2_1_000","viewh2_3_000","viewh2_2_000","viewIRdust_000","viewco1_001","viewco2_001","viewhcn1_001","viewhcn2_001","viewh2_1_001","viewh2_3_001","viewh2_2_001","viewIRdust_001"]
+
+# POSTER lines
+# line_codes = [line_codes_all[0],line_codes_all[6],line_codes_all[7],line_codes_all[8],line_codes_all[14],line_codes_all[15]]
+# paper lines
+line_codes = line_codes_all
+
+line_ids = [x[4:-4] for x in line_codes]
+extinction_suffix = "extinction"
+
+
+
+# rads = [20.]*7+[10.,100.]
+rads = [10.]*(len(line_codes)//2)+[100.]*(len(line_codes)//2)
+
+
+
+
+line_name_lookup = gizmo_tools.lineNamesFull.copy()
+line_name_lookup["IRdust"] = r"$F_{IR}$"
+line_labels = [line_name_lookup[line_id] for line_id in line_ids]
+
 
 nruns = len(output_dirs)
 nlines = len(line_codes)# len(rgb_image.labels)
 
 cmap = "inferno"
 # cmap = "bwr"
+
+scale = .7
 
 def render_all(idump):
     print("Rendering")
@@ -133,8 +171,16 @@ def render_all(idump):
 # #         commands.append("python sph_anim.py 3032 {run_name} --rad 20. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m --gaussian=-1.,-1.,-1.,-1.,-1.,-1.,-1.,4.,4.,4.,4.,4.,4.,4. &")
 #         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m --gaussian=1.,1.,1.,1.,1.,1.,1.,10.,10.,10.,10.,10.,10.,10. &")
 
-        commands.append("python sph_anim.py 3032 {run_name} --rad 10.,100.,10.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot view,view &")
-        commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m &")
+#         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,100.,10.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot view,view &")
+# no extinction
+#         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m &")
+#extinction
+#         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3 &")
+
+# no extinction, include IR
+#         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot IRdustm,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,IRdustm,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m &")
+#extinction, include IR
+        commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot viewIRdust,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3,viewIRdust,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3 &")
 
         for command in commands:
             formatted_command = command.format(run_name=output_dir,snap=snap_str)
@@ -165,7 +211,8 @@ def plot_lines_separately():
 
         for irow in range(ny):
             for icol in range(nx):
-                sp[irow,icol].set(adjustable='box-forced', aspect='equal')
+                sp[irow,icol].set_aspect('equal', 'box')
+
 
         plot_str = line_code
         if line_codes.count(plot_str)>0:
@@ -239,7 +286,9 @@ def plot_lines_together(run_id,output_dirs,idump,split=False):
     if split:
         nx//=2
         ny*=2
-    fig,sp = plt.subplots(ny+1,nx,figsize=(3.*nx,3.*ny+3./16.), gridspec_kw = {'width_ratios':[16]*nx,'height_ratios':[16]*ny+[1]},squeeze=False,constrained_layout=True)
+    fw_inches = 3.*nx*scale
+    pixsize=1
+    fig,sp = plt.subplots(ny+1,nx,figsize=(fw_inches,scale*(3.*ny+3./16.)), gridspec_kw = {'width_ratios':[16]*nx,'height_ratios':[16]*ny+[1]},squeeze=False,constrained_layout=True)
 #     for irow in range(ny-1):
 #         for icol in range(nx-1):
 #             sp[irow,icol].get_shared_x_axes().join(sp[irow,icol], sp[irow+1,icol])
@@ -249,7 +298,7 @@ def plot_lines_together(run_id,output_dirs,idump,split=False):
 
     for irow in range(ny):
         for icol in range(nx):
-            sp[irow,icol].set(adjustable='box-forced', aspect='equal')
+            sp[irow,icol].set_aspect('equal', 'box')
 
 
     for iline,line_code in enumerate(line_codes):
@@ -274,7 +323,8 @@ def plot_lines_together(run_id,output_dirs,idump,split=False):
             else:
                 vrange = None
             
-            mappable=rgb_image.produce_and_save_rgb_table_image(infile,ax=ax,rad=rads[iline],vrange=vrange,cmap='inferno')
+            mappable=rgb_image.produce_and_save_rgb_table_image(infile,ax=ax,rad=rads[iline],vrange=vrange,cmap='inferno',printrange=True)#,gauss_rad=1.)
+
             ax.set_title("")
             if iy==ny-1 or split and iy%2==1:
                 ax.set_xlabel("pc")
@@ -297,9 +347,55 @@ def plot_lines_together(run_id,output_dirs,idump,split=False):
                 ax.yaxis.set_visible(False)
                 ax.set_ylabel("")
 
+    # add boxes, from every 2nd to every 1st row
+#     square_corner = -10.
+    square_corner = -9.
+    square_size = -square_corner*2.
+    box_color = '#10D7AE'
+#     for iy_0 in range(0,ny*2,2):
+#     for iy_0 in [0,2]:
+    for iy_0 in [0]:
+        for ix in range(nx):
+            print(ix,iy_0)
+            gizmo_tools.box_connected_two_axes(sp[iy_0,ix]
+                                ,sp[iy_0+1,ix]
+                                ,[square_corner,square_corner]
+                                ,[square_size,square_size]
+                                ,color=box_color)
+#             small_ax = sp[iy_0,ix]
+#             big_ax = sp[iy_0+1,ix]
+#             big_ax.add_patch(patches.Rectangle( (square_corner,square_corner),square_size,square_size,fill=False,color=box_color))
+#             small_ax.add_patch(patches.Rectangle( (square_corner,square_corner),square_size,square_size,fill=False,color=box_color))
+#             for i0 in range(2):
+#                 for j0 in range(2):
+#                     corner_coordinates = (square_corner+square_size*i0,square_corner+square_size*j0)
+#                     a=big_ax.add_artist(patches.ConnectionPatch(
+#                                 xyA=corner_coordinates
+#                                 ,xyB=corner_coordinates
+#                                 ,coordsA="data"
+#                                 ,coordsB="data"
+#                                 ,axesA=big_ax
+#                                 ,axesB=small_ax
+#                                 ,color=box_color
+#                                 ))
+#                     a.set_in_layout(False) #otherwise matplotlib tries to stretch the plot to "fit" the lines in, and the imshow maps become tiny
+    print("Dumping png file")
+#     fig.tight_layout()
 #     plt.savefig("../../figures/lines_together_ewass.png",dpi=150)
 #     plt.savefig("../../figures/lines_together_analysis_{}.png".format(idump),dpi=150)
-    plt.savefig("../../figures/lines_together_summary_{}.png".format(idump),dpi=150)
+
+    L = 400
+    pos = sp[0,0].get_position()
+    lpixx = (L/(pos.x1-pos.x0))
+    my_dpi = int(np.floor(lpixx/fw_inches))*pixsize
+    
+    print(my_dpi)
+
+    plt.savefig("../../figures/lines_together_summary_{}_{}.png".format(extinction_suffix,idump),dpi=my_dpi)
+#     plt.savefig("../../figures/lines_together_summary_{}_{}_smoothed.png".format(extinction_suffix,idump),dpi=my_dpi)
+#     plt.savefig("../../figures/lines_together_summary_POSTER_{}_{}.png".format(extinction_suffix,idump),dpi=my_dpi)
+#     plt.savefig("../../figures/lines_together_summary_POSTER_{}_{}.pdf".format(extinction_suffix,idump),dpi=my_dpi)
+#     plt.savefig("../../figures/lines_together_summary_AESTHETIC_{}_{}.png".format(extinction_suffix,idump),dpi=30)
 
 if __name__=='__main__':
     print("Running")
@@ -307,7 +403,7 @@ if __name__=='__main__':
 #     render_all(200)
 #     render_all(300)
 #     idumps = [100,200,300]
-    idumps = [100]
+    idumps = [200]
 
 
     if len(sys.argv)>=2:
