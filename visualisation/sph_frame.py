@@ -32,6 +32,8 @@ import itertools
 import gizmo_tools
 import pandas as pd
 
+from scipy import interpolate
+
 class ExceptionWrapper(object):
 
     def __init__(self, ee):
@@ -84,8 +86,27 @@ cdict1 = {'red':   ((0.0, .5, .5),
 
 P.register_cmap(name='RGBsteps', data=cdict1)
 
-lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
+dust_opacity_function = None
+def load_interpolate_opacity(opac_mu,
+                        opac_file="../prams/simple_dust_opacity.txt"):
+    global dust_opacity_function
+    if dust_opacity_function is None:
+        dust_opacity_table = np.loadtxt(opac_file)
+        dust_opacity_function = interpolate.interp1d(dust_opacity_table[:,0],dust_opacity_table[:,1])
+    opacity=dust_opacity_function(opac_mu)
+#     print("Setting opacity to ",opacity," cm^2/g")
+    opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
+    return opacity
 
+
+
+lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
+line_wavelengths = [866.727,433.438,845.428,422.796,2.121,28.18,9.66]
+line_opacities = {line:load_interpolate_opacity(mu) for line,mu in zip(lines,line_wavelengths)}
+
+# count "IRdust" as a line
+lines = ["IRdust"]+lines
+line_opacities.update({"IRdust":0.1*0.000208908219})
 
 # class SliceType(Enum):
 #     densslice = 0
@@ -99,7 +120,7 @@ densslice = 0
 weightslice = 1
 zdensslice = 2
 zweightslice = 3
-vec2dslice = 4
+vec2dslice_flat = 4
 viewslice = 5
 minslice = 6
 zminslice = 7
@@ -111,6 +132,8 @@ maxdotslice = 12
 mindotslice = 13
 sdevslice = 14
 weightviewslice = 15
+zvec2dslice = 16
+
 
 molecular_mass = 4./(1.+3.*.76)
 proton_mass_cgs = 1.6726e-24
@@ -118,8 +141,8 @@ gamma_minus_one = 5./3.-1.
 boltzmann_cgs = 1.38066e-16
 
 
-chTab = None
-interpTabVec = None
+# chTab = None
+# interpTabVec = None
 
 debug_mode = False
 
@@ -197,7 +220,9 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                  cmap2=None,
                  contour=False,
                  gaussian=None,
-                 symLog=None):
+                 symLog=None,
+                 cax_orientation='vertical',
+                 centrecross=True):
 
     cmap_label2=cmap2
     cbax2=cbar2
@@ -239,9 +264,15 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         map = sph_plotter.sph_dense_slice(x_p,y_p,m_p,h_p,L,corner,width,z_p,zslice,mask,n)
     elif (mode==zweightslice ):
         map = sph_plotter.sph_weight_slice(x_p,y_p,m_p,h_p,val_p,L,corner,width,z_p,zslice,mask,n)
-    elif (mode==vec2dslice ):
+    elif (mode==vec2dslice_flat ):
         map1 = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p[0],L,corner,width,mask,n)
         map2 = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p[1],L,corner,width,mask,n)
+        norm_map = np.sqrt(map1**2+map2**2)
+        map1/=norm_map
+        map2/=norm_map
+    elif (mode==zvec2dslice ):
+        map1 = sph_plotter.sph_weight_slice(x_p,y_p,m_p,h_p,val_p[0],L,corner,width,z_p,zslice,mask,n)
+        map2 = sph_plotter.sph_weight_slice(x_p,y_p,m_p,h_p,val_p[1],L,corner,width,z_p,zslice,mask,n)
         norm_map = np.sqrt(map1**2+map2**2)
         map1/=norm_map
         map2/=norm_map
@@ -255,7 +286,15 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     elif (mode==weightviewslice ):
         zarg = np.argsort(z_p)
 #         map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
-        map = sph_plotter.sph_optical_depth_los_weight(x_p,y_p,m_p,h_p,val_p[0],val_p[1],val_p[2],L,corner,width,z_p,zarg,mask,n)
+
+#         map = sph_plotter.sph_optical_depth_los_weight(x_p,y_p,m_p,h_p,val_p[0],val_p[1],val_p[2],L,corner,width,z_p,zarg,mask,n)
+#         map = sph_plotter.sph_optical_depth_los_weight(x_p,y_p,m_p,h_p,val_p[0],val_p[1],val_p[2],L,corner,width,z_p,zarg,mask,n)
+#         threshold_flux = 1.e-5
+        threshold_flux = 1.e-7
+        print("HACKY: USING THRESHOLD FLUX OF ",threshold_flux)
+        map = sph_plotter.sph_optical_depth_los_weight_thresh(x_p,y_p,m_p,h_p,val_p[0],val_p[1],val_p[2],L,corner,width,z_p,zarg,mask,threshold_flux,n)
+
+
     elif (mode==minslice ):
         map = sph_plotter.sph_min(x_p,y_p,h_p,val_p,L,corner,width,mask,n)
     elif (mode==zminslice ):
@@ -278,7 +317,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #     print(nerrors_in,nerrors)
     
     
-    if ( mode==vec2dslice ):
+    if ( mode==vec2dslice_flat or mode==zvec2dslice ):
         #map1/=1.e5
         #map2/=1.e5
         map1 = map1.T
@@ -299,7 +338,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         qv = safe_pcolormesh(sp,xedges,yedges,norm_map,cmap=this_cmap,vmin=clow,vmax=chigh)
         sp.streamplot(xmids,ymids,map1,map2)
         if ( visibleAxes ):
-            cb = fig.colorbar(qv,label=cblabel,cax=cbax)
+            cb = fig.colorbar(qv,label=cblabel,cax=cbax,orientation=cax_orientation)
         else:
             cbax.set_axis_off()
 #         sp.set_xbound(corner[0],corner[0]+width)
@@ -308,7 +347,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #         sp.set_ylim(corner[1],corner[1]+width)
 #         sp.set_xmargin(0)
 #         sp.set_ymargin(0)
-        outmap = norm_map
+        outmap = [norm_map,map1,map2]
     else:
 #         xedges = np.arange(corner[0],corner[0]+width,width/L)
 #         yedges = np.arange(corner[1],corner[1]+width,width/L)
@@ -334,7 +373,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                 plusmap[isminus]=0.
                 mesh1=safe_pcolormesh(sp,xedges,yedges,plusmap.T,cmap=this_cmap,vmin=clow,vmax=chigh,norm = colors.LogNorm())
                 if ( visibleAxes ):
-                    cb = fig.colorbar(mesh1,label=cblabel,cax=cbax)
+                    cb = fig.colorbar(mesh1,label=cblabel,cax=cbax,orientation=cax_orientation)
                 else:
                     cbax.set_axis_off()
             
@@ -344,7 +383,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             
                 mesh2=safe_pcolormesh(sp,xedges,yedges,minusmap.T,cmap=this_cmap2,vmin=clow,vmax=chigh,norm = colors.LogNorm())
                 if ( visibleAxes ):
-                    cb2 = fig.colorbar(mesh2,label=cblabel,cax=cbax2)
+                    cb2 = fig.colorbar(mesh2,label=cblabel,cax=cbax2,orientation=cax_orientation)
                 else:
                     cbax2.set_axis_off()
             outmap = [plusmap.T,minusmap.T]
@@ -373,7 +412,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             else:
                 mesh = safe_pcolormesh(sp,xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh)
             if ( visibleAxes ):
-                cb = fig.colorbar(mesh,label=cblabel,cax=cbax)
+                cb = fig.colorbar(mesh,label=cblabel,cax=cbax,orientation=cax_orientation)
             else:
                 cbax.set_axis_off()
 
@@ -384,7 +423,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     
     sp.set_xlim([corner[0],corner[0]+width])
     sp.set_ylim([corner[1],corner[1]+width])
-    if ( visibleAxes ):
+    if visibleAxes and centrecross:
         sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
     #mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap) 
     #sp.axis('equal')
@@ -393,10 +432,15 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     
 #     return nerrors
 
+
 def load_gadget(infile, plot_thing,
                         centredens=False):
-    global chTab
-    global interpTabVec
+                        
+#                         ,
+#                         opac_mu=None,
+#                         opac_file="../prams/simple_dust_opacity.txt"):
+#     global chTab
+#     global interpTabVec
 
     data = GadgetData()
 
@@ -438,17 +482,22 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("table")
     if ( "dust" in need_to_load ):
         need_to_load.append("dg")
+    if any(x in need_to_load for x in ("IRdust","IRdustm")):
+        need_to_load.append("dg")
     if ( "dg" in need_to_load ):
         need_to_load.append("table")
     for line in lines:
         if "dv"+line in need_to_load:
             need_to_load.append("v"+line)
-        if "view"+line in need_to_load:
-            need_to_load.append("v"+line)
+        if "v"+line in need_to_load:
+            need_to_load.append("view"+line)
             need_to_load.append("opac")
             need_to_load.append("dg")
-        if "v"+line in need_to_load:
+        if "view"+line in need_to_load:
+#             need_to_load.append("v"+line)
             need_to_load.append(line+"m")
+            need_to_load.append("opac")
+            need_to_load.append("dg")
         if "vels"+line in need_to_load:
             need_to_load.append(line+"m")
         if line+"m" in need_to_load:
@@ -462,14 +511,30 @@ def load_gadget(infile, plot_thing,
         need_to_load.append("temp")
         need_to_load.append("nH")
         need_to_load.append("tau")
-    
+    if "vel0" in need_to_load or "age" in need_to_load:
+        need_to_load.append("id")
 
-#     if "nopac" in need_to_load:
+#     if "nopac" in need_to_load:ga
 #         need_to_load.append("opac")
 #         need_to_load.append("nH")
     
     if any(x in need_to_load for x in ["vmag","vel_2d","vel_r","vel_x","vel_y","vel_z","vel_a"]+["v"+line for line in lines]+["vels"+line for line in lines]):
         need_to_load.append("vels")
+
+
+
+    if "id" in need_to_load:
+        data.id_p = np.array(f["/PartType0/ParticleIDs"]).astype(int)
+#         data.id_p-=1
+
+    if "age" in need_to_load:
+        infile_split = infile.split("/")
+        run_id = infile_split[-3]
+        run_name = infile_split[-2]
+        run_snapfile = infile_split[-1]
+        run_isnap = int(run_snapfile[-8:-5])
+        age_file = "../data/age_{}_{}_{}.dat".format(run_id,run_name,run_isnap)
+        data.age = time-np.loadtxt(age_file)
 
     if ( "pres" in need_to_load ):
         data.pres = np.array(f["/PartType0/Pressure"])
@@ -542,8 +607,8 @@ def load_gadget(infile, plot_thing,
         data.AGNI*= (1.989e53/(0.9778e9*3.154e7)/3.086e21**2) # convert from internal units (energy/Gyr-ish/kpc**2) to erg/s/cm**2
 
     if ( "table" in need_to_load ):
-        if ( not chTab ):
-            verboseprint("Load dust tables")
+#         if ( not chTab ):
+        verboseprint("Load dust tables")
 #             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_090818tau.dat"),
 #                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_tau.dat"),
 #                                             ("../coolheat_tab_marta/shrunk_table_labels_090818taunodust.dat"),
@@ -557,9 +622,9 @@ def load_gadget(infile, plot_thing,
 #             tableRes="0.0001"
 #             tableDate="281118"
 #             tableRes="0.0001"
-            tableDate="060319"
-            tableRes="0.1"
-            cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"../")
+        tableDate="060319"
+        tableRes="0.1"
+        cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"../")
 #             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
 #                                             ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
 #                                             ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
@@ -597,14 +662,12 @@ def load_gadget(infile, plot_thing,
 #         data.dustTemp = 10.**data.dustTemp
 #         print(np.max(data.dustTemp),np.min(data.dustTemp))
 #         data.dustTemp = data.dustTemp**4 # for test
-    for line in lines:
+    for line in lines[1:]:
         if line in need_to_load:
 #             data.__dict__[line] = np.array(list(map(lambda y: y.__getattr__("line_"+line), tabStructs)))
             data.__dict__[line] = table_particles["line_"+line]
         if line+"m" in need_to_load:
             data.__dict__[line+"m"] = table_particles["line_"+line]*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
-        
-
 #     if ( "co1" in need_to_load ):
 #         data.co1 = np.array(list(map(lambda y: y.line_co1, tabStructs))) # erg/s/g
 # #         data.co1/=data.rho_p # to erg/g
@@ -655,23 +718,32 @@ def load_gadget(infile, plot_thing,
         #opacity = 1. # cm^2/g, somewhat arbitrary
 
         # we want infrared opacity, not the flux-weighted opacity
-        print("faking opacity")
-        opacity = 65.2 # cm^2/g, somewhat arbitrary
 #         opacity = 1. # cm^2/g, somewhat arbitrary
         
 #         print("SUPER faking opacity")
 #         opacity*=1.e3 # for lulz
-        
+
+#         if opac_mu and opac_file:
+#             opacity = load_interpolate_opacity(opac_mu,opac_file)
+# #             opac_data = np.loadtxt(opac_file)
+# #             opacity=interpolate.interp1d(opac_data[:,0],opac_data[:,1])(opac_mu)
+# #             print("Setting opacity to ",opacity," cm^2/g")
+        print("faking opacity")
+        opacity = 65.2 # cm^2/g, somewhat arbitrary
+        print("Broad opacity is now ",opacity," cm^2/g")
+
         opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
         data.opac = np.full((n),opacity)
         data.opac*=data.dg/np.nanmax(data.dg) # take into account dust fraction
 
         if "dusttau" in need_to_load:
             data.dusttau = data.opac * data.m_p
-#         for line in lines:
-#             if not "view"+line in need_to_load:
-#                 continue
-#             data.__dict__[line+"brightness"]=data.__dict[line]/opacity # erg/s/cm^2 - multiply by opacity to get actual emission
+        for line in lines[1:]:
+            if not "view"+line in need_to_load:
+                continue
+            data.__dict__[line+"opac"]=np.full((n),line_opacities[line])
+            data.__dict__[line+"brightness"]=data.__dict__[line+"m"]/data.__dict__[line+"opac"] # erg/s/cm^2 - multiply by opacity to get actual emission
+#             data.__dict__[line+"brightness"]=data.__dict__[line+"m"] # erg/s, gets SPH smoothed to get erg/s/cm**2
 
         
         if ( "view" in need_to_load ):
@@ -679,6 +751,13 @@ def load_gadget(infile, plot_thing,
             sputtered = (data.dustTemp>1.e5) # or something, super arbitrary
             data.brightness[sputtered] = 0.
             data.opac[sputtered] = 0.
+    if any(x in need_to_load for x in ("IRdustm","IRdust","IRdustopac","IRdustbrightness","viewIRdust")):
+        data.dustTemp = table_particles["dustT"]
+        data.IRdustbrightness = 5.67e-5 * data.dustTemp**4. * data.dg/np.nanmax(data.dg)
+        data.IRdustopac = np.full((n),line_opacities["IRdust"])
+        data.IRdustm = data.IRdustbrightness*data.IRdustopac
+        data.IRdust = data.IRdustm/(data.m_p*1.9891e33/9.52140614e36/(4.*np.pi))
+
 
     #rho_p*=6.77e-22 # to g/cm**3
     #m_p*=1.989e+43 # 10^10 solar masses to g
@@ -688,10 +767,10 @@ def load_gadget(infile, plot_thing,
 #     if ( 'agn_heat_p' in globals() ):
 #         depth_p = agn_heat_p*rho_p*h_p*(16./3./np.pi)
     if "rad0" in need_to_load:
-        data.id_p = np.array(f["/PartType0/ParticleIDs"]).astype(int)
-        data.id_p-=1
+#         data.id_p = np.array(f["/PartType0/ParticleIDs"]).astype(int)
+#         data.id_p-=1
         data.rad0 = np.load("rad0.npy")
-        data.rad0 = data.rad0[data.id_p]
+        data.rad0 = data.rad0[data.id_p-1]
     
     return time,data
 
@@ -704,6 +783,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
         thisminslice = minslice
         vslice = vorinoislice
         mslice = maxslice
+        vec2dslice = vec2dslice_flat
 #         drange = [-2.,2.] # TEMPORARY
         #drange = [2.,6.]
         #drange = [-1.,4.]
@@ -715,6 +795,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
         drange = [-2.,7.]
         vslice = zvorinoislice   
         mslice = zmaxslice
+        vec2dslice = zvec2dslice
     if ( planenorm ):
         drange_s = [-3.6,0.]
         drange = [-4.5,0.]
@@ -763,6 +844,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotLabel["nneigh"] = r"$N_n$"
 #     plotLabel["pres"] = r"$P$ (dyne/cm$^2$)"
     plotLabel["pres"] = r"$P$ (internal)"
+    plotLabel["age"] = r"$age$ (Myr)"
     for line in lines:
         plotLabel[line]=line
         plotLabel[line+"m"]=line+" line intensity - erg/s/cm**2/ster"
@@ -792,7 +874,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["temp"] = [.999,6.]*2
     #plotRanges["temp"] = [3.,4.]*2
     plotRanges["col"] = [18.,26.]*2
-#     plotRanges["nH"] = [0.,8.]*2 #Êstandard
+#     plotRanges["nH"] = [0.,8.]*2 # standard
     plotRanges["nH"] = [5.,10.]*2
 #     plotRanges["nH"] = [5.,7.]*2
 #     plotRanges["nH"] = [-1.,7.]*2
@@ -854,14 +936,18 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotRanges["nneigh"] = [0,50]*2
 #     plotRanges["pres"] = [36.3,38.6]*2
     plotRanges["pres"] = [3.3,16]*2
+    plotRanges["age"] = [0.,3.]*2
     for line in lines:
 #         plotRanges[line]=[-6.,-2.]*2
         plotRanges[line]=[-8.,2.]*2
 #         plotRanges[line+"m"]=[-7.,-3.]*2
         plotRanges[line+"m"]=[-12.,0.]*2
-        plotRanges["v"+line]=[-100.,100.]*2
+#         plotRanges["v"+line]=[-100.,100.]*2
+        plotRanges["v"+line]=[-200.,200.]*2
         plotRanges["dv"+line]=[0.,3.,0.,30.]
-        plotRanges["view"+line]=[-1.2e2,1.2e2]*2
+#         plotRanges["view"+line]=[-1.2e2,1.2e2]*2
+#         plotRanges["view"+line]=[-12.,0.]*2
+        plotRanges["view"+line]=[-20.,0.]*2
         plotRanges["vels"+line]=[0.,3.]*2
 #         plotRanges["view"+line]=[-1.2e1,1.2e1]*2
 #     plotRanges["co1"] = [-6.,-2.]*2
@@ -918,12 +1004,15 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotSliceTypes["rad0"] = quantslice
     plotSliceTypes["nneigh"] = quantslice
     plotSliceTypes["pres"] = quantslice
+    plotSliceTypes["age"] = quantslice
     for line in lines:
         plotSliceTypes[line]=quantslice
         plotSliceTypes[line+"m"]=dslice
-        plotSliceTypes["v"+line]=quantslice
+#         plotSliceTypes["v"+line]=quantslice
+        plotSliceTypes["v"+line]=weightviewslice
         plotSliceTypes["dv"+line]=sdevslice
-        plotSliceTypes["view"+line]=weightviewslice
+#         plotSliceTypes["view"+line]=weightviewslice
+        plotSliceTypes["view"+line]=viewslice
         plotSliceTypes["vels"+line]=vec2dslice
 #     plotSliceTypes["co1"] = quantslice
 #     plotSliceTypes["co2"] = quantslice
@@ -988,6 +1077,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     plotData["facetemp"] = ["dustTemp","opac","dustTemp","opac"]
     plotData["nneigh"] = "nneigh"
     plotData["pres"] = "pres"
+    plotData["age"] = "age"
 #     plotData["co1"] = "co1"
 #     plotData["co2"] = "co2"
 #     plotData["hcn1"] = "hcn1"
@@ -995,9 +1085,10 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     for line in lines:
         plotData[line]=line
         plotData[line+"m"]=line+"m"
-        plotData["v"+line]="vthin"
+        plotData["v"+line]=["vthin",line+"brightness",line+"opac","vythin",line+"brightness",line+"opac"]
         plotData["dv"+line]="vthin"
-        plotData["view"+line]=["vthin",line+"m","opac","vel_x",line+"m","opac"]
+#         plotData["view"+line]=["vthin",line+"m","opac","vel_x",line+"m","opac"]
+        plotData["view"+line] = [line+"brightness",line+"opac",line+"brightness",line+"opac"]
         plotData["vels"+line]=["vel_x","vel_y","vel2d","vel_z"]
 #     plotData["vco1"] = "vthin"
 #     plotData["vco2"] = "vthin"
@@ -1014,6 +1105,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
                         "AGNI","opac","smooth","tdust","pres","dusttau"]
     logSliceTypes+=lines
     logSliceTypes+=[line+"m" for line in lines]
+    logSliceTypes+=["view"+line for line in lines]
     symLogSliceTypes={"heat":1.e-4}
     # ,
 #                         "co1","co2","hcn1","hcn2","co1m","co2m","hcn1m","hcn2m"
@@ -1027,7 +1119,7 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     
     divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d","vel_a","vthin"]
     divergingTypes+=["v"+line for line in lines]
-    divergingTypes+=["view"+line for line in lines]
+#     divergingTypes+=["view"+line for line in lines]
 #     ,"vco1","vco2","vhcn1","vhcn2"]
     
     customCmaps = dict()
@@ -1041,11 +1133,12 @@ def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
     return plotLabel, plotRanges, plotSliceTypes, plotCustomMass, plotData, logSliceTypes, extraBarTypes, plusMinusTypes, divergingTypes, symLogSliceTypes, customCmaps, customCmaps2
 
 def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,ringPlot=False,flatPlot=False,maskbounds=None):
+#,opac_mu=None):
     need_to_load = list(plot_thing)
     if maskbounds:
         need_to_load.append(maskbounds[0])
 
-    time,data = load_gadget(infile,need_to_load,centredens=centredens)
+    time,data = load_gadget(infile,need_to_load,centredens=centredens)#,opac_mu=opac_mu)
 
     n = data.h_p.size
         
@@ -1071,26 +1164,51 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
 #         y = yr*np.cos(rot[1]) - z*np.sin(rot[1])
 #         z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
     
-    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a","vthin","vlos"] + ["v"+line for line in lines] + ["dv"+line for line in lines] + ["view"+line for line in lines] + ["vels"+line for line in lines]) ):
+    if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a","vthin","vlos"] + ["v"+line for line in lines] + ["dv"+line for line in lines] + ["vels"+line for line in lines]) ): #+ ["view"+line for line in lines] 
         #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
-        data.vel2d = (x*data.vels[:,0]+y*data.vels[:,1])/np.sqrt(x**2+y**2)
         data.vel_a = (-x*data.vels[:,1]+y*data.vels[:,0])/np.sqrt(x**2+y**2)
         data.velr = (x*data.vels[:,0]+y*data.vels[:,1]+z*data.vels[:,2])/np.sqrt(x**2+y**2+z**2)
         data.vel_x = data.vels[:,0]
         data.vel_y = data.vels[:,1]
         data.vel_z = data.vels[:,2]
         data.vmag = np.sqrt(np.sum(data.vels**2,axis=1))
+        if rot[0]!=0. or rot[1]!=0.:
+            if ( ringPlot ):
+                raise NotImplementedError()
+            else:
+                vyr = data.vel_y*np.cos(rot[1]) - data.vel_z*np.sin(rot[1])
+                vzr = data.vel_y*np.sin(rot[1]) + data.vel_z*np.cos(rot[1])
+                data.vel_z = vzr
+
+                data.vel_y = data.vel_x*np.sin(rot[0]) + vyr*np.cos(rot[0])
+                data.vel_x = data.vel_x*np.cos(rot[0]) - vyr*np.sin(rot[0])
+
+                data.vel2d = data.vel_x
+        else:
+            if ( ringPlot ):
+                data.vel2d = (x*data.vel_x+y*data.vel_y)/np.sqrt(x**2+y**2)
+            else:
+                data.vel2d = data.vel_x
     
-    if any(x in plot_thing for x in ["vthin","vlos"]+["v"+line for line in lines] + ["dv"+line for line in lines] + ["view"+line for line in lines]):
+    if any(x in plot_thing for x in ["vthin","vlos"]+["v"+line for line in lines] + ["dv"+line for line in lines]): # + ["view"+line for line in lines]
         if ringPlot:
             raise Exception("can't do optically thin line of sight velocity while integrating around ring")
+
+        # rotation already done above
+        data.vthin = data.vel_z
+        data.vythin = data.vel_y
         
-        if rot[0]!=0. or rot[1]!=0.:
-            vyr = data.vel_x*np.sin(rot[0]) + data.vel_y*np.cos(rot[0])
-#             data.vel_y = vyr*np.cos(rot[1]) - data.vel_z*np.sin(rot[1])
-            data.vthin = vyr*np.sin(rot[1]) + data.vel_z*np.cos(rot[1])
-        else:
-            data.vthin = data.vel_z
+#         if rot[0]!=0. or rot[1]!=0.:
+#             vyr = data.vel_x*np.sin(rot[0]) + data.vel_y*np.cos(rot[0])
+#             data.vythin = vyr*np.cos(rot[1]) - data.vel_z*np.sin(rot[1])
+# 
+#             data.vthin = vyr*np.sin(rot[1]) + data.vel_z*np.cos(rot[1])
+#         else:
+#             data.vthin = data.vel_z
+#             data.vythin = data.vel_y
+        
+
+
 #         for vthinplot in "vco1","vco2","vhcn1","vhcn2":
 #             if vthinplot in plot_thing:
 #                 data[vthinplot]*=data.vthin
@@ -1168,6 +1286,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
                         data_ranges=None,
                         gaussian=None,
                         return_maps=False
+                        #,opac_mu=None
                         ):
     if version[0]=='2':
         raise Exception("Requires Python 3.X. Current version:"+version)
@@ -1243,7 +1362,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         
     if not isinstance(infile,list):
         verboseprint("Loading",infile)
-        time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)
+        time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)#,opac_mu=opac_mu)
 #         time,data = load_gadget(infile,need_to_load,centredens=centredens)
         verboseprint("Plotting",infile,", t=%.4f Myr"% time)
 
@@ -1294,6 +1413,9 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         else:
             thisPlotRanges = plotRanges[plot_thing[irow]]
 #             thisPlotRanges = plotRanges[plot_thing[irow]]*2
+
+#         if isinstance(opac_mu,list):
+            
 
         if isinstance(gaussian,list):
             plot_gaussian = gaussian[irow]
@@ -1363,7 +1485,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
                 thisPlotQuantityFace = data.__dict__[plotCommand]
                 thisPlotQuantitySide = thisPlotQuantityFace
             elif ( type(plotCommand) is list ):
-                if thisSliceType==viewslice or thisSliceType==vec2dslice:
+                if thisSliceType==viewslice or thisSliceType==vec2dslice_flat or thisSliceType==zvec2dslice:
                     if ( len(plotCommand)!=4 ):
                         raise Exception("{} must have length 4 for view or vec2d slice".format(plotCommand))
                     thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
@@ -1374,7 +1496,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
                     thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]],data.__dict__[plotCommand[2]]]
                     thisPlotQuantitySide = [data.__dict__[plotCommand[3]],data.__dict__[plotCommand[4]],data.__dict__[plotCommand[5]]]
                 else:
-                    raise Exception("{} can't be an array except for view slices".format(plotCommand))
+                    raise Exception("{} can't be an array except for view and vec2d slices".format(plotCommand))
             else:
                 raise Exception("{} is not a valid plot format".format(plotCommand))
         else:

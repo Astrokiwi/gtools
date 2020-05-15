@@ -94,6 +94,8 @@ if __name__=='__main__':
 #                 sp[ifig,iy,ix].set_title(mdot_labels[iy]+", "+v_labels[ix])
         sp[ifig,-1,-1].legend(loc='best',fontsize='xx-small')
 #         sp[ifig,-1,-1].legend(loc='best',fontsize='x-small')
+#         sp[ifig,0,0].legend(loc='best',fontsize='xx-small')
+#         sp[ifig,0,0].legend(loc='best',fontsize='x-small')
         for sp_row in sp[ifig,:,:]:
             for p in sp_row:
 #                 p.legend(loc='best',fontsize='xx-small')
@@ -109,7 +111,7 @@ if __name__=='__main__':
                     p.set_yticks(ytick_values)
                     p.set_ylim([-50.,700.])
                     p.set_yticklabels(ytick_values)
-        fig[ifig].suptitle(r"$%g\mathrm{pc}<=r<%g\mathrm{pc}$" % (r_bin_edges[ir],r_bin_edges[ir+1]) )
+        fig[ifig].suptitle(r"$%g\mathrm{pc}\leq r<%g\mathrm{pc}$" % (r_bin_edges[ir],r_bin_edges[ir+1]) )
 #         fig[ifig].text(0.5, 0.04, r"$\phi$ ($^\circ$)", ha='center')
         sp[ifig,ny-1,0].set_xlabel(r"$\phi$ ($^\circ$)")
         if mode=='p':

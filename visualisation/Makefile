@@ -1,4 +1,4 @@
-pyread:
+sph_plotter:
 	# production
 	f2py --opt=-O3 --f90flags="-Wall -mcmodel=large -fopenmp"  --f77flags="-Wall -mcmodel=large -fopenmp" -lgomp -c sph_plotter.f90 -m sph_plotter
 	# debug

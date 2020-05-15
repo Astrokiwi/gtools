@@ -40,9 +40,12 @@ def tau_intrinsic(theta):
 
 def make_plot():
     times = np.array(itimes)*time_between_dump*conversion_to_Myr
+    x_scale = scale*3.
+    y_scale = 4./3.*x_scale
 
     if plot_type=='tau':
         col_offset = 3
+        y_scale = x_scale
     elif plot_type=='mom':
         col_offset = 6
     else:
@@ -61,7 +64,7 @@ def make_plot():
         if transpose:
             ncol,nrow = nrow,ncol
 
-        fig,subplorts = P.subplots(nrow,ncol,sharey=True,figsize=(6.*scale*ncol,6.*scale*nrow))        
+        fig,subplorts = P.subplots(nrow,ncol,sharey=True,figsize=(x_scale*ncol,y_scale*nrow))        
         if isinstance(subplorts,np.ndarray):
             if subplorts.ndim==2:
                 sp = subplorts
@@ -188,12 +191,16 @@ def make_plot():
                 cur_sp.axhline(1.,c='k',ls='--')
             elif plot_type=='mom':
                 cur_sp.set_yscale('symlog',linthreshy=1.e2)
-                cur_sp.set_ylim([-1.e7,1.e7])
+#                 cur_sp.set_ylim([-1.e7,1.e7])
+                cur_sp.set_ylim([-1.e7,1.e9])
+                cur_sp.set_yticks([-1e6,-1e4,-1e2,1e2,1e4,1e6,1e8])
                 cur_sp.axhline(0.,c='k',ls='--')
                 #hline for fun
 #                 cur_sp.axhline(1.e22,c='k',ls='--')
             else:
-                cur_sp.set_ylim([1.e15,1.e25])
+#                 cur_sp.set_ylim([1.e15,1.e25])
+#                 cur_sp.set_ylim([1.e10,1.e25])
+                cur_sp.set_ylim([1.e15,1.e27])
                 #hline for fun
                 cur_sp.axhline(1.e22,c='k',ls='--')
                 cur_sp.set_yscale('log')
@@ -210,7 +217,8 @@ def make_plot():
                     cur_sp.set_ylabel(r"$N_\mathrm{H}$ (cm$^{-2}$)")
             elif irungroup==len(irungroups)-1:
                 cur_sp.yaxis.set_label_position("right")
-                cur_sp.set_ylabel(r"t=%5.2f kyr"%(time*1.e3),size='x-large')
+#                 cur_sp.set_ylabel(r"t=%5.2f kyr"%(time*1.e3),size='x-large')
+                cur_sp.set_ylabel(r"t=%5.2f kyr"%(time*1.e3))
 
     #         P.savefig(outp,dpi=200)
         
@@ -281,10 +289,13 @@ titlegroups = [[config3032.run_parameters[run]["name"] for run in titlegroup] fo
 colourgroups = [range(len(x)) for x in titlegroups]
 irungroups_base = ["equatorial","polar","medflow","thin"]
 irungroups = ["prodrun_"+x for x in irungroups_base]
+itimes = [999] # SECRET CODE
+
 
 angle_maxes = [90.]*len(irungroups)
-itimes = [100]
-scale = .5
+# itimes = [100]
+# scale = 1.
+scale = .8
 transpose = True
 ncols = 9
 

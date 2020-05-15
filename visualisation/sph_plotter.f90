@@ -678,7 +678,6 @@ module sph_plotter
 !                     write(15+iray,"(9E15.7)") z_ray(ip),vel(ip,:),vlos,this_depth,cum_depth,impact_pram,h(ip)
                 else
 !                     print *,bin_width/broaden(ip)
-                    
                     ibin = int((vlos-vmin)/bin_width)+1
                     if ( ibin<1 .or. ibin>nbins ) then
 !                         ib=ib+1
@@ -1518,9 +1517,35 @@ module sph_plotter
         real(kind=8), dimension(2) :: c ! top-left corner
         real(kind=8) :: w ! width
         real(kind=8), dimension(L,L) :: g ! output grid
+        integer, dimension(n) :: inzarg ! sorted positions of particles along line of sight
+
+        
+        g = sph_optical_depth_los_weight_thresh(x,y,m,h,v,emit,op,L,c,w,z,inzarg,f,0.d0,n)
+        return
+    end function
+
+! `emit` is total luminosity of particle
+! `emit` weighted by 2D kernel gives erg/s/cm^2 flux
+! weight by `v` to calculate "line" output, divide at the end
+! opacity is completely independent, but still mass weighted
+    function sph_optical_depth_los_weight_thresh(x,y,m,h,v,emit,op,L,c,w,z,inzarg,f,threshold,n) result(g)
+        implicit none
+
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! value to smooth over
+        real(kind=8), dimension(n) :: op ! particle opacity per unit mass
+        real(kind=8), dimension(n) :: emit ! particle emission per unit mass
+        real(kind=8), dimension(n) :: x,y,z ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
         
         integer, dimension(n) :: inzarg,zarg ! sorted positions of particles along line of sight
         real(kind=8), dimension(L,L) :: opg, emitg ! grid of optical depths, grid of emissions
+        
+        real(kind=8) :: threshold
 
         integer :: i,ip ! loop variable, particle index
 
@@ -1587,7 +1612,21 @@ module sph_plotter
 
         end do
         
+        if ( threshold>0 ) then
+        
+            do ix=1,L
+                do iy=1,L
+                    if ( emitg(ix,iy)<threshold ) then
+                        g(ix,iy)=0.
+                        emitg(ix,iy)=0.
+                    endif
+                end do
+            end do
+
+        endif
+        
         g = g / emitg
+        return
     end function
 
     function sph_mean_optical_depth(x,y,z,m,h,op,L,c,w,f,tau,n) result(opg)

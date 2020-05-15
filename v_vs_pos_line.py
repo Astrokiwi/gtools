@@ -38,16 +38,21 @@ run_id = "3032"
 # "newflow_vesc_thin_side",
 # "newflow_vesc_thin_up"]
 
-run_names = ["longrun_medflow_vesc_defaultaniso_polar"]
+run_names = [
+"longrun_medflow_vesc_defaultaniso_polar",
+"newflow_vesc_thin_45"
+]
+# run_names = ["longrun_medflow_vesc_defaultaniso_polar"]
 
 nruns = len(run_names)
-snap_str = "100"
+snap_str = "200"
 
 nbins = 400
 # broaden_value = 1.
 
-# lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
-lines = ["h2_1","co1"]
+lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
+# lines = ["co1"]
+# lines = ["h2_1","co1","hcn1"]
 line_codes = ["line_"+line for line in lines]
 
 
@@ -57,6 +62,7 @@ cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes)
 
 
 vmin=-200.
+# vmin=-100.
 vmax=-vmin
 
 
@@ -89,16 +95,17 @@ def v_vs_pos_rays(run_id,run_name,snap_str,rotate_phi_deg):
 
     nray_strip = 41
     nray = nray_strip*2
-    ray_dir_z = np.array([0.,np.sin(rotate_phi),np.cos(rotate_phi)])
+#     ray_dir_z = np.array([0.,np.sin(rotate_phi),np.cos(rotate_phi)])
     ray_dir_y = np.array([0.,np.cos(rotate_phi),np.sin(rotate_phi)])
+    ray_dir_z = ray_dir_y
     ray_steps = np.linspace(-20.,20.,nray_strip)
+#     ray_steps = np.linspace(-.5,.5,nray_strip)
 
     ray_xyz_z = np.zeros((nray_strip,3))
-    ray_xyz_z[:,1] = ray_steps*np.cos(rotate_phi)
-    ray_xyz_z[:,2] = -ray_steps*np.sin(rotate_phi)
+    ray_xyz_z[:,1] = -ray_steps*np.sin(rotate_phi)
+    ray_xyz_z[:,2] = ray_steps*np.cos(rotate_phi)
     ray_xyz_y = np.zeros((nray_strip,3))
-    ray_xyz_y[:,1] = -ray_steps*np.sin(rotate_phi)
-    ray_xyz_y[:,2] = ray_steps*np.cos(rotate_phi)
+    ray_xyz_y[:,0] = ray_steps
     ray_dirs_z = np.broadcast_to(ray_dir_z,(nray_strip,3))
     ray_dirs_y = np.broadcast_to(ray_dir_y,(nray_strip,3))
     
@@ -113,7 +120,8 @@ def v_vs_pos_rays(run_id,run_name,snap_str,rotate_phi_deg):
 #     duration = time.time()-start
 #     print("Loading {} time:".format(run_name),duration)
 
-    particles["SoundSpeed"] = np.sqrt(10./9.*particles["InternalEnergy"])
+    particles["SoundSpeed"] = np.sqrt(10./9.*particles["InternalEnergy"]) # in cm/s
+    particles["SoundSpeed"]*=1.e-5 # to km/s
 #     particles["SoundSpeed"] = 4.#np.sqrt(10./9.*particles["InternalEnergy"])
     xyz = np.array((particles['Coordinates_x'],particles['Coordinates_y'],particles['Coordinates_z'])).T
     vel = np.array((particles['Velocities_x'],particles['Velocities_y'],particles['Velocities_z'])).T
@@ -146,6 +154,15 @@ def v_vs_pos_rays(run_id,run_name,snap_str,rotate_phi_deg):
 #         duration = time.time()-start
 #         print("Saving time:",duration)
         
+#         line_emission[:] = np.max(line_emission) # UNIFORM
+#         print("UNIFORM: FOR TEST")
+        print(ray_dirs_z.shape,vel.shape)
+        vlos = np.sum(ray_dirs_y[0,:]*vel,axis=1)
+        print(np.max(vlos),np.min(vlos))
+        print(np.max(vel),np.min(vel))
+        print(vlos)
+        
+        
         print(rotate_phi,"Starting integration with extinction")
 #         start = time.time()
         rayhists_z = sph_plotter.sph_ray_histogram_opacity(xyz,line_emission,particles["SmoothingLength"],vel,vmin,vmax,line_cross_sections,ray_dirs_z,ray_xyz_z,mask,broaden,nbins,nray_strip,n)
@@ -156,7 +173,8 @@ def v_vs_pos_rays(run_id,run_name,snap_str,rotate_phi_deg):
 
 #         start = time.time()
         print(rotate_phi,"Saving with extinction")
-        np.savetxt("data/line_profs_ext_{}_{}_{}deg.dat".format(run_name,line_code,rotate_phi_deg),rayhists)
+        np.savetxt("data/line_profs_ext_{}_{}_{}deg_{}.dat".format(run_name,line_code,rotate_phi_deg,snap_str),rayhists)
+
 #         duration = time.time()-start
 #         print("Saving time:",duration)
 #         sys.exit()
@@ -170,18 +188,24 @@ def v_vs_pos_rays(run_id,run_name,snap_str,rotate_phi_deg):
 #         print("Integration time:",duration)
 
 #         start = time.time()
-        print(rotate_phi,"Saving with extinction")
-        np.savetxt("data/line_profs_{}_{}_{}deg.dat".format(run_name,line_code,rotate_phi_deg),rayhists)
+        print(rotate_phi,"Saving without extinction")
+        np.savetxt("data/line_profs_{}_{}_{}deg_{}.dat".format(run_name,line_code,rotate_phi_deg,snap_str),rayhists)
 #         duration = time.time()-start
 #         print("Saving time:",duration)
 
 
 
-angles = np.arange(0.,90.,5.)
-# angles = [45.]
+# angles = np.arange(0.,90.,5.)
+# angles = np.arange(0.,25.,5.)
+# angles = [0.,10.,20.]
+angles = [10.]
 for run_name in run_names:
     v_vs_pos_rays_for_pool = partial(v_vs_pos_rays,run_id,run_name,snap_str)
-    list(map(v_vs_pos_rays_for_pool,angles))
+
+    # serial, for test (or like OMP_NUM_THREADS)
+    for angle in angles:
+        v_vs_pos_rays_for_pool(angle)
+        
 #     with Pool(processes=3) as pool:
 #         pool.map(v_vs_pos_rays_for_pool,angles)
     
