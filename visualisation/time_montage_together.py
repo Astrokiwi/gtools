@@ -34,8 +34,10 @@ runs = [
 "newflow_vesc_thin_side",
 "newflow_vesc_thin_up"]
 
+
 run_id = "3032"
-snapx = [0,10,20,50,100,150,200,250,300]
+# snapx = [0,10,20,50,100,150,200,250,300]
+snapx = [100]
 
 
 

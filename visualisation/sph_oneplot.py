@@ -47,6 +47,9 @@ print(infile)
 outfile = "../pics/side_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 
 
+sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['side'],flat=True,ring=False,plot=['view'],L=100,scale=50.,rot=[0,10./360.*2.*np.pi]
+
+
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',L=512,flat=True,ring=True,nrows=1)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['vels','dens'],L=400,scale=20.)
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['vels'],L=600,scale=20.)
@@ -59,8 +62,7 @@ outfile = "../pics/side_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens'],views=['side'],L=400,scale=2.)
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['view'],L=400,scale=2.,rot=[])
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='prism',flat=False,ring=False,vorinoi=True,plot=['rand'],L=1200,scale=30.)
-# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['view'],L=800,scale=2.,rot=[0,70./360.*2.*np.pi],visibleAxes=False)
-sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['view'],L=400,scale=.1,rot=[0,70./360.*2.*np.pi],) #
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['side'],flat=True,ring=False,plot=['view'],L=400,scale=20.) #,rot=[0,10./360.*2.*np.pi]
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['facetemp'],L=3200,scale=6.,rot=[0,70./360.*2.*np.pi],visibleAxes=False)
 
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['facetemp'],L=3200,scale=6.,rot=[0,70./360.*2.*np.pi],visibleAxes=False)

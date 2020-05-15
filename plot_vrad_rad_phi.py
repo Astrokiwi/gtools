@@ -20,7 +20,8 @@ v_inits = [10,100,500]
 mdot_labels = [r"$\dot{{M}}={{{}}}$ M$_\odot$ yr$^{{-1}}$".format(mdot) for mdot in mdots]
 v_labels = [r"$v={{{}}}$ km s$^{{-1}}$".format(v) for v in v_inits]
 
-scale = .7
+# scale = .7
+scale = .6
 
 if __name__=='__main__':
     if mode!="v" and mode!="p":
@@ -51,7 +52,8 @@ if __name__=='__main__':
     r_bin_edges = np.linspace(.5,7.5,8)
     n_r_bins = 7
 
-    ytick_values = [-50,-20,0,20,50,70,100,200,500,700]    
+#     ytick_values = [-50,-20,0,20,50,70,100,200,500,700]    
+    ytick_values = [-50,-20,0,20,50,100,200,500]    
 
     nfig = len(plot_r)
     
@@ -90,12 +92,14 @@ if __name__=='__main__':
             sp[ifig,iy,nx-1].set_ylabel(mdot_labels[iy])
 #                 sp[ifig,iy,ix].set_title(key_bases[jaxis][iy]+"_"+key_bases[iaxis][ix])
 #                 sp[ifig,iy,ix].set_title(mdot_labels[iy]+", "+v_labels[ix])
-        sp[ifig,0,0].legend(loc='best',fontsize='xx-small')
+        sp[ifig,-1,-1].legend(loc='best',fontsize='xx-small')
+#         sp[ifig,-1,-1].legend(loc='best',fontsize='x-small')
         for sp_row in sp[ifig,:,:]:
             for p in sp_row:
 #                 p.legend(loc='best',fontsize='xx-small')
                 p.plot(x,y,linestyle=':')
-                p.set_xticks(np.linspace(0,90,10))
+#                 p.set_xticks(np.linspace(0,90,10))
+                p.set_xticks( np.linspace(0,90,7) )
                 if mode=='p':
                     p.set_ylim(-1.e5,1.e5)
                     p.set_yscale("symlog",linthreshy=100.)
@@ -103,6 +107,7 @@ if __name__=='__main__':
                     p.set_ylim(ytick_values[0],ytick_values[-1])
                     p.set_yscale("symlog",linthreshy=50.)
                     p.set_yticks(ytick_values)
+                    p.set_ylim([-50.,700.])
                     p.set_yticklabels(ytick_values)
         fig[ifig].suptitle(r"$%g\mathrm{pc}<=r<%g\mathrm{pc}$" % (r_bin_edges[ir],r_bin_edges[ir+1]) )
 #         fig[ifig].text(0.5, 0.04, r"$\phi$ ($^\circ$)", ha='center')

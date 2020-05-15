@@ -97,7 +97,8 @@ labels['vrad'] = r"$v_{rad}$ (km/s)"
 dolog['vrad'] = False
 # #ranges['vrad'] = [-300,300]
 # ranges['vrad'] = [-300,1.e3]
-ranges['vrad'] = [-100,600.]
+# ranges['vrad'] = [-100,600.]
+ranges['vrad'] = [-50,200.]
 # # ranges['vrad'] = [-50,300.]
 # # ranges['vrad'] = [-50,600.]
 # ranges['vrad'] = [-4.,4.]
@@ -370,6 +371,8 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     proton_mass_cgs = 1.6726e-24
     gamma_minus_one = 5./3.-1.
     boltzmann_cgs = 1.38066e-16
+
+    print(gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*1.e10)
 
     if ( "depth_p" in requiredVals ):
         values["depth_p"]/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
@@ -652,8 +655,8 @@ if __name__ == '__main__':
 #     includedVals = ["nH_p","agn_heat_p"]
 #     includedVals = ["nH_p","TK_p"]
     includedVals = ["nH_p","dustTemp"]
-    x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.,weights=lines)
+    x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.)#,weights=lines)
     
 #     x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.)
-    print(x)
+    print("saving to ",x)
 
