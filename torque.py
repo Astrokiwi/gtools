@@ -82,7 +82,7 @@ def extract_bh_data(run_id,output_dir,gizmoDir="/export/2/lb1g19/data/",snap0=0,
 
 def calc_torque_etc(d):
     # fix BH vels
-    dtime = np.gradient(time)
+    dtime = np.gradient(d['time'])
     d['BH_vel_1']=np.gradient(d['BH_pos_1'],axis=0)/dtime[:,np.newaxis]/1.e6
     d['BH_vel_2']=np.gradient(d['BH_pos_2'],axis=0)/dtime[:,np.newaxis]/1.e6
 
@@ -158,5 +158,5 @@ def plot_all_torques():
         extract_plot_torque(*run)
 
 if __name__ == '__main__':
-    plot_all_torques()      
-#     extract_plot_torque(*runs[0])      
+#     plot_all_torques()      
+    extract_plot_torque(*runs[0])      
