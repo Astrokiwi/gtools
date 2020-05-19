@@ -7,12 +7,12 @@ import math
 import numpy as np
 import h5py
 import matplotlib as mpl
-#mpl.use('Agg')
+mpl.use('Agg')
 
 from matplotlib import colors,rc
 import matplotlib.pyplot as plt
-rc('text', usetex=True)
-rc('font',family='serif')
+# rc('text', usetex=True)
+# rc('font',family='serif')
 
 from sys import path, version, exit
 path.append("src/")
@@ -26,85 +26,28 @@ import gizmo_tools
 import argparse
 from multiprocessing import Pool
 
-def load_gadget(i):
-    f = h5py.File(infiles[i],"r")
-    
-    header = f["/Header"]
-    BH_data= f["/BH_binary"]
-#    print(BH_data.attrs.get("BH_pos_1"))
-#    print(list(header.attrs.keys()))
-#    print(header)
-
-    BH_binary = dict()
-    BH_binary['time'] = header.attrs.get("Time")
-    BH_binary['time']*= 0.9778e9 # to yr
-    BH_binary['time']/=1.e6 # to Myr
-
-    BH_binary['BH_pos_1'] = np.array(BH_data.attrs.get("Binary_pos_1"))
-    BH_binary['BH_pos_2'] = np.array(BH_data.attrs.get("Binary_pos_2"))
-    BH_binary['BH_vel_1'] = np.array(BH_data.attrs.get("Binary_vel_1"))
-    BH_binary['BH_vel_2'] = np.array(BH_data.attrs.get("Binary_vel_2"))
-    BH_binary['BH_force_1'] = np.array(BH_data.attrs.get("Binary_force_1"))
-    BH_binary['BH_force_2'] = np.array(BH_data.attrs.get("Binary_force_2"))
-    BH_binary['BH_mass_1'] = BH_data.attrs.get("Binary_mass_1")
-    BH_binary['BH_mass_2'] = BH_data.attrs.get("Binary_mass_2")
-
-    BH_binary['BH_pos_1'] *= 1000.0           # pc
-    BH_binary['BH_pos_2'] *= 1000.0           # pc
-    BH_binary['BH_vel_1'] *= 1000.0/0.9778e9  # pc / yr
-    BH_binary['BH_vel_2'] *= 1000.0/0.9778e9  # pc / yr
-    BH_binary['BH_force_1'] *= 1e10 * 1000.0/(0.9778e9)**2  # msun * pc / yr**2
-    BH_binary['BH_force_2'] *= 1e10 * 1000.0/(0.9778e9)**2  # msun * pc / yr**2
-    BH_binary['BH_mass_1'] *= 1e10            # msun
-    BH_binary['BH_mass_2'] *= 1e10            # msun
-
-    return BH_binary
+import pandas as pd
+from scipy import linalg
+import functools
 
 
-if __name__ == '__main__':
-    default_values = dict()
-    default_values["nprocs"]=8
-    default_values["maxsnapf"]=-1
-    default_values["snap0"]=-1
-    default_values["L"]=400
-    default_values["data_ranges"]=""
- 
-    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","snap0"]
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('run_id',help="name of superdirectory for runs")
-    parser.add_argument('output_dir',help="name of subdirectory for run")
-    parser.add_argument('--nprocs',type=int,help="processors to run on (default {})".format(default_values["nprocs"]))
-    parser.add_argument('--maxsnapf',type=int,help="snapshot to end on (default=-1=do all snapshots)")
-    parser.add_argument('--snap0',type=int,help="snapshot to start on (default=-1=do all snapshots)")
-    parser.add_argument('--L',type=int,help="size of plot area in pixels")
-    parser.add_argument('--data_ranges',type=str,help="explicit data bounds for plot - format: --data_ranges=min1,max1+min2,max2+min3,max3 etc; the equals sign may be necessary!")
-    args = parser.parse_args()
-    
-    # TODO: don't do this!
-    for parseval in parsevals:
-        if ( vars(args)[parseval] ):
-            vars()[parseval] = vars(args)[parseval]
-            print("setting {} to {}, current value:{}".format(parseval,vars(args)[parseval],vars()[parseval]))
-        else:
-            if ( parseval in default_values ):
-                vars()[parseval] = default_values[parseval]
-                print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],vars()[parseval]))
-            else:
-                raise Exception("No default value for {} - it must be specified!".format(parseval))
+runs = [ ["binary_ecc0_norm_fast","binary_ecc0"]
+        ,["binary_ecc0_HPM_MM_radoff","binary_ecc0"]
+        ,["binary_ecc0_HPM_radoff_long","binary_ecc0"] ]
 
 
-    if len(data_ranges)<=0:
-        data_ranges = None
-    else:
-        data_ranges=[[float(y) for y in x.split(",")] for x in data_ranges.split("+")]
-    
+def load_gadget(run_id,output_dir,snap_str):
+    return gizmo_tools.load_gizmo_nbody(run_id,output_dir,snap_str=snap_str,gizmoDir="/export/2/lb1g19/data"
+                                        ,load_binary_headers=True,only_header=True)
+
+def extract_bh_data(run_id,output_dir,gizmoDir="/export/2/lb1g19/data/",snap0=0,maxsnapf=-1,nprocs=64):
     snapi = 0
     if snap0>0:
         snapi=snap0
-    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False)
+    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False,gizmoDir=gizmoDir)
 
-    gizmoDir = gizmo_tools.getGizmoDir(run_id)
+#     gizmoDir = gizmo_tools.getGizmoDir(run_id)
+    gizmoDir = "/export/2/lb1g19/data"
     movieDir = gizmo_tools.getMovieDir()
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     
@@ -122,87 +65,98 @@ if __name__ == '__main__':
     
     nfiles = len(infiles)
 
-    time = np.zeros(nfiles,dtype=float)
-    dist = np.zeros(nfiles,dtype=float)
     angmom = np.zeros((nfiles,3),dtype=float)
     torque = np.zeros((nfiles,3),dtype=float)
     angmom_zyl = np.zeros((nfiles,3),dtype=float)
     torque_zyl = np.zeros((nfiles,3),dtype=float)
 
+    snap_strs = [f"{i:03d}" for i in isnaps]
+    extract_header_func = functools.partial(load_gadget,run_id,output_dir)
     
     with Pool(processes=nprocs) as pool:
-      BH_Binary_alltimes = pool.map(load_gadget,range(snapf+1-snapi))
+#       BH_Binary_alltimes = pool.map(load_gadget,range(snapf+1-snapi))
+      BH_Binary_alltimes = pool.map(extract_header_func,snap_strs)
+
+    d={k: np.array([dic[k] for dic in BH_Binary_alltimes]) for k in BH_Binary_alltimes[0]} 
+    return d
+
+def calc_torque_etc(d):
+    # fix BH vels
+    dtime = np.gradient(time)
+    d['BH_vel_1']=np.gradient(d['BH_pos_1'],axis=0)/dtime[:,np.newaxis]/1.e6
+    d['BH_vel_2']=np.gradient(d['BH_pos_2'],axis=0)/dtime[:,np.newaxis]/1.e6
+
+    d['dist'] = linalg.norm(d['BH_pos_1']-d['BH_pos_2'],axis=1)
+    d['angmom'] = d['BH_mass_1'][:,np.newaxis]*np.cross(d['BH_pos_1'],d['BH_vel_1'])  \
+             + d['BH_mass_2'][:,np.newaxis]*np.cross(d['BH_pos_2'],d['BH_vel_2'])
+    d['torque'] = d['BH_mass_1'][:,np.newaxis]*np.cross(d['BH_pos_1'],d['BH_force_1'])  \
+             + d['BH_mass_2'][:,np.newaxis]*np.cross(d['BH_pos_2'],d['BH_force_2'])
+
+    # changing sign to get positive torque, just because it looks tidier
+    d['angmom']*=-1
+    d['torque']*=-1
+
+def plot_torque(run_id,output_dir,d):
+    time = d['time']
+    dist = d['dist']
+    angmom = d['angmom']
+    torque = d['torque']
+
+    nrows=5
+    ncols=2
+
+    scale = 2.
+    fig,sp = plt.subplots(nrows,ncols,sharex=True,constrained_layout=True,figsize=(ncols*scale*2,nrows*scale))
+
+    sp[0,0].plot(time,dist)
+    sp[0,0].set_ylabel(r'$d$ (pc)')
+    
+    time_offset = (time[:-1]+time[1:])/2
+    dtime = np.gradient(time)
+
+    for iaxis,axis in enumerate(["x","y","z"]):
+        sp[0,1].plot(time,angmom[:,iaxis],label=r"$L_{{{}}}$".format(axis))
+
+        sp[1,0].plot(time,torque[:,iaxis],label=r"$\tau_{{{}}}$".format(axis))
+        sp[1,1].plot(time,angmom[:,iaxis]/torque[:,iaxis],label=r"$t_{{{}}}$".format(axis))
+
+        sp[2,0].plot(time,d['BH_pos_1'][:,iaxis],label=r"${{{}}}_1$".format(axis))
+        sp[2,1].plot(time,d['BH_pos_2'][:,iaxis],label=r"${{{}}}_2$".format(axis))
+
+        sp[3,0].plot(time,d['BH_vel_1'][:,iaxis],label=r"$v_{{{},1}}$".format(axis))
+        sp[3,1].plot(time,d['BH_vel_2'][:,iaxis],label=r"$v_{{{},2}}$".format(axis))
+
+        sp[4,0].plot(time,d['BH_force_1'][:,iaxis],label=r"$F_{{{},1}}$".format(axis))
+        sp[4,1].plot(time,d['BH_force_2'][:,iaxis],label=r"$F_{{{},2}}$".format(axis))
+    sp[0,1].set_ylabel('Angular momentum\n(M$_{\odot}$ pc$^2$ / yr)')
+    sp[1,0].set_ylabel('Torque\n(M$_{\odot}$ pc$^2$ / yr$^{{-2}}$)')
+    sp[1,1].set_ylabel('Torque time-scale\n(yr)')
+    sp[2,0].set_ylabel('Pos 1')
+    sp[2,1].set_ylabel('Pos 2')
+    sp[3,0].set_ylabel('Vel 1')
+    sp[3,1].set_ylabel('Vel 2')
+    sp[4,0].set_ylabel('Force 1')
+    sp[4,1].set_ylabel('Force 2')
+    
+    for ix in range(ncols):
+        sp[-1,ix].set_xlabel(r'Time / Myr')
+        for iy in range(nrows):
+            sp[iy,ix].legend()
+
+    fig.savefig(f"../figures/torque_{run_id}_{output_dir}.pdf")
+    plt.close('all')
+    
+
+def extract_plot_torque(run_id,output_dir,**kwargs):
+    d = extract_bh_data(run_id,output_dir,**kwargs)
+    calc_torque_etc(d)
+    plot_torque(run_id,output_dir,d)
 
 
-    for i in range(nfiles):
-      time[i] = maps[i]['time']
-      dist[i] = math.sqrt((maps[i]['BH_pos_1'][0]-maps[i]['BH_pos_2'][0])**2 + (maps[i]['BH_pos_1'][1]-maps[i]['BH_pos_2'][1])**2 + (maps[i]['BH_pos_1'][2]-maps[i]['BH_pos_2'][2])**2)
+def plot_all_torques():
+    for run in runs:
+        extract_plot_torque(*run)
 
-      angmom[i][0] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][2]-maps[i]['BH_pos_1'][2]*maps[i]['BH_vel_1'][1]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][2]-maps[i]['BH_pos_2'][2]*maps[i]['BH_vel_2'][1])
-      angmom[i][1] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][2]*maps[i]['BH_vel_1'][0]-maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][2]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][2]*maps[i]['BH_vel_2'][0]-maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][2])
-      angmom[i][2] = maps[i]['BH_mass_1']*(maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][1]-maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][0]) + maps[i]['BH_mass_2']*(maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][1]-maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][0])
-
-
-      torque[i][0] = (maps[i]['BH_pos_1'][1]*maps[i]['BH_force_1'][2]-maps[i]['BH_pos_1'][2]*maps[i]['BH_force_1'][1]) + (maps[i]['BH_pos_2'][1]*maps[i]['BH_force_2'][2]-maps[i]['BH_pos_2'][2]*maps[i]['BH_force_2'][1])
-      torque[i][1] = (maps[i]['BH_pos_1'][2]*maps[i]['BH_force_1'][0]-maps[i]['BH_pos_1'][0]*maps[i]['BH_force_1'][2]) + (maps[i]['BH_pos_2'][2]*maps[i]['BH_force_2'][0]-maps[i]['BH_pos_2'][0]*maps[i]['BH_force_2'][2])
-      torque[i][2] = (maps[i]['BH_pos_1'][0]*maps[i]['BH_force_1'][1]-maps[i]['BH_pos_1'][1]*maps[i]['BH_force_1'][0]) + (maps[i]['BH_pos_2'][0]*maps[i]['BH_force_2'][1]-maps[i]['BH_pos_2'][1]*maps[i]['BH_force_2'][0])
-
-
-      rho1     = math.sqrt(maps[i]['BH_pos_1'][0]**2 + maps[i]['BH_pos_1'][1]**2)
-      rho1_dot = (maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][0] + maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][1])/rho1
-      phi1     = math.atan2(maps[i]['BH_pos_1'][1],maps[i]['BH_pos_1'][0])
-      phi1_dot = (maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][1] - maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][0])/rho1**2
-      z1       = maps[i]['BH_pos_1'][2]
-      z1_dot   = maps[i]['BH_vel_1'][2]
-      rho2     = math.sqrt(maps[i]['BH_pos_2'][0]**2 + maps[i]['BH_pos_2'][1]**2)
-      rho2_dot = (maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][0] + maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][1])/rho2
-      phi2     = math.atan2(maps[i]['BH_pos_2'][1],maps[i]['BH_pos_2'][0])
-      phi2_dot = (maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][1] - maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][0])/rho2**2
-      z2       = maps[i]['BH_pos_2'][2]
-      z2_dot   = maps[i]['BH_vel_2'][2]
-
-      angmom_zyl[0] = -maps[i]['BH_mass_1']*rho1*phi1_dot*z1 - maps[i]['BH_mass_2']*rho2*phi2_dot*z2
-      angmom_zyl[1] = maps[i]['BH_mass_1']*(rho1_dot*z1-rho1*z1_dot) + maps[i]['BH_mass_2']*(rho2_dot*z2-rho2*z2_dot)
-      angmom_zyl[1] = maps[i]['BH_mass_1']*rho1**2*phi1_dot + maps[i]['BH_mass_2']*rho2**2*phi2_dot
-
-      torque_zyl[0] = -maps[i]['BH_mass_1']*rho1*phi1_dot*z1 - maps[i]['BH_mass_2']*rho2*phi2_dot*z2
-      torque_zyl[1] = maps[i]['BH_mass_1']*(rho1_dot*z1-rho1*z1_dot) + maps[i]['BH_mass_2']*(rho2_dot*z2-rho2*z2_dot)
-      torque_zyl[1] = maps[i]['BH_mass_1']*rho1**2*phi1_dot + maps[i]['BH_mass_2']*rho2**2*phi2_dot
-
-      print(maps[i]['BH_pos_1'][0]*maps[i]['BH_vel_1'][1],maps[i]['BH_pos_1'][1]*maps[i]['BH_vel_1'][0],maps[i]['BH_pos_2'][0]*maps[i]['BH_vel_2'][1],maps[i]['BH_pos_2'][1]*maps[i]['BH_vel_2'][0],maps[i]['BH_pos_1'][0]*maps[i]['BH_force_1'][1],maps[i]['BH_pos_1'][1]*maps[i]['BH_force_1'][0],maps[i]['BH_pos_2'][0]*maps[i]['BH_force_2'][1],maps[i]['BH_pos_2'][1]*maps[i]['BH_force_2'][0])
-
-ax0 = plt.subplot(221)
-ax1 = plt.subplot(222)
-ax12=ax1.twinx()
-ax2 = plt.subplot(223)
-ax22=ax2.twinx()
-ax3 = plt.subplot(224)
-ax32=ax3.twinx()
-
-ax0.plot(time,dist)
-ax0.set_xlabel(r'Time / Myr')
-ax0.set_ylabel(r'distance / pc')
-
-ax1.plot(time,angmom[:,0],'b')
-ax1.set_xlabel(r'Time / Myr')
-ax1.set_ylabel(r'$L_x / M_{\odot} pc / yr$')
-ax12.plot(time,torque[:,0],'r')
-ax12.set_ylabel(r'$M_x / M_{\odot} pc^2 / yr^2$')
-ax12.yaxis.label.set_color('red')
-
-ax2.plot(time,angmom[:,1],'b')
-ax2.set_xlabel(r'Time / Myr')
-ax2.set_ylabel(r'$L_y / M_{\odot} pc / yr$')
-ax22.plot(time,torque[:,1],'r')
-ax22.set_ylabel(r'$M_y / M_{\odot} pc^2 / yr^2$')
-ax22.yaxis.label.set_color('red')
-
-ax3.plot(time,angmom[:,2],'b')
-ax3.set_xlabel(r'Time / Myr')
-ax3.set_ylabel(r'$L_z / M_{\odot} pc / yr$')
-ax32.plot(time,torque[:,2],'r')
-ax32.set_ylabel(r'$M_z / M_{\odot} pc^2 / yr^2$')
-ax32.yaxis.label.set_color('red')
-
-plt.show()
-
+if __name__ == '__main__':
+    plot_all_torques()      
+#     extract_plot_torque(*runs[0])      

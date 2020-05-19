@@ -47,14 +47,14 @@ cmap = matplotlib.cm.get_cmap('coolwarm')
 dust_opacity_function = None
 
 binary_headers_unit_name_conversions = {
-        "Binary_pos_1":("BH_pos_1",1000.), # pc 
-        "Binary_pos_2":("BH_pos_2",1000.), # pc
-        "Binary_vel_1":("BH_vel_1",1000./0.9778e9), # pc/yr
-        "Binary_vel_2":("BH_vel_2",1000./0.9778e9), # pc/yr
-        "Binary_force_1":("BH_force_1",1e10 * 1000.0/(0.9778e9)**2),   # msun * pc / yr**2
-        "Binary_force_2":("BH_force_2",1e10 * 1000.0/(0.9778e9)**2),   # msun * pc / yr**2
-        "Binary_mass_1":("BH_mass_1",1.e10), # msun
-        "Binary_mass_2":("BH_mass_2",1.e10)  # msun
+        "Binary_pos_1":("BH_pos_1",1000.,"pc"), # pc 
+        "Binary_pos_2":("BH_pos_2",1000.,"pc"), # pc
+        "Binary_vel_1":("BH_vel_1",1000./0.9778e9,"pc yr**-1"), # pc/yr
+        "Binary_vel_2":("BH_vel_2",1000./0.9778e9,"pc yr**-1"), # pc/yr
+        "Binary_force_1":("BH_force_1",1e10 * 1000.0/(0.9778e9)**2,"Msol pc yr**-2"),   # msun * pc / yr**2
+        "Binary_force_2":("BH_force_2",1e10 * 1000.0/(0.9778e9)**2,"Msol pc yr**-2"),   # msun * pc / yr**2
+        "Binary_mass_1":("BH_mass_1",1.e10,"Msol"), # msun
+        "Binary_mass_2":("BH_mass_2",1.e10,"Msol")  # msun
 
     }
 
@@ -163,14 +163,15 @@ def getMovieDir():
     
     raise Exception("Unknown server; add server and directory to gizmo_tools.py")
 
-def lastConsecutiveSnapshot(run_id,output_dir,dumpsOrdered=True):
+def lastConsecutiveSnapshot(run_id,output_dir,dumpsOrdered=True,gizmoDir=None):
     """When models are rerun, the snapshot file with the largest number (e.g. snapshot_100.dat)
     may be from a previous model. So we want the last snapshot that was made *after* the previous
     snapshot. However, this only works if the snapshots haven't been copied, because this kills
     the "last modified" data. So we can set dumpsOrdered=False and force us to just take the last
     snapshot numerically rather than by time"""
 
-    gizmoDir = getGizmoDir(run_id)
+    if gizmoDir is None:
+        gizmoDir = getGizmoDir(run_id)
     movieDir = getMovieDir()
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
 
@@ -384,7 +385,7 @@ def load_gizmo_pandas(run_id,output_dir,snap_str,values,internal_units = False,g
     
     return header,gizmo_dataframe
 
-def load_gizmo_nbody(run_id,output_dir,snap_str,load_vals=None,gizmoDir=None,load_binary_headers=False):
+def load_gizmo_nbody(run_id,output_dir,snap_str,load_vals=None,gizmoDir=None,load_binary_headers=False,only_header=False):
     if gizmoDir is None:
         gizmoDir = getGizmoDir(run_id)
     fullDir = gizmoDir+"/"+run_id+"/"+output_dir
@@ -399,14 +400,16 @@ def load_gizmo_nbody(run_id,output_dir,snap_str,load_vals=None,gizmoDir=None,loa
     header["time"]/=1.e6 # to Myr
     
     if load_binary_headers:
-        binary_header = f["/Header"]
-        for key,(label,unit) in binary_headers_unit_name_conversions.items():
-            print(key,label,unit)
+        binary_header = f["/BH_binary"]
+        for key,(label,unit_conversion,unit_string) in binary_headers_unit_name_conversions.items():
             value = binary_header.attrs.get(key)
             if value is not None:
-                value*=unit
+                value = pynbody.array.SimArray(value*unit_conversion,unit_string)
             header[label] = value
     f.close()
+    
+    if only_header:
+        return header
     
     snap = pynbody.load(fullFile)
     snap.set_units_system(velocity="km s**-1",mass="1e10 Msol",distance="kpc")
@@ -661,8 +664,7 @@ class cloudy_table:
 
 
 if __name__=='__main__':
-    header,snap = load_gizmo_nbody("gizmo-for-agn-model/","binary_ecc0_MP0-001","384",gizmoDir="/srv/lb1g19/",load_binary_headers=True)
-    print(header,len(snap),snap)
+    header,snap = load_gizmo_nbody("binary_ecc0_HPM_MM_radoff","binary_ecc0","120",gizmoDir="/export/2/lb1g19/data/",load_binary_headers=True)
 #     run_table = load_run_parameters("3032")
 #     run_parameters_angles(run_table)
 #     run_parameters_names(run_table)
