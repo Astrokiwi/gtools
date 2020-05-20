@@ -30,10 +30,12 @@ import pandas as pd
 from scipy import linalg
 import functools
 
+G_pc3_yr_2_msun_1 = 4.5e-15
 
 runs = [ ["binary_ecc0_norm_fast","binary_ecc0"]
         ,["binary_ecc0_HPM_MM_radoff","binary_ecc0"]
         ,["binary_ecc0_HPM_radoff_long","binary_ecc0"] ]
+
 
 
 def load_gadget(run_id,output_dir,snap_str):
@@ -89,8 +91,17 @@ def calc_torque_etc(d):
     d['dist'] = linalg.norm(d['BH_pos_1']-d['BH_pos_2'],axis=1)
     d['angmom'] = d['BH_mass_1'][:,np.newaxis]*np.cross(d['BH_pos_1'],d['BH_vel_1'])  \
              + d['BH_mass_2'][:,np.newaxis]*np.cross(d['BH_pos_2'],d['BH_vel_2'])
-    d['torque'] = d['BH_mass_1'][:,np.newaxis]*np.cross(d['BH_pos_1'],d['BH_force_1'])  \
-             + d['BH_mass_2'][:,np.newaxis]*np.cross(d['BH_pos_2'],d['BH_force_2'])
+    d['torque'] = np.cross(d['BH_pos_1'],d['BH_force_1']) + np.cross(d['BH_pos_2'],d['BH_force_2'])
+    
+#     d['radial_force_1'] = (d['BH_pos_1']-d['BH_pos_2'])*d['BH_force_1']/linalg.norm(d['BH_pos_1']-d['BH_pos_2'],axis=1)[:,np.newaxis]
+#     d['radial_force_2'] = (d['BH_pos_2']-d['BH_pos_1'])*d['BH_force_2']/linalg.norm(d['BH_pos_2']-d['BH_pos_1'],axis=1)[:,np.newaxis]
+    d['radial_force_1'] = d['BH_pos_1']*d['BH_force_1']/linalg.norm(d['BH_pos_1'],axis=1)[:,np.newaxis]
+    d['radial_force_2'] = d['BH_pos_1']*d['BH_force_2']/linalg.norm(d['BH_pos_2'],axis=1)[:,np.newaxis]
+    
+    d['net_force'] = d['BH_force_1']+d['BH_force_2']
+        
+#     d['BH_BH_accel_1'] = G_pc3_yr_2_msun_1*d['BH_mass_1'][:,np.newaxis]*d['BH_mass_2'][:,np.newaxis]*(d['BH_pos_2']-d['BH_pos_1'])/d['dist'][:,np.newaxis]**3
+#     d['BH_BH_accel_2'] =-d['BH_BH_accel_1']
 
     # changing sign to get positive torque, just because it looks tidier
     d['angmom']*=-1
@@ -102,7 +113,7 @@ def plot_torque(run_id,output_dir,d):
     angmom = d['angmom']
     torque = d['torque']
 
-    nrows=5
+    nrows=6
     ncols=2
 
     scale = 2.
@@ -118,7 +129,8 @@ def plot_torque(run_id,output_dir,d):
         sp[0,1].plot(time,angmom[:,iaxis],label=r"$L_{{{}}}$".format(axis))
 
         sp[1,0].plot(time,torque[:,iaxis],label=r"$\tau_{{{}}}$".format(axis))
-        sp[1,1].plot(time,angmom[:,iaxis]/torque[:,iaxis],label=r"$t_{{{}}}$".format(axis))
+#         sp[1,1].plot(time,angmom[:,iaxis]/torque[:,iaxis],label=r"$'\tau_{{{}}}$".format(axis))
+        sp[1,1].plot(time,d['net_force'][:,iaxis],label=r"$F_{{{}}}$".format(axis))
 
         sp[2,0].plot(time,d['BH_pos_1'][:,iaxis],label=r"${{{}}}_1$".format(axis))
         sp[2,1].plot(time,d['BH_pos_2'][:,iaxis],label=r"${{{}}}_2$".format(axis))
@@ -128,20 +140,36 @@ def plot_torque(run_id,output_dir,d):
 
         sp[4,0].plot(time,d['BH_force_1'][:,iaxis],label=r"$F_{{{},1}}$".format(axis))
         sp[4,1].plot(time,d['BH_force_2'][:,iaxis],label=r"$F_{{{},2}}$".format(axis))
+
+        sp[5,0].plot(time,(d['BH_force_1'][:,iaxis]-d['radial_force_1'][:,iaxis]),label=r"$F_{{c,{},1}}$".format(axis))
+        sp[5,0].plot(time,(d['radial_force_1'][:,iaxis]),label=r"$F_{{r,{},1}}$".format(axis))
+        sp[5,1].plot(time,(d['BH_force_2'][:,iaxis]-d['radial_force_2'][:,iaxis]),label=r"$F_{{c,{},2}}$".format(axis))
+        sp[5,1].plot(time,(d['radial_force_2'][:,iaxis]),label=r"$F_{{r,{},2}}$".format(axis,axis))
+
+#         sp[5,0].plot(time,d['BH_force_1'][:,iaxis]-d['BH_BH_accel_1'][:,iaxis],label=r"$\Delta F_{{{},1}}$".format(axis))
+#         sp[5,1].plot(time,d['BH_force_2'][:,iaxis]-d['BH_BH_accel_2'][:,iaxis],label=r"$\Delta F_{{{},2}}$".format(axis))
     sp[0,1].set_ylabel('Angular momentum\n(M$_{\odot}$ pc$^2$ / yr)')
     sp[1,0].set_ylabel('Torque\n(M$_{\odot}$ pc$^2$ / yr$^{{-2}}$)')
-    sp[1,1].set_ylabel('Torque time-scale\n(yr)')
+#     sp[1,1].set_ylabel('Torque time-scale\n(yr)')
+    sp[1,1].set_ylabel('Force sum')
     sp[2,0].set_ylabel('Pos 1')
     sp[2,1].set_ylabel('Pos 2')
     sp[3,0].set_ylabel('Vel 1')
     sp[3,1].set_ylabel('Vel 2')
+
     sp[4,0].set_ylabel('Force 1')
     sp[4,1].set_ylabel('Force 2')
+    sp[5,0].set_ylabel('Non-radial force 1')
+    sp[5,1].set_ylabel('Non-radial force 2')
     
     for ix in range(ncols):
         sp[-1,ix].set_xlabel(r'Time / Myr')
+        for iy in [4,5]:
+#             sp[iy,ix].set_yscale('symlog',linthresh=1.e-1)
+            sp[iy,ix].set_ylim(-0.06,0.06)
         for iy in range(nrows):
             sp[iy,ix].legend()
+
 
     fig.savefig(f"../figures/torque_{run_id}_{output_dir}.pdf")
     plt.close('all')
@@ -158,5 +186,5 @@ def plot_all_torques():
         extract_plot_torque(*run)
 
 if __name__ == '__main__':
-#     plot_all_torques()      
-    extract_plot_torque(*runs[0])      
+    plot_all_torques()      
+#     extract_plot_torque(*runs[0])      
