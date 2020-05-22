@@ -32,11 +32,17 @@ if __name__ == '__main__':
     run_id = sys.argv[1]
     output_dir = sys.argv[2]
 
+    try:
+        nprocs = int(sys.argv[3])
+    except IndexError:
+        nprocs = 64 # default
+    
+
     print("Running")
 
 #     gridMode = False
 #     uniqueMode = False
-    gridMode = False
+    gridMode = True
     uniqueMode = False
     
 #     append_name = "_high_hcn"
@@ -49,7 +55,17 @@ if __name__ == '__main__':
 #     includedVals = ["hcn2","nH_p","TK_p","tau","flux_p"]
 #     includedVals = ["nH_p","TK_p","tau","flux_p"]
 #     includedVals = ["nH_p","tau"]
-    includedVals = ["nH_p","TK_p","tau"]
+#     includedVals = ["nH_p","TK_p","tau"]
+#     includedVals = ["vrad","TK_p"]
+#     includedVals = ["nH_p","arad_p"]
+#     includedVals = ["arad_p","nH_p","TK_p","flux_p","rad_p","prad","pratio"]
+#     includedVals = ["nH_p","TK_p","vrad","rad_p","mJ_p"]
+#     includedVals = ["nH_p","age"]
+#     includedVals = ["ylos","vlos"]
+#     includedVals = ["xlos","vlos","vrad","vcirc"]
+#     includedVals = ["ylos","vlos","vrad","vcirc"]
+#     includedVals = ["xlos","ylos"]
+#     includedVals = ["vcirc","vrad"]#,"tau"]
 #     includedVals = ["phi","vrad"]
 #     includedVals = ["phi","vcirc"]
 #     includedVals = ["vrad","TK_p",""]
@@ -67,6 +83,7 @@ if __name__ == '__main__':
 #     includedVals = ["vrad","z_p"]
     #includedVals = ["flux_p","radrad_p"]
 #     includedVals = ["nH_p","TK_p"]
+    includedVals = ["rad_p","vrad"]
 #     includedVals = ["rad2d_p","agn_heat_p","radrad_p"]
 #     includedVals = ["TK_p","opac"]
     #includedVals = ["p_p","nH_p"]
@@ -86,8 +103,8 @@ if __name__ == '__main__':
     
     
 #     rcut = 80.
-#     rcut = 1.e9
-    rcut = 2.
+    rcut = 1.e9
+#     rcut = 2.
 
     m_bh = 1.e6
 #     m_bh = .05e6
@@ -142,7 +159,7 @@ if __name__ == '__main__':
             anim_names.append(includedVals[i]+includedVals[j])
             n_anim+=1
     
-    pool = Pool(processes=128)
+    pool = Pool(processes=nprocs)
     h = partial(g,run_id,output_dir,includedVals,rcut,m_bh,gridMode,uniqueMode)
 #     animstrs = pool.starmap(phaseplots.savephaseplots,zip(it.repeat(run_id),it.repeat(output_dir),snap_strs,it.repeat(includedVals),it.repeat(rcut)))
     animstrs = pool.map(h,snap_strs)

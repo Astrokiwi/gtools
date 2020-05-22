@@ -5,7 +5,9 @@ module sph_plotter
     real(kind=8),dimension(nkern) :: kern_tab,kern_tab2
     real(kind=8), save :: kern_norm
     
-    logical :: kernel_initialized = .false.
+    logical, save :: kernel_initialized = .false.
+    logical, save :: parallel = .false.
+
     
     integer(kind=1), parameter :: DENSE_MODE = B'00000000' ! default
     integer(kind=1), parameter :: WEIGHT_MODE = B'00000001'
@@ -22,8 +24,23 @@ module sph_plotter
     integer, parameter :: SDEV_POS = 5
 
 
-
     contains
+    
+    subroutine set_parallel
+        implicit none
+        
+        parallel = .true.
+
+        return
+    end subroutine
+
+    subroutine set_serial
+        implicit none
+        
+        parallel = .false.
+
+        return
+    end subroutine
     
     function sph_vel_absorb(x,y,z,m,h,u,opac,vx,vy,vz,gx,gy,theta,phi,dv,nv,n) result(prof)
         implicit none
@@ -123,6 +140,7 @@ module sph_plotter
     end function sph_vel_absorb
     
     function sph_general(x,y,m,h,v,L,c,w,f,z,zslice,mode,n) result(g)
+        use omp_lib
         implicit none
         integer :: n,L
         real(kind=8), dimension(n) :: m,h ! mass, smoothing
@@ -132,11 +150,12 @@ module sph_plotter
         real(kind=8), dimension(2) :: c ! top-left corner
         real(kind=8) :: w ! width
         real(kind=8) :: zslice ! slice to measure value along
+
         integer(kind=1) :: mode
         
         real(kind=8), dimension(L,L) :: g ! output grid
 
-        real(kind=8), dimension(L,L) :: mg ! mass or distance grid
+        real(kind=8), dimension(:,:), allocatable :: mg ! mass or distance grid
         
         real(kind=8), dimension(:,:), allocatable :: g2 ! secondary grid, if needed
         
@@ -152,6 +171,13 @@ module sph_plotter
         real(kind=8) :: rdist, weight
         real(kind=8) :: dz
         
+        if ( parallel ) then
+            print *,"parallel mode"!", nprocs=",omp_get_num_threads()
+        else
+            print *,"serial mode"
+            call    OMP_SET_NUM_THREADS(1)
+        endif
+        
         if ( .not. kernel_initialized ) then
             call kernel_init
         endif
@@ -164,13 +190,16 @@ module sph_plotter
         else
             g = 0.d0
         endif
+        
+        allocate(mg(L,L))
         if ( btest(mode,VORINOI_POS) ) then
             mg = huge(mg(1,1))
         else
             mg = 0.d0
         endif
+        
+        allocate(g2(L,L))
         if ( btest(mode,SDEV_POS) ) then
-            allocate(g2(L,L))
             g2 = 0.d0
         endif
         r_cell = w/L
@@ -183,15 +212,22 @@ module sph_plotter
 !             print *,"m",n,count(isnan(v))
 !         endif
 
+! turn off parallel completely - gives segmentation faults??
+!$OMP PARALLEL DO private(ip,ix,iy,hix,hiy,ix0,iy0,ix1,iy1,ih)&
+!$OMP& private(rdist,weight,dz)&
+!$OMP& shared(m,h,v,x,y,z,w,c,zslice,mode,f,L,r_cell,area_cell)&
+!$OMP& reduction(+:g,g2,mg)&
+!$OMP& default(none) schedule(dynamic,1)
         do ip=1,n
+!             print *,"in loop: parallel mode, nprocs=",omp_get_num_threads()
             if ( f(ip) .and. &
              (.not.btest(mode,DENSE_WEIGHT_POS) .or. &
                 .not. ( isnan(v(ip)) .or. v(ip)>HUGE(v(ip)) .or. v(ip)<-HUGE(v(ip)) ) )&
                    ) then
 
 
-                ix = nint((x(ip)-c(1))/r_cell)
-                iy = nint((y(ip)-c(2))/r_cell)
+                ix = int((x(ip)-c(1))/r_cell)+1
+                iy = int((y(ip)-c(2))/r_cell)+1
                 if ( btest(mode,MIN_POS) ) then
                     if ( ix<=L .and. iy<=L .and. ix>=1 .and. iy>=1 ) then
                         g(ix,iy) = min(v(ip),g(ix,iy))
@@ -252,6 +288,7 @@ module sph_plotter
                 
             endif
         end do
+!$OMP END PARALLEL DO
         
         if ( .not. btest(mode,MAX_POS) ) then
             if ( btest(mode,MIN_POS) .or. btest(mode,VORINOI_POS) ) then
@@ -269,9 +306,10 @@ module sph_plotter
             endif
         endif
         
-        if ( btest(mode,SDEV_POS) ) then
+        deallocate(mg)
+!         if ( btest(mode,SDEV_POS) ) then
             deallocate(g2)
-        endif
+!         endif
 
 !         g(1,1) = count(isnan(v))
 
@@ -496,8 +534,170 @@ module sph_plotter
     end function norm2crossp
 
 
+    ! histogram along some radial ray, taking opacity into account
+    function sph_ray_histogram_opacity(xyz,m,h,vel,vmin,vmax,op,xyzray_in,rayoffset_in,f,broaden,nbins,nray,n) result(rayhist)
+!     function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,nbins,nray,n) result(rayhist)
+        !$ use omp_lib
+        implicit none
+        
+        integer :: n,nray,nbins
+        
+        real(kind=8), dimension(n,3), intent(in) :: xyz ! particle positions
+        real(kind=8), dimension(n), intent(in) :: m,h ! "mass" = emission weight, smoothing
+        real(kind=8), dimension(n,3), intent(in) :: vel ! 3D velocity
+!         real(kind=8), dimension(n) :: broaden ! if <0, no broadening. If >0, width of gaussian broadening
+        real(kind=8), dimension(n), intent(in) :: broaden ! width of gaussian broadening
+
+        real(kind=8), dimension(n), intent(in) :: op ! particle cross section
+        logical, dimension(n), intent(in) :: f ! mask
+        
+        
+        real(kind=8), dimension(nray,3), intent(in) :: xyzray_in,rayoffset_in ! Ray directions and offset
+        real(kind=8), dimension(nray,3) :: xyzray ! Ray from 0,0 in these directions - normalised
+        
+        real(kind=8), intent(in) :: vmin,vmax
+        
+        real(kind=8), dimension(nbins,nray) :: rayhist ! ray value along los (surface density)
+
+        real(kind=8) :: ray_norm
+        real(kind=8) :: h2 ! h squared to avoid square roots later
+        real(kind=8) :: weight,broad_weight
+        real(kind=8) :: dv2_normed, gauss_weight
+!         real(kind=8) :: opac_weight,optical_depth
+
+        real(kind=8), dimension(n) :: gauss_norm
+        integer, dimension(:),allocatable :: zarg ! order along ray
+        real(kind=8), dimension(:),allocatable :: z_ray ! position along ray
+        real(kind=8) :: impact_pram
+
+        real(kind=8) :: cum_depth,this_depth,vlos
+        real(kind=8) :: min_vlos,max_vlos
+        
+        real(kind=8) :: bin_width
+        
+!         character(len=256) :: filename
+!         integer :: ib
+        
+
+
+        
+        integer :: iray,i,ip,ibin
+        
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+                
+        ! 
+        do iray=1,nray
+            ray_norm = sqrt(sum(xyzray_in(iray,:)**2))
+            xyzray(iray,:) = xyzray_in(iray,:)/ray_norm
+        end do
+        
+        gauss_norm = broaden*sqrt(4.*atan(1.d0))
+        
+!         rayhist = 0.d0
+        bin_width = (vmax-vmin)/nbins
+
+!         print *,vmin,vmax,maxval(vel(:,2)),minval(vel(:,2))
+!         min_vlos = 1.e9
+!         max_vlos = -1.e9
+
+
+!$OMP PARALLEL DO private(iray,ibin,i,ip,h2)&
+!$OMP& private(z_ray,zarg)&
+!$OMP& private(cum_depth,this_depth,vlos,dv2_normed)&
+!$OMP& private(weight,gauss_weight,broad_weight,impact_pram)&
+!$OMP& shared(nray,n,nbins,bin_width,vmin,vmax)&
+!$OMP& shared(xyz,xyzray,rayhist,m,h,rayoffset_in,f,op,broaden,vel,gauss_norm)&
+!$OMP& default(none) schedule(dynamic,1)
+        do iray=1,nray
+            rayhist(:,iray)=0.d0
+            allocate(z_ray(n))
+            allocate(zarg(n))
+            cum_depth = 0.
+            do ip=1,n
+                z_ray(ip) = sum(xyz(ip,:)*xyzray(iray,:))
+            end do
+            call merge_argsort(z_ray,zarg)
+            deallocate(z_ray)
+!             write(filename,"('visualisation/test_dumps/ray',I3.3,'.dat')") iray
+!             open(unit=15+iray,file=filename)
+!             ib = 0
+            !particleloop:  
+            do i=1,n
+                ip = zarg(i)
+                if ( .not. f(ip) ) then
+                    cycle! particleloop
+                endif
+
+!                 vlos = sum(vel(ip,:)*xyzray(iray,:))
+!                 if ( vlos>50. .or. vlos<-50. ) then
+!                     print *,vlos," tau ",cum_depth
+!                 endif
+
+!                 cum_depth = 0. ! hack to include all particles
+                if ( cum_depth>25. ) then
+                    exit! particleloop
+                endif
+                
+                h2 = h(ip)**2
+                impact_pram = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
+!                 if ( vlos>50. .or. vlos<-50. ) then
+!                     print *,vlos," tau ",cum_depth,h(ip),sqrt(impact_pram)
+!                     if (impact_pram>=h2) then
+!                         write(*,"(16F10.6)") xyz(ip,:),rayoffset_in(iray,:),xyz(ip,:)-rayoffset_in(iray,:),&
+!                                              xyzray(iray,:),vlos,vel(ip,:)
+!                         stop
+!                     endif
+!                 endif
+!                 impact_pram = 0. ! hack to include all particles
+                
+                if ( impact_pram>=h2 ) then
+                    cycle! particleloop
+                endif
+!                 impact_pram = sqrt(impact_pram)
+!                 weight = m(ip)*fkern(impact_pram/h(ip))/h2
+                weight = m(ip)*fkern2(impact_pram/h2)/h2
+                this_depth = cum_depth
+                cum_depth = cum_depth+op(ip)*fkern(impact_pram/h(ip))/h2
+                vlos = sum(vel(ip,:)*xyzray(iray,:))
+!                 min_vlos = min(vlos,min_vlos)
+!                 max_vlos = max(vlos,max_vlos)
+                
+                if ( broaden(ip)>bin_width ) then
+                    do ibin=1,nbins
+                        dv2_normed = ((vlos-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
+        !                 if ( dv2_normed>50. ) then
+                        if ( dv2_normed>25. ) then
+                            cycle! bin loop!
+                        endif
+                        gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
+                        broad_weight = weight * gauss_weight/bin_width
+                        rayhist(ibin,iray) = rayhist(ibin,iray) + broad_weight*exp(-this_depth)
+                    end do
+!                     write(15+iray,"(9E15.7)") z_ray(ip),vel(ip,:),vlos,this_depth,cum_depth,impact_pram,h(ip)
+                else
+!                     print *,bin_width/broaden(ip)
+                    ibin = int((vlos-vmin)/bin_width)+1
+                    if ( ibin<1 .or. ibin>nbins ) then
+!                         ib=ib+1
+                        cycle ! particleloop
+                    endif
+                    rayhist(ibin,iray) = rayhist(ibin,iray) + weight/bin_width*exp(-this_depth)
+!                     write(15+iray,"(9E15.7)") z_ray(ip),vel(ip,:),vlos,this_depth,cum_depth,impact_pram,h(ip)
+                endif
+                
+            end do! particleloop
+!             close(15+iray)
+            deallocate(zarg)
+!             print *,iray,min_vlos,max_vlos
+!             print *,iray,"final optical depth=",cum_depth,"outside vrange=",ib,"/",n
+        end do
+
+    end function
+
     ! histogram along some radial ray
-    function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,rayoffset_in,f,broaden,nbins,fullgal,nray,n) result(rayhist)
+    function sph_ray_histogram(xyz,m,h,vel,vmin,vmax,xyzray_in,rayoffset_in,f,broaden,nbins,fullgal,nray,n) result(rayhist)
 !     function sph_ray_histogram(xyz,m,h,v,vmin,vmax,xyzray_in,f,nbins,nray,n) result(rayhist)
         !$ use omp_lib
         implicit none
@@ -506,14 +706,15 @@ module sph_plotter
         
         real(kind=8), dimension(n,3) :: xyz ! particle positions
         real(kind=8), dimension(n) :: m,h ! mass, smoothing
-        real(kind=8), dimension(n) :: v ! value to sum along ray
+!         real(kind=8), dimension(n) :: v ! value to sum along ray
+        real(kind=8), dimension(n,3), intent(in) :: vel ! 3D velocity
 !         real(kind=8), dimension(n) :: broaden ! if <0, no broadening. If >0, width of gaussian broadening
         real(kind=8), dimension(n) :: broaden ! width of gaussian broadening
         logical :: fullgal ! true = (optically thin) emission lines from whole galaxy, false = absorption line from ray from offset
-
         
         real(kind=8), dimension(nray,3) :: xyzray_in,rayoffset_in ! Ray directions and offset
         real(kind=8), dimension(nray,3) :: xyzray ! Ray from 0,0 in these directions - normalised
+
         real(kind=8), allocatable, dimension(:,:) :: impact_pram_stored
         real(kind=8), dimension(nray) :: local_rayhist
         
@@ -560,10 +761,10 @@ module sph_plotter
 
             do ip=1,n
                 do iray=1,nray
-                    dotprod = 0.
-                    do kk=1,3
-                        dotprod = dotprod + xyzray(iray,kk)*(xyz(ip,kk)-rayoffset_in(iray,kk))
-                    end do
+!                     dotprod = 0.
+!                     do kk=1,3
+!                         dotprod = dotprod + xyzray(iray,kk)*(xyz(ip,kk)-rayoffset_in(iray,kk))
+!                     end do
         
                     impact_pram_stored(ip,iray) = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
                 end do
@@ -576,7 +777,7 @@ module sph_plotter
 !$OMP& private(ip,weight,h2,gauss_weight,kk)&
 !$OMP& private(local_rayhist,local_broaden,local_impact_pram,local_v,local_m)&
 !$OMP& firstprivate(fullgal)&
-!$OMP& shared(v,vmin,bin_width,broaden,gauss_norm)&
+!$OMP& shared(vel,vmin,bin_width,broaden,gauss_norm)&
 !$OMP& shared(rayoffset_in,rayhist,nray,nbins,xyzray,xyz,h,m,n,f)&
 !$OMP& shared(impact_pram_stored)&
 !$OMP& default(none) schedule(dynamic,1)
@@ -589,23 +790,17 @@ module sph_plotter
 !                     print *,ip,"/",n
 !                 endif
                 if ( .not. f(ip) ) then
-                    continue
+                    cycle
                 endif
                 local_broaden = broaden(ip)
-                local_v = v(ip)
-!                 if ( local_broaden>bin_width ) then
-                    dv2_normed = ((local_v-vmin-(bin_width*(ibin-1)))/local_broaden)**2
-    !                 if ( dv2_normed>50. ) then
-                    if ( dv2_normed>25. ) then
-                        continue
-                    endif
-                    gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
+!                 local_v = v(ip)
+
 !                 else
 !                     if ( local_v<vmin+bin_width*(ibin-1) ) then
-!                         continue
+!                         cycle
 !                     endif
 !                     if ( local_v>vmin+bin_width*(ibin) ) then
-!                         continue
+!                         cycle
 !                     endif
 !                     gauss_weight = 1.
 !                 endif
@@ -615,9 +810,18 @@ module sph_plotter
                 if ( .not. fullgal ) then
                     h2 = h(ip)**2
                     do iray=1,nray
+                        local_v = sum(vel(ip,:)*xyzray(iray,:))
+    !                 if ( local_broaden>bin_width ) then
+                        dv2_normed = ((local_v-vmin-(bin_width*(ibin-1)))/local_broaden)**2
+        !                 if ( dv2_normed>50. ) then
+                        if ( dv2_normed>25. ) then
+                            cycle
+                        endif
+                        gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
+
                         local_impact_pram = impact_pram_stored(ip,iray)
                         if ( local_impact_pram>=h2 ) then
-                            continue
+                            cycle
                         endif
 !                         weight = local_m*fkern2(local_impact_pram/h2)/h2
                         weight = local_m*fkern2(local_impact_pram/h2)/h2
@@ -626,6 +830,13 @@ module sph_plotter
                     end do
                 else
                     do iray=1,nray
+                        local_v = sum(vel(ip,:)*xyzray(iray,:))
+                        dv2_normed = ((local_v-vmin-(bin_width*(ibin-1)))/local_broaden)**2
+                        if ( dv2_normed>25. ) then
+                            cycle
+                        endif
+                        gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
+
                         broad_weight = local_m * gauss_weight/bin_width
                         local_rayhist(iray) = local_rayhist(iray) + broad_weight
                     end do
@@ -640,13 +851,13 @@ module sph_plotter
 ! !                             dotprod = dotprod + xyzray(iray,kk)*(xyz(ip,kk)-rayoffset_in(iray,kk))
 ! !                         end do
 ! !                         if ( dotprod<=0. ) then
-! !                             continue
+! !                             cycle
 ! !                         endif
 !                 
 ! !                         impact_pram = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
 !                         local_impact_pram = impact_pram_stored(ip,iray)
 !                         if ( local_impact_pram>=h2 ) then
-!                             continue
+!                             cycle
 !                         endif
 !                 
 ! !                         impact_pram = sqrt(impact_pram_stored(ip,iray))
@@ -736,7 +947,7 @@ module sph_plotter
             iray = index/nbins+1
             do ip=1,n
                 if ( .not. f(ip) ) then
-                    continue
+                    cycle
                 endif
                 if ( .not. fullgal ) then
                     h2 = h(ip)**2
@@ -745,12 +956,12 @@ module sph_plotter
                 if ( .not. fullgal ) then
                     dotprod = sum(xyzray(iray,:)*(xyz(ip,:)-rayoffset_in(iray,:)))
                     if ( dotprod<=0. ) then
-                        continue
+                        cycle
                     endif
             
                     impact_pram = norm2crossp(xyz(ip,:)-rayoffset_in(iray,:),xyzray(iray,:))
                     if ( impact_pram>=h2 ) then
-                        continue
+                        cycle
                     endif
             
                     impact_pram = sqrt(impact_pram)
@@ -763,15 +974,15 @@ module sph_plotter
                     dv2_normed = ((v(ip)-vmin-(bin_width*(ibin-1)))/broaden(ip))**2
     !                 if ( dv2_normed>50. ) then
                     if ( dv2_normed>25. ) then
-                        continue
+                        cycle
                     endif
                     gauss_weight = exp(-dv2_normed)/gauss_norm(ip)
                 else
                     if ( v(ip)<vmin+bin_width*(ibin-1) ) then
-                        continue
+                        cycle
                     endif
                     if ( v(ip)>vmin+bin_width*(ibin) ) then
-                        continue
+                        cycle
                     endif
                     gauss_weight = 1.
                 endif
@@ -1254,41 +1465,38 @@ module sph_plotter
 
         do i=1,n
             ip = zarg(i)
-            if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
-                ih = ceiling(h(ip)/r_cell)
-                ix = nint((x(ip)-c(1))/r_cell)
-                iy = nint((y(ip)-c(2))/r_cell)
-                
-                ix0 = max(1,ix-ih)
-                iy0 = max(1,iy-ih)
+            if ( .not. f(ip) .or. isnan(v(ip)) .or. v(ip)>HUGE(v(ip)) .or. v(ip)<-HUGE(v(ip)) ) cycle
+            ih = ceiling(h(ip)/r_cell)
+            ix = nint((x(ip)-c(1))/r_cell)
+            iy = nint((y(ip)-c(2))/r_cell)
+            
+            ix0 = max(1,ix-ih)
+            iy0 = max(1,iy-ih)
 
-                ix1 = min(L,ix+ih)
-                iy1 = min(L,iy+ih)
-                
-                if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
-                
-                    do hix=ix0,ix1
-                        do hiy=iy0,iy1
-                            !if ( opg(hix,hiy)<1.d0 ) then
-                                rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
-                                weight = fkern(rdist/h(ip))/h(ip)**2 ! column density (normalised) of this ray through particle
-                                ! m(ip) * weight = mass column density of this ray through particle
+            ix1 = min(L,ix+ih)
+            iy1 = min(L,iy+ih)
+            
+            if ( ix0>L .or. iy0>L .or. ix1<1 .or. iy1<1 ) cycle
+            
+            do hix=ix0,ix1
+                do hiy=iy0,iy1
+                    !if ( opg(hix,hiy)<1.d0 ) then
+                        rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+                        weight = fkern(rdist/h(ip))/h(ip)**2 ! column density (normalised) of this ray through particle
+                        ! m(ip) * weight = mass column density of this ray through particle
 
-                                this_opac = weight * m(ip) * op(ip) ! optical depth of this ray through particle
-                                g(hix,hiy) = g(hix,hiy) + min(1.,this_opac)*v(ip)*exp(-opg(hix,hiy))
-                                !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
-                                opg(hix,hiy) = opg(hix,hiy) + this_opac
+                        this_opac = weight * m(ip) * op(ip) ! optical depth of this ray through particle
+                        g(hix,hiy) = g(hix,hiy) + min(1.,this_opac)*v(ip)*exp(-opg(hix,hiy))
+                        !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
+                        opg(hix,hiy) = opg(hix,hiy) + this_opac
 !                                 if ( opg(hix,hiy)>=1.d0 ) then
 !                                     g(hix,hiy)=v(ip)
 !                                 endif
-                            !endif
-                            
-                        end do
-                    end do
+                    !endif
+                    
+                end do
+            end do
 
-                endif
-                
-            endif
         end do
     end function
 
@@ -1309,9 +1517,35 @@ module sph_plotter
         real(kind=8), dimension(2) :: c ! top-left corner
         real(kind=8) :: w ! width
         real(kind=8), dimension(L,L) :: g ! output grid
+        integer, dimension(n) :: inzarg ! sorted positions of particles along line of sight
+
+        
+        g = sph_optical_depth_los_weight_thresh(x,y,m,h,v,emit,op,L,c,w,z,inzarg,f,0.d0,n)
+        return
+    end function
+
+! `emit` is total luminosity of particle
+! `emit` weighted by 2D kernel gives erg/s/cm^2 flux
+! weight by `v` to calculate "line" output, divide at the end
+! opacity is completely independent, but still mass weighted
+    function sph_optical_depth_los_weight_thresh(x,y,m,h,v,emit,op,L,c,w,z,inzarg,f,threshold,n) result(g)
+        implicit none
+
+        integer :: n,L
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: v ! value to smooth over
+        real(kind=8), dimension(n) :: op ! particle opacity per unit mass
+        real(kind=8), dimension(n) :: emit ! particle emission per unit mass
+        real(kind=8), dimension(n) :: x,y,z ! particle positions
+        logical, dimension(n) :: f ! mask
+        real(kind=8), dimension(2) :: c ! top-left corner
+        real(kind=8) :: w ! width
+        real(kind=8), dimension(L,L) :: g ! output grid
         
         integer, dimension(n) :: inzarg,zarg ! sorted positions of particles along line of sight
         real(kind=8), dimension(L,L) :: opg, emitg ! grid of optical depths, grid of emissions
+        
+        real(kind=8) :: threshold
 
         integer :: i,ip ! loop variable, particle index
 
@@ -1342,54 +1576,145 @@ module sph_plotter
 
         do i=1,n
             ip = zarg(i)
-            if ( f(ip) .and. .not. isnan(v(ip)) .and. .not. v(ip)>HUGE(v(ip)) .and. .not. v(ip)<-HUGE(v(ip)) ) then
-                ih = ceiling(h(ip)/r_cell)
-                ix = nint((x(ip)-c(1))/r_cell)
-                iy = nint((y(ip)-c(2))/r_cell)
-                
-                ix0 = max(1,ix-ih)
-                iy0 = max(1,iy-ih)
+            if ( .not. f(ip) .or. isnan(v(ip)) .or. v(ip)>HUGE(v(ip)) .or. v(ip)<-HUGE(v(ip)) ) cycle
+            ih = ceiling(h(ip)/r_cell)
+            ix = nint((x(ip)-c(1))/r_cell)
+            iy = nint((y(ip)-c(2))/r_cell)
+            
+            ix0 = max(1,ix-ih)
+            iy0 = max(1,iy-ih)
 
-                ix1 = min(L,ix+ih)
-                iy1 = min(L,iy+ih)
-                
-                if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
-                
-                    do hix=ix0,ix1
-                        do hiy=iy0,iy1
-                            !if ( opg(hix,hiy)<1.d0 ) then
-                                rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
-                                weight = fkern(rdist/h(ip))/h(ip)**2
-                            
+            ix1 = min(L,ix+ih)
+            iy1 = min(L,iy+ih)
+            
+            if ( ix0>L .or. iy0>L .or. ix1<1 .or. iy1<1 ) cycle
+            
+            do hix=ix0,ix1
+                do hiy=iy0,iy1
+                    !if ( opg(hix,hiy)<1.d0 ) then
+                        rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+                        weight = fkern(rdist/h(ip))/h(ip)**2
+                    
 
-                                this_opac = weight * m(ip) * op(ip)
-                                this_emission = weight * emit(ip)
-                                g(hix,hiy) = g(hix,hiy) + this_emission*v(ip)*exp(-opg(hix,hiy))
-                                !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
-                                emitg(hix,hiy) = emitg(hix,hiy) + this_emission*exp(-opg(hix,hiy))
-                                opg(hix,hiy) = opg(hix,hiy) + this_opac
+                        this_opac = weight * m(ip) * op(ip)
+                        this_emission = weight * emit(ip)
+                        g(hix,hiy) = g(hix,hiy) + this_emission*v(ip)*exp(-opg(hix,hiy))
+                        !g(hix,hiy) = g(hix,hiy) + v(ip)*exp(-opg(hix,hiy)) ! is this maybe correct?
+                        emitg(hix,hiy) = emitg(hix,hiy) + this_emission*exp(-opg(hix,hiy))
+                        opg(hix,hiy) = opg(hix,hiy) + this_opac
 !                                 if ( opg(hix,hiy)>=1.d0 ) then
 !                                     g(hix,hiy)=v(ip)
 !                                 endif
-                            !endif
-                            
-                        end do
-                    end do
+                    !endif
+                    
+                end do
+            end do
 
-                endif
-                
-            endif
         end do
         
+        if ( threshold>0 ) then
+        
+            do ix=1,L
+                do iy=1,L
+                    if ( emitg(ix,iy)<threshold ) then
+                        g(ix,iy)=0.
+                        emitg(ix,iy)=0.
+                    endif
+                end do
+            end do
+
+        endif
+        
         g = g / emitg
+        return
+    end function
+
+    function sph_mean_optical_depth(x,y,z,m,h,op,L,c,w,f,tau,n) result(opg)
+        implicit none
+
+        integer, intent(in) :: n,L
+        real(kind=8), dimension(n), intent(in) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n), intent(in) :: op ! particle opacity per unit mass
+        real(kind=8), dimension(n),intent(in) :: x,y,z ! particle positions - z is los
+        logical, dimension(n), intent(in) :: f ! mask
+        real(kind=8), dimension(2), intent(in) :: c ! top-left corner
+        real(kind=8), intent(in) :: w ! width
+
+        real(kind=8), dimension(n) :: tau ! output optical depths
+
+
+
+        integer, dimension(n) :: zarg ! sorted positions of particles along line of sight
+        real(kind=8), dimension(L,L) :: opg ! grid of optical depths
+
+        integer :: i,ip ! loop variable, particle index
+
+        integer :: ix,iy ! grid position of particle
+        integer :: hix,hiy ! position in h circle
+        integer :: ix0,iy0,ix1,iy1 ! bounds of h circle
+        
+        integer :: ih ! integer h
+        
+        real(kind=8) :: r_cell, area_cell
+        
+        real(kind=8) :: rdist, weight, this_opac
+        real(kind=8) :: weighted_tau, weight_sum
+
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+
+        opg = 0.d0
+        r_cell = w/L
+        area_cell = r_cell**2
+        
+        call merge_argsort(z,zarg)
+
+        tau=0.
+        do i=1,n
+            ip = zarg(i)
+            if ( .not. f(ip) ) cycle
+            ih = ceiling(h(ip)/r_cell)
+            ix = int((x(ip)-c(1))/r_cell)+1
+            iy = int((y(ip)-c(2))/r_cell)+1
+            
+            ix0 = max(1,ix-ih)
+            iy0 = max(1,iy-ih)
+
+            ix1 = min(L,ix+ih)
+            iy1 = min(L,iy+ih)
+            
+            if ( ix0>L .or. iy0>L .or. ix1<1 .or. iy1<1 ) cycle
+            
+            weighted_tau=0.
+            weight_sum=0.
+            do hix=ix0,ix1
+                do hiy=iy0,iy1
+                    rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*area_cell)
+                    weight = fkern(rdist/h(ip))/h(ip)**2
+                    weight_sum = weight_sum + weight*area_cell
+            
+                    this_opac = weight * m(ip) * op(ip)
+                    weighted_tau=weighted_tau+weight*area_cell*opg(hix,hiy)
+
+                    opg(hix,hiy) = opg(hix,hiy) + this_opac
+!                     print *,ix,iy,hix,hiy,x(ip),y(ip),rdist,h(ip)
+                    
+                end do
+            end do
+            tau(ip)=weighted_tau/weight_sum
+!             print *,i,z(ip),tau(ip)
+        end do
     end function
 
 
 
+! I think this is a selection sort, so it's slow
 ! taken from:
 ! Module for sorting arrays.
 ! Based on code written by John E. Pask, LLNL.
 ! https://github.com/certik/fortran-utils/blob/master/src/sorting.f90
+
 
     function rargsort(a) result(b)
         ! Returns the indices that would sort an array.
@@ -1425,6 +1750,60 @@ module sph_plotter
             end if
         end do
     end function
+
+! my own sorting subroutine - should be faster
+    subroutine merge_argsort(r,d)
+        real(kind=8), intent(in), dimension(:) :: r
+        integer, intent(out), dimension(size(r)) :: d
+    
+        integer, dimension(size(r)) :: il
+
+        integer :: stepsize
+        integer :: i,j,n,left,k,ksize
+    
+        n = size(r)
+    
+        do i=1,n
+            d(i)=i
+        end do
+    
+        if ( n==1 ) return
+    
+        stepsize = 1
+        do while (stepsize<n)
+            do left=1,n-stepsize,stepsize*2
+                i = left
+                j = left+stepsize
+                ksize = min(stepsize*2,n-left+1)
+                k=1
+        
+                do while ( i<left+stepsize .and. j<left+ksize )
+                    if ( r(d(i))>r(d(j)) ) then
+                        il(k)=d(i)
+                        i=i+1
+                        k=k+1
+                    else
+                        il(k)=d(j)
+                        j=j+1
+                        k=k+1
+                    endif
+                enddo
+        
+                if ( i<left+stepsize ) then
+                    ! fill up remaining from left
+                    il(k:ksize) = d(i:left+stepsize-1)
+                else
+                    ! fill up remaining from right
+                    il(k:ksize) = d(j:left+ksize-1)
+                endif
+                d(left:left+ksize-1) = il(1:ksize)
+            end do
+            stepsize=stepsize*2
+        end do
+
+        return
+      end subroutine    
+
     
         ! 
 !         integer :: ip ! this particle
@@ -1612,37 +1991,72 @@ program test
     use sph_plotter
     implicit none
     
-    integer,parameter :: n=10**5
-    real(kind=8),dimension(n) :: m,h,v,broaden
-    real(kind=8),dimension(n,3) :: r
+    integer,parameter :: n=1328413
+    real(kind=8),dimension(:),allocatable :: m,h,broaden,op,tau
+    real(kind=8),dimension(:,:),allocatable :: r,v
+    real(kind=8),dimension(:,:),allocatable :: opg
     logical,dimension(n) :: flag
     
-    integer,parameter :: nray=3
+    integer,parameter :: nray=10
     real(kind=8), dimension(nray,3) :: ray_dir,ray_offset
     
     integer,parameter :: nbins=200
 
-    real(kind=8), dimension(nbins,nray) :: rayhist ! ray value along los (surface density)
-
+    real(kind=8), dimension(2) :: c
+    real(kind=8) :: w
+    integer :: L
     
     integer :: i
     
-    ray_offset = 0.
+    allocate(m(n))
+    allocate(h(n))
+    allocate(broaden(n))
+    allocate(op(n))
+    allocate(r(n,3))
+    allocate(v(n,3))
+    allocate(opg(L,L))
+    allocate(tau(n))
+    
     do i=1,nray
-        ray_dir(i,:) = [0.,0.,1.*i]
+        ray_dir(i,:) = [1.,0.,1.*(i-1.)]
+        ray_offset(i,:) = [0.,0.,0.]
     end do
     
     call random_number(r)
-    r=r*2.d0-1.d0
-    call random_number(v)
-    v=v*2.d0-1.d0
+    r=r*150.d0-75.d0
+    v=r ! outwards explosion
+!     call random_number(v)
+!     v=v*2.d0-1.d0
     
 
     m=1.d0
-    h=1.d-2
-    broaden = 1.
+    h=10.
+    broaden = 0.05
+    op = 1.d-2
     flag = .true.
     
-    rayhist = sph_ray_histogram(r,m,h,v,-1.d0,1.d0,ray_dir,ray_offset,flag,broaden,nbins,.false.,nray,n)    
+    w = 200.
+    c=[-w/2,-w/2]
+    L=1024
+    
+    call set_parallel
+    opg = sph_dense(r(:,1),r(:,2),m,h,L,c,w,flag,n)
+    
+!     opg=sph_mean_optical_depth(r(:,1),r(:,2),r(:,3),m,h,op,L,c,w,flag,tau,n) 
+    
+!     rayhist =  sph_ray_histogram_opacity(r,m,h,v,-2.d0,2.d0,op,ray_dir,ray_offset,flag,broaden,nbins,nray,n)
+
+!     open(unit=15,file="test_dumps/opacz.txt")
+!     do i=1,n
+!         write(15,*) r(i,:),tau(i)
+!     end do
+!     close(15)
+
+    
+!     open(unit=15,file="test_dumps/rayhist.txt")
+!     do i=1,nbins
+!         write(15,*) rayhist(i,:)
+!     end do
+!     close(15)
 
 end program

@@ -17,7 +17,16 @@ import tab_interp
 
 import gizmo_tools
 
+import time as timer
+import pandas as pd
+
+from scipy import stats
+
 # luminosity = 6.2849e42 # erg/s
+
+los_angle = np.radians(10.)
+cos_los = np.cos(los_angle)
+sin_los = np.sin(los_angle)
 
 G_kms_pc_msun = 0.0043022682
 
@@ -31,14 +40,25 @@ lineLabels = ["CO(3-2)","CO(6-5)","HCN(4-3)","HCN(8-7)","H2 (1-0) S(1)","H2 (0-0
 for iline,lineVal in enumerate(lines):
     labels[lineVal] = lineLabels[iline]+" (erg/g/s)"
     dolog[lineVal] = True
-    ranges[lineVal] = [-10.,0.] # massy
+#     ranges[lineVal] = [-10.,0.] # massy
 #     ranges[lineVal] = [-40.,-20.] # volumetric
+    ranges[lineVal] = [-20.,2.] # massy, big range
 
 labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
 dolog['nH_p'] = True
-ranges['nH_p'] = [-4,8]
+# ranges['nH_p'] = [-4,8]
 # ranges['nH_p'] = [-4,12]
+ranges['nH_p'] = [-1,7]
 # ranges['nH_p'] = [6,9]
+
+labels['rho_p'] = r"$\log \rho$ (g cm$^{-3}$)"
+dolog['rho_p'] = True
+ranges['rho_p'] = [-35.,-19.]
+
+labels['age'] = r"age (Myr)"
+dolog['age'] = False
+ranges['age'] = [0.,1.5]
+
 
 labels['flux_p'] = r"$\log \Phi$ (erg/cm$^{-2}$/s)"
 dolog['flux_p'] = True
@@ -56,8 +76,8 @@ labels['TK_p'] = r"$\log T_g$ (K)"
 # dolog['TK_p'] = False
 # ranges['TK_p'] = [0,1e4]
 dolog['TK_p'] = True
-ranges['TK_p'] = [1.,8.]
-# ranges['TK_p'] = [1.,5.]
+# ranges['TK_p'] = [1.,8.]
+ranges['TK_p'] = [1.,5.]
 # ranges['TK_p'] = [.9,8.1]
 # ranges['TK_p'] = [.9,8.1]
 
@@ -75,14 +95,15 @@ labels['dustTemp'] = r"$\log T_d$ (K)"
 dolog['dustTemp'] = True
 # ranges['dustTemp'] = [1.,4.]#[0.,0.5] #[0,150]
 ranges['dustTemp'] = [1.,2.5]#[0.,0.5] #[0,150]
+# ranges['dustTemp'] = [1.3,2.3]#[0.,0.5] #[0,150]
 
 labels['radrad_p'] = r"$a_{rad,r}$ (cm/s/s)"
 dolog['radrad_p'] = True
 ranges['radrad_p'] = [-10.,1.]
 
 labels['arad_p'] = r"$a_{all,r}$ (cm/s/s)"
-dolog['arad_p'] = True
-ranges['arad_p'] = [-10.,1.]
+dolog['arad_p'] = 1.e7
+ranges['arad_p'] = [-13.,13.]
 
 labels['dHeat'] = r"$H$"
 dolog['dHeat'] = False
@@ -97,7 +118,13 @@ labels['vrad'] = r"$v_{rad}$ (km/s)"
 dolog['vrad'] = False
 # #ranges['vrad'] = [-300,300]
 # ranges['vrad'] = [-300,1.e3]
-ranges['vrad'] = [-100,600.]
+<<<<<<< HEAD
+# ranges['vrad'] = [-100,600.]
+ranges['vrad'] = [-50,200.]
+=======
+# ranges['vrad'] = [-100,300.]
+ranges['vrad'] = [-200,200.]
+>>>>>>> f8a13a36d791877ad598f9a41965ef2b77bcf0db
 # # ranges['vrad'] = [-50,300.]
 # # ranges['vrad'] = [-50,600.]
 # ranges['vrad'] = [-4.,4.]
@@ -109,6 +136,18 @@ dolog['vradpoly'] = False
 # # ranges['vrad'] = [-50,300.]
 # # ranges['vrad'] = [-50,600.]
 ranges['vradpoly'] = [-4.,22.]
+
+labels['vlos'] = r"$v_{los}$ (km/s)"
+dolog['vlos'] = False
+ranges['vlos'] = [-200.,200.]
+
+labels['xlos'] = r"$x_{los}$ (pc)"
+dolog['xlos'] = False
+ranges['xlos'] = [-20.,20.]
+
+labels['ylos'] = r"$y_{los}$ (pc)"
+dolog['ylos'] = False
+ranges['ylos'] = [-20.,20.]
 
 # polyfac = 3. # take cube root - need to do this explicitly
 
@@ -137,10 +176,11 @@ ranges['vel'] = [0.,1.e3]
 # ranges['rad_p'] = [-1.,1.9]
 
 labels['rad_p'] = r"$R$ (pc)"
-dolog['rad_p'] = False
+dolog['rad_p'] = True
 # ranges['rad_p'] = [0.,.3]
 # ranges['rad_p'] = [0.,10.]
-ranges['rad_p'] = [0.,100.]
+# ranges['rad_p'] = [0.,20.]
+ranges['rad_p'] = [-3.,3.]
 
 labels['tau'] = r"$\tau$"
 dolog['tau'] = False
@@ -161,7 +201,8 @@ ranges['prad'] = [-15.,-2.]
 
 labels['pratio'] = r"$P_{rad}/P_{thermal}$"
 dolog['pratio'] = True
-ranges['pratio'] = [-5.,5.]
+# ranges['pratio'] = [-5.,5.]
+ranges['pratio'] = [-10.,3.]
 
 labels['dt_p'] = r"dt (yr)"
 dolog['dt_p'] = True
@@ -209,6 +250,18 @@ labels['phi'] = r"$\phi$ ($^\deg$)"
 dolog['phi'] = False
 ranges['phi'] = [0.,90.]
 
+def symlog(a,threshold=100.):
+    assert(threshold>=1.)
+#     log_threshold = np.log10(threshold)
+    b = a.copy()
+    lin_slice = (a>=-threshold) & (a<=threshold)
+    pos_log_slice = (a>threshold)
+    neg_log_slice = (a<-threshold)
+    b[lin_slice] = a[lin_slice]*np.log10(threshold)/threshold
+    b[pos_log_slice] = np.log10(a[pos_log_slice])
+    b[neg_log_slice] = -np.log10(-a[neg_log_slice])
+    return b
+
 def v_esc(r,m_bh,m_hern,a_hern):
     return np.sqrt(2*G_kms_pc_msun*(m_bh/r + m_hern/(a_hern+r)))
 
@@ -251,6 +304,9 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     preqs["pratio"] = ["prad","p_p"]
     preqs["prad"] = ["m_p","radaccel_p","h_p"]
     preqs["phi"] = ["rad2d_p"]
+    preqs["xlos"] = ["ylos","h_p"]
+    preqs["ylos"] = ["xlos","h_p"]
+#     preqs["age"] = ["id_p"]
 
     iVal = 0
     while ( iVal<len(requiredVals) ):
@@ -285,12 +341,29 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
 
 #     if ( "m_p" in requiredVals ):
     values["m_p"] = np.array(f["/PartType0/Masses"])*1.e10
+#     
+#     if "id_p" in requiredVals:
+# 
+
+    if "age" in requiredVals:
+        run_isnap = int(snap_str)
+        age_file = "data/age_{}_{}_{}.dat".format(run_id,output_dir,run_isnap)
+        values["age"]= time-np.loadtxt(age_file)
     
     if "phi" in requiredVals:
         values["phi"] = np.arctan(np.abs(xyz[:,2]*1.e3/values["rad2d_p"]))*180./np.pi
     
     if "vcirc" in requiredVals:
         values["vcirc"] = (vel_p[:,0]*xyz[:,1]-vel_p[:,1]*xyz[:,0])*1.e3/values["rad2d_p"]
+
+    if "vlos" in requiredVals:
+        values["vlos"] = vel_p[:,0]*sin_los + vel_p[:,1]*cos_los
+    
+    if "xlos" in requiredVals:
+        values["xlos"] = xyz[:,0]*1.e3 # to pc
+
+    if "ylos" in requiredVals:
+        values["ylos"] = (xyz[:,1]*sin_los + xyz[:,2]*cos_los)*1.e3 # to pc
     
     if "vradpoly" in requiredVals:
         values["vradpoly"]=np.cbrt(values["vrad"])
@@ -363,6 +436,8 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     if ( "arad_p" in requiredVals ):
         accel_p = np.array(f["/PartType0/Acceleration"])
         accel_p*=3.0857e21/3.08568e+16**2 # to cm/s/s
+        
+        accel_p*=9.95839577e14 # to cm/yr/yr
 
         values["arad_p"] = -(xyz[:,0]*accel_p[:,0]+xyz[:,1]*accel_p[:,1]+xyz[:,2]*accel_p[:,2])/rad_p
 
@@ -370,6 +445,8 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     proton_mass_cgs = 1.6726e-24
     gamma_minus_one = 5./3.-1.
     boltzmann_cgs = 1.38066e-16
+
+    print(gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*1.e10)
 
     if ( "depth_p" in requiredVals ):
         values["depth_p"]/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
@@ -396,33 +473,59 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
 
 
     if ( "table" in requiredVals ):
+#         tableDate="281118"
+#         tableRes="0.0001"
+
+        tableDate="060319"
+        tableRes="0.1"
+
+#         print("Loading table and extracting values")
+#         start = timer.time()
+#         chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
+#                                         ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+#                                         ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
+#                                         ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+#                                         ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
+#                                         ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+#                                         )
+#         end = timer.time()
+#         print("Table loaded",end-start)
+# 
+#         print("Interpolating from table")
+#         start = timer.time()
+#         interpTabVec = np.vectorize(chTab.interpTab)
+#         tabStructs = interpTabVec(values["nH_p"].astype(np.float64),values["TK_p"].astype(np.float64),values["flux_p"].astype(np.float64),values["tau"].astype(np.float64))
+#         end = timer.time()
+#         print("Interpolation complete",end-start)
+
         print("Loading table and extracting values")
-#         chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_291117tau.dat"),
-#                                             ("coolheat_tab_marta/shrunk_table_291117_m0.04_hsmooth_tau.dat"),
-#                                             ("coolheat_tab_marta/shrunk_table_labels_011217taunodust.dat"),
-#                                             ("coolheat_tab_marta/shrunk_table_011217_m0.04_hsmooth_taunodust.dat")
-#                                             )
+        start = timer.time()
+        cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"./")
+        end = timer.time()
+        print("Table loaded",end-start)
+        
+        print("Interpolating from table")
+        start = timer.time()
+        table_particles = pd.DataFrame()
+        table_particles["nH"] = values["nH_p"]
+        table_particles["temp"] = values["TK_p"]
+        table_particles["AGNIntensity"] = values["flux_p"]
+        table_particles["AGNDepth"] = values["tau"]
 
-        tableDate="281118"
-        tableRes="0.0001"
-        chTab = tab_interp.CoolHeatTab( ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
-                                        ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
-                                        ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
-                                        ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
-                                        ("coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
-                                        ("coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
-                                        )
-        # for testing nH interpolation
-#         values["TK_p"][:] = 300.
-#         values["flux_p"][:] = 1.e5
-#         values["tau"][:] = 2.
-#         values["nH_p"][:] = 1.e5
-
-        interpTabVec = np.vectorize(chTab.interpTab)
-        tabStructs = interpTabVec(values["nH_p"].astype(np.float64),values["TK_p"].astype(np.float64),values["flux_p"].astype(np.float64),values["tau"].astype(np.float64))
+        cloudy_table.interp(table_particles)
+        end = timer.time()
+        print("Interpolation complete",end-start)
 
     if ( "dustTemp" in requiredVals ):
-        values["dustTemp"] = np.array(list(map(lambda y: y.dustT, tabStructs)))
+#         values["dustTemp"] = np.array(list(map(lambda y: y.dustT, tabStructs)))
+        values["dustTemp"] = table_particles["dustT"]
+#         data.dustTemp = map(lambda y: y.dustT, tabStructs)
+#         data.dustTemp = np.array(list(data.dustTemp))
+#         data.dustTemp = 10.**data.dustTemp
+#         print(np.max(data.dustTemp),np.min(data.dustTemp))
+#         data.dustTemp = data.dustTemp**4 # for test
+
+
 #         values["dustTemp"] = 10.**np.array(values["dustTemp"])
         #print(list(values["dustTemp"]))
     
@@ -439,12 +542,14 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     
     for lineVal in lines:
         if lineVal in requiredVals:
-            values[lineVal] = np.array(list(map(lambda y: y.__getattr__("line_"+lineVal), tabStructs)))
+            values[lineVal] = table_particles["line_"+lineVal]
+
+#             values[lineVal] = np.array(list(map(lambda y: y.__getattr__("line_"+lineVal), tabStructs)))
 
 
-    if ( "dHeat" in requiredVals ):
-        values["dHeat"] = map(lambda y: y.dHeat, tabStructs)
-        values["dHeat"] = np.array(values["dHeat"])
+#     if ( "dHeat" in requiredVals ):
+#         values["dHeat"] = map(lambda y: y.dHeat, tabStructs)
+#         values["dHeat"] = np.array(values["dHeat"])
 
     #values["dt_heat"] = values["u_p"]/(10.**values["dHeat"])*values["rho_p"]/3.154e7
 
@@ -474,26 +579,44 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     if ( "tsf" in requiredVals ):
         values["tsf"] = 1./np.sqrt(values["rho_p"]*G)/yr
 
+
+    # HACKY CUT
+#     print("HACKY CUT")
+#     # for plotting ylos
+#     slice = (values["h_p"]>np.abs(values["xlos"]))
+#     # for plotting xlos
+# #     slice = (values["h_p"]>np.abs(values["ylos"]))
+#     for key in values:
+#         values[key] = values[key][slice]
+#     # for plotting xlos
+
     return time,values
 
 # assumes that values are already loaded
 # def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,cmap='plasma',bins=(150,150),m_bh=1.e6):
-def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,vrange=None,cmap='plasma',bins=(300,300),m_bh=1.e6,weight=None):
+def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,vrange=None,cmap='plasma',bins=(300,300),m_bh=1.e6,weight=None,slice=None,drawmed=False):
 
     bigslice = (values["dt_p"]>0.)
     
+#     bigslice = (bigslice) & (values["vrad"]<0.) & (values["rad_p"]>2.) & (values["z_p"]>0.5); print("MAKING BIG SLICE")
 #     bigslice = (bigslice) & (values["hcn2"]>10.**-4)
+    val_i = values[iv]
+    val_j = values[jv]
 
     sp.set_xlabel(labels[iv])
     sp.set_ylabel(labels[jv])
-    if ( dolog[iv] ):
-        vx = np.log10(values[iv])
+    if type(dolog[iv]) is float:
+        vx = symlog(val_i,dolog[iv])
+    elif dolog[iv]:
+        vx = np.log10(val_i)
     else:
-        vx = values[iv]
-    if ( dolog[jv] ):
-        vy = np.log10(values[jv])
+        vx = val_i
+    if type(dolog[jv]) is float:
+        vy = symlog(val_j,dolog[jv])
+    elif dolog[jv]:
+        vy = np.log10(val_j)
     else:
-        vy = values[jv]
+        vy = val_j
     notnans = ((np.isfinite(vx)) & (np.isfinite(vy))) & bigslice
     
     print(np.nanmin(vx),np.nanmax(vx),np.nanmin(vy),np.nanmax(vy))
@@ -504,6 +627,11 @@ def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,vrange=None,cmap='pl
         notnans = notnans & (vy>=ranges[jv][0]) & (vy<=ranges[jv][1])
     if rcut is not None:
         notnans = notnans & (values["rad_p"]<rcut)
+    
+    if slice is not None:
+        notnans = notnans & slice
+
+    print("binning")
     vx = vx[notnans]
     vy = vy[notnans]
     # CHECK FOR RANGES
@@ -542,6 +670,7 @@ def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,vrange=None,cmap='pl
 #         xedges=xedges**polyfac
 #     if jv=="vradpoly":
 #         yedges=yedges**polyfac
+    print("Plotting")
     mappablePlot = sp.pcolormesh(xedges,yedges,H,cmap=cmap,vmin=vmin,vmax=vmax) #,norm=colors.LogNorm()
     if iv == "rad_p" and jv == "vel":
         # plot escape velocities
@@ -549,6 +678,15 @@ def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,vrange=None,cmap='pl
 #         y = v_esc(10.**xedges,m_bh,1.e9,250.)
         y = v_esc(xedges,m_bh,1.e9,250.)
         sp.plot(xedges,y)
+    output = mappablePlot
+    if drawmed:
+        y,bin_edges,bindices = stats.binned_statistic(vx,vy,statistic='median',bins=xedges)
+        print(y)
+        xmids = (xedges[:-1]+xedges[1:])/2
+        sp.plot(xmids,y)
+        output = mappablePlot,xmids,y
+    
+    
     sp.set_xlim(xedges[0],xedges[-1])
     sp.set_ylim(yedges[0],yedges[-1])
     sp.tick_params(which='both',direction="out")
@@ -563,7 +701,7 @@ def plot_phaseplot(sp,values,iv,jv,rcut=None,noranges=False,vrange=None,cmap='pl
             sp.set_yticks(newtick_locs)
             sp.set_yticklabels(newtick_vals)
     
-    return mappablePlot
+    return output
 
 
 def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None,m_bh=1.e6,gridMode=True,uniqueMode=False,weights=None):
@@ -652,8 +790,11 @@ if __name__ == '__main__':
 #     includedVals = ["nH_p","agn_heat_p"]
 #     includedVals = ["nH_p","TK_p"]
     includedVals = ["nH_p","dustTemp"]
-    x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.,weights=lines)
+#     includedVals = ["rho_p","dustTemp"]
+#     includedVals = ["tau_p","dustTemp"]
+#     x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.,weights=lines)
+    x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.)
     
 #     x = savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=80.)
-    print(x)
+    print("saving to ",x)
 

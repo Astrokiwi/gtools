@@ -44,7 +44,11 @@ print(infile)
 #outfile = "../pics/georgia_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 # outfile = "../pics/pretty_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 # outfile = "../pics/summary_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
-outfile = "../pics/side_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
+# outfile = "../pics/side_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
+outfile = "../pics/mean_vmap"+run_id+output_dir+"%03d.png"%snapx
+
+
+sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['side'],flat=True,ring=False,plot=['view'],L=100,scale=50.,rot=[0,10./360.*2.*np.pi]
 
 
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',L=512,flat=True,ring=True,nrows=1)
@@ -55,12 +59,15 @@ outfile = "../pics/side_sphoneplot"+run_id+output_dir+"%03d.png"%snapx
 
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',plot=['dt'],L=400,scale=4.,dotmode='max')
 
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='RdYlGn',flat=True,ring=False,plot=['vh2_1'],L=800,views=['side'],rot=[0.,10./360.*2.*np.pi],scale=100.)
+
 
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['dens'],views=['side'],L=400,scale=2.)
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='viridis',flat=True,ring=True,plot=['view'],L=400,scale=2.,rot=[])
 #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='prism',flat=False,ring=False,vorinoi=True,plot=['rand'],L=1200,scale=30.)
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['side'],flat=True,ring=False,plot=['view'],L=400,scale=20.) #,rot=[0,10./360.*2.*np.pi]
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['view'],L=800,scale=2.,rot=[0,70./360.*2.*np.pi],visibleAxes=False)
-sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['view'],L=400,scale=.1,rot=[0,70./360.*2.*np.pi],) #
+# sph_frame.makesph_trhoz_frame(infile,outfile,cmap='cividis',views=['face'],flat=True,ring=False,plot=['view'],L=800,scale=20.,rot=[0,90./360.*2.*np.pi],visibleAxes=False)
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['facetemp'],L=3200,scale=6.,rot=[0,70./360.*2.*np.pi],visibleAxes=False)
 
 # sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',views=['face'],flat=True,ring=False,plot=['facetemp'],L=3200,scale=6.,rot=[0,70./360.*2.*np.pi],visibleAxes=False)
