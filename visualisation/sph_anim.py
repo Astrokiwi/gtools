@@ -80,9 +80,11 @@ if __name__ == '__main__':
     default_values["data_ranges"]=""
     default_values["savemap"]=False
     default_values["gaussian"]=None
+    default_values["gizmoDir"]=None
+    default_values["snapstep"]=1
 #    default_values["opac_mu"]=None
     
-    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian"]
+    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep"]
     #,"opac_mu"]
 
     parser = argparse.ArgumentParser()
@@ -91,6 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--nprocs',type=int,help="processors to run on (default {})".format(default_values["nprocs"]))
     parser.add_argument('--maxsnapf',type=int,help="snapshot to end on (default=-1=do all snapshots)")
     parser.add_argument('--snap0',type=int,help="snapshot to start on (default=-1=do all snapshots)")
+    parser.add_argument('--snapstep',type=str,help="snapshop step rate")
     parser.add_argument('--rad',type=str,help="radius of all plots in parsecs - same value for all plots, or separated by commas")
     #parser.add_argument('--rads',type=float,help="radius of each plot in parsecs, separated by commas")
     parser.add_argument('--L',type=int,help="size of plot area in pixels")
@@ -111,6 +114,7 @@ if __name__ == '__main__':
     parser.add_argument('--noring',help="Edge on ring, not wrapped",action='store_true')
     parser.add_argument('--savemap',help="Save maps as data file",action='store_true')
     parser.add_argument('--gaussian',type=str,help="Gaussian filter size - same value for all plots, or separated by commas")
+    parser.add_argument('--gizmoDir',type=str,help="Custom directory for gizmo runs")
 #    parser.add_argument('--opac_mu',type=float,help="Wavelength in microns of dust opacity to use")
     args = parser.parse_args()
     
@@ -161,14 +165,16 @@ if __name__ == '__main__':
     visibleAxes=not noaxes
     print("Running")
 
+    if gizmoDir is None:
+        gizmoDir = gizmo_tools.getGizmoDir(run_id)
+    movieDir = gizmo_tools.getMovieDir()
+    fullDir = gizmoDir+"/"+run_id+"/"+output_dir
+
     snapi = 0
     if snap0>0:
         snapi=snap0
-    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False)
+    snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False,gizmoDir=gizmoDir)
 
-    gizmoDir = gizmo_tools.getGizmoDir(run_id)
-    movieDir = gizmo_tools.getMovieDir()
-    fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     
 # max run
 #     if ( maxsnapf>-1 and snapf>maxsnapf ):
@@ -181,10 +187,10 @@ if __name__ == '__main__':
 
     print("nfiles:",snapf-snapi+1)
     
-    isnaps = range(snapi,snapf+1)
+    isnaps = range(snapi,snapf+1,snapstep)
     
     infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in isnaps]
-    outfiles = ["../pics_HPM_test/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
+    outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
     
     nfiles = len(infiles)
     if absurd:
@@ -269,32 +275,7 @@ if __name__ == '__main__':
     #for snapx in [37]:
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 5 -i ../pics_HPM_MM/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
-
-
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_rhotempgiz_"+run_id+"_"+output_dir+".mp4"
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smooth_depthtempgiz_"+run_id+"_"+output_dir+".mp4"
-
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_rhodepthtempgiz_"+run_id+"_"+output_dir+".mp4"
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_velrhogiz_"+run_id+"_"+output_dir+".mp4"
-
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_TTdustgiz_"+run_id+"_"+output_dir+".mp4"
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_TTdustgiz_"+run_id+"_"+output_dir+".mp4"
-
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhogiz_"+run_id+"_"+output_dir+".mp4"
-
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothmin_dtgiz_"+run_id+"_"+output_dir+".mp4"
-    
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhoTgiz_"+run_id+"_"+output_dir+".mp4"
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_rhoTgiz_"+run_id+"_"+output_dir+".mp4"
-
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_rhozoomgiz_"+run_id+"_"+output_dir+".mp4"
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_velrhogiz_"+run_id+"_"+output_dir+".mp4"
-
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothslice_emitrhoTgiz_"+run_id+"_"+output_dir+".mp4"
-
-    #cmd = "ffmpeg -y -r 12 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_rhovelgiz_"+run_id+"_"+output_dir+".mp4"
-    #cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 /export/1/djw/movies/smoothsum_velgiz_"+run_id+"_"+output_dir+".mp4"
+    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
 
     print(cmd)
     os.system(cmd)

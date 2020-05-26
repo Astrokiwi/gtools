@@ -426,6 +426,15 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     sp.set_ylim([corner[1],corner[1]+width])
     if visibleAxes and centrecross:
         sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
+#         if data.binary_positions:
+#             print(data.binary_positions)
+#             row_axes[icol*2].scatter([data.binary_positions[0][0]],[data.binary_positions[1][1]],marker='x')
+#             row_axes[icol*2].scatter([data.binary_positions[1][0]],[data.binary_positions[1][1]],marker='+')
+#         else:
+#             sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
+    
+
+
     #mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap) 
     #sp.axis('equal')
 #     print(outmap.shape)
@@ -434,8 +443,8 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #     return nerrors
 
 
-def load_gadget(infile, plot_thing,
-                        centredens=False):
+def load_gadget(infile, plot_thing
+                        ,centredens=False):
                         
 #                         ,
 #                         opac_mu=None,
@@ -452,13 +461,18 @@ def load_gadget(infile, plot_thing,
     time*= 0.9778e9 # to yr
     time/=1.e6 # to Myr
 
-    BH_data=f["/BH_binary"]
-    Binary_pos_1 = BH_data.attrs.get("Binary_pos_1") 
-    Binary_pos_2 = BH_data.attrs.get("Binary_pos_2")
-    if(isinstance(Binary_pos_1,np.ndarray) & isinstance( Binary_pos_2,np.ndarray)):
-        data.binary_positions = [Binary_pos_1,Binary_pos_2]
-    else:
+    try:
+        BH_data=f["/BH_binary"]
+        Binary_pos_1 = BH_data.attrs.get("Binary_pos_1") 
+        Binary_pos_2 = BH_data.attrs.get("Binary_pos_2")
+        if(isinstance(Binary_pos_1,np.ndarray) & isinstance( Binary_pos_2,np.ndarray)):
+            data.binary_positions = [Binary_pos_1,Binary_pos_2]
+        else:
+            data.binary_positions = None
+#         verboseprint("Binary BH data loaded")
+    except KeyError as e:
         data.binary_positions = None
+#         verboseprint("No Binary BH data found, skipping")
 
     data.xyz = np.array(f["/PartType0/Coordinates"]) # kpc
 
@@ -1158,10 +1172,12 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
 
     n = data.h_p.size
     
-    if data.binary_positions is not None:
-      x_bin = binary_positions[0][0]-binary_positions[1][0]
-      y_bin = binary_positions[0][1]-binary_positions[1][1]
-      rot[0] = rot[0] - math.atan2(y_bin,x_bin)
+    
+    # corotate with binaries?
+#     if data.binary_positions is not None:
+#       x_bin = data.binary_positions[0][0]-data.binary_positions[1][0]
+#       y_bin = data.binary_positions[0][1]-data.binary_positions[1][1]
+#       rot[0] = rot[0] - math.atan2(y_bin,x_bin)
 
         
     # convert to pc
@@ -1185,7 +1201,22 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
          
          y = yr*np.cos(rot[1]) - z*np.sin(rot[1])
          z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
-    
+         
+         if data.binary_positions:
+            data.binary_positions_rot = [None,None]
+            for ibin,bpos in enumerate(data.binary_positions):
+                xrb = bpos[0]*np.cos(rot[0]) - bpos[1]*np.sin(rot[0])
+                yrb = bpos[0]*np.sin(rot[0]) + bpos[1]*np.cos(rot[0])
+                
+                xb = xrb
+                yb = yrb*np.cos(rot[1]) - bpos[2]*np.sin(rot[1])
+                zb = yrb*np.sin(rot[1]) + bpos[2]*np.cos(rot[1])
+                
+                data.binary_positions_rot[ibin] = np.array([xb,yb,zb])*1.e3
+    else:
+         if data.binary_positions:
+            data.binary_positions_rot = [data.binary_positions[0]*1.e3,data.binary_positions[1]*1.e3]
+
     if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a","vthin","vlos"] + ["v"+line for line in lines] + ["dv"+line for line in lines] + ["vels"+line for line in lines]) ): #+ ["view"+line for line in lines] 
         #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
         data.vel_a = (-x*data.vels[:,1]+y*data.vels[:,0])/np.sqrt(x**2+y**2)
@@ -1268,7 +1299,7 @@ def makesph_trhoz_frame(*args,**kwargs):
     except Exception as e:
         print("returning exception")
         wropped = ExceptionWrapper(e)
-        print("wrapped")
+#         print("wrapped")
         return wropped
 #         print(repr(e))
 #         print("".join(traceback.format_exception(*sys.exc_info())))
@@ -1551,9 +1582,8 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             if ( view=='face' ):
                 outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
-                if(data.binary_positions):
-                  row_axes[icol*2].scatter([data.binary_positions[0][0]],[data.binary_positions[1][1]],marker='x')
-                  row_axes[icol*2].scatter([data.binary_positions[1][0]],[data.binary_positions[1][1]],marker='+')
+                row_axes[icol*2].scatter([data.binary_positions_rot[0][0]],[data.binary_positions_rot[0][1]],marker='x')
+                row_axes[icol*2].scatter([data.binary_positions_rot[1][0]],[data.binary_positions_rot[1][1]],marker='+')
             elif ( view=='side' ):
                 outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
