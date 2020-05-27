@@ -35,6 +35,8 @@ import pandas as pd
 
 from scipy import interpolate
 
+import json
+
 class ExceptionWrapper(object):
 
     def __init__(self, ee):
@@ -44,48 +46,8 @@ class ExceptionWrapper(object):
     def re_raise(self):
         raise self.ee.with_traceback(self.tb)
 
-
-# from skimage import exposure
-
-
-#from enum import Enum
-
 def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
-
-def raiseprint(a):
-    print("EXCEPTION RAISED")
-    print(a)
-    raise a
-
-# --- Custom colormaps ---
-
-
-colsteps = [.375,.75]
-stepsize = .001
-cdict1 = {'red':   ((0.0, .5, .5),
-                   (colsteps[0], .8, .8),
-                   (colsteps[0]+stepsize, 0.0, 0.0),
-                   (colsteps[1], 0.0, 0.0),
-                   (colsteps[1]+stepsize, 0.0, 0.0),
-                   (1.0, 0.0, 0.0)),
-
-         'green':   ((0.0, 0.0, 0.0),
-                   (colsteps[0], 0.0, 0.0),
-                   (colsteps[0]+stepsize, 0.0, 0.0),
-                   (colsteps[1], 0.0, 0.0),
-                   (colsteps[1]+stepsize, .4, .4),
-                   (1.0, .7, .7)),
-
-         'blue':   ((0.0, 0.0, 0.0),
-                   (colsteps[0], 0.0, 0.0),
-                   (colsteps[0]+stepsize, .5, .5),
-                   (colsteps[1], .8, .8),
-                   (colsteps[1]+stepsize, 0.0, 0.0),
-                   (1.0, 0.0, 0.0)),
-        }
-
-P.register_cmap(name='RGBsteps', data=cdict1)
 
 dust_opacity_function = None
 def load_interpolate_opacity(opac_mu,
@@ -95,10 +57,8 @@ def load_interpolate_opacity(opac_mu,
         dust_opacity_table = np.loadtxt(opac_file)
         dust_opacity_function = interpolate.interp1d(dust_opacity_table[:,0],dust_opacity_table[:,1])
     opacity=dust_opacity_function(opac_mu)
-#     print("Setting opacity to ",opacity," cm^2/g")
     opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
     return opacity
-
 
 
 lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
@@ -109,31 +69,33 @@ line_opacities = {line:load_interpolate_opacity(mu) for line,mu in zip(lines,lin
 lines = ["IRdust"]+lines
 line_opacities.update({"IRdust":0.1*0.000208908219})
 
-# class SliceType(Enum):
-#     densslice = 0
-#     weightslice = 1
-#     zdensslice = 2
-#     zweightslice = 3
-#     vec2dslice = 4
-#     viewslice = 5
 
-densslice = 0
-weightslice = 1
-zdensslice = 2
-zweightslice = 3
-vec2dslice_flat = 4
-viewslice = 5
-minslice = 6
-zminslice = 7
-vorinoislice = 8
-zvorinoislice = 9
-maxslice = 10
-zmaxslice = 11
-maxdotslice = 12
-mindotslice = 13
-sdevslice = 14
-weightviewslice = 15
-zvec2dslice = 16
+densslice	=	'densslice'
+weightslice	=	'weightslice'
+zdensslice	=	'zdensslice'
+zweightslice	=	'zweightslice'
+vec2dslice_flat	=	'vec2dslice_flat'
+viewslice	=	'viewslice'
+minslice	=	'minslice'
+zminslice	=	'zminslice'
+vorinoislice	=	'vorinoislice'
+zvorinoislice	=	'zvorinoislice'
+maxslice	=	'maxslice'
+zmaxslice	=	'zmaxslice'
+maxdotslice	=	'maxdotslice'
+mindotslice	=	'mindotslice'
+sdevslice	=	'sdevslice'
+weightviewslice	=	'weightviewslice'
+zvec2dslice	=	'zvec2dslice'
+
+
+flat_choices = { 'quantslice'   :   [weightslice,zweightslice]
+                ,'dslice'       :   [densslice,zdensslice]
+                ,'thisminslice' :   [minslice,zminslice]
+                ,'vslice'       :   [vorinoislice,zvorinoislice]
+                ,'mslice'       :   [maxslice,zmaxslice]
+                ,'vec2dslice'   :   [vec2dslice_flat,zvec2dslice]
+                }
 
 
 molecular_mass = 4./(1.+3.*.76)
@@ -141,9 +103,6 @@ proton_mass_cgs = 1.6726e-24
 gamma_minus_one = 5./3.-1.
 boltzmann_cgs = 1.38066e-16
 
-
-# chTab = None
-# interpTabVec = None
 
 debug_mode = False
 
@@ -197,20 +156,17 @@ def azimuthalNorm(image, center=None):
 class GadgetData:
     pass
 
-class PlotParameters( object ):
-    pass
-
 #wrapper for pcolormesh so it doesn't die if there's nothing finite to plot
-def safe_pcolormesh(sp,*args,**qwargs):
+def safe_pcolormesh(sp,*args,**kwargs):
 # args[2] is the actual map
     if np.sum(np.isfinite(args[2]))==0:
         args = list(args)
-        args[2][:,:] = qwargs["vmin"]
+        args[2][:,:] = kwargs["vmin"]
         args = tuple(args)
-    return sp.pcolormesh(*args,**qwargs)
+    return sp.pcolormesh(*args,**kwargs)
 
 
-def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,width,cblabel,clow,chigh,cmap_label,mode,
+def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,width,cblabel,clow,chigh,cmap_label,in_mode,
                  dolog=True,
                  planenorm=False,
                  circnorm=False,
@@ -223,14 +179,14 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                  gaussian=None,
                  symLog=None,
                  cax_orientation='vertical',
-                 centrecross=True):
+                 centrecross=True,
+                 flatPlot=True):
 
     cmap_label2=cmap2
     cbax2=cbar2
 
     this_cmap = P.get_cmap(cmap_label)
 
-    #print(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,width,cblabel,clow,chigh,cmap_label,mode,dolog,planenorm,circnorm,plusminus,diverging,visibleAxes,cbar2,cmap2)
     if ( cmap_label2 ):
         this_cmap2 = P.get_cmap(cmap_label2)
     
@@ -240,20 +196,13 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 
     n = m_p.size
     
-#     if np.unique(m_p).size>1:
-#         print("not unique ",np.unique(m_p))
-# 
-#     for a,label in zip((x_p,y_p,m_p,h_p),("x","y","m","h")):
-#         if np.any(~np.isfinite(a)):
-#             print("bad ",label,n,np.sum(~np.isfinite(h_p)))
-# 
-
-    
-#     if val_p is None:
-#         raiseprint("val_p is None!")
-    
-#     print("calculating nerrors")
-#     nerrors_in = np.sum(~np.isfinite(val_p))
+    if in_mode in flat_choices:
+        if flatPlot:
+            mode = flat_choices[in_mode][0]
+        else:
+            mode = flat_choices[in_mode][1]
+    else:
+        mode = in_mode
     
     outmap = None
     
@@ -279,17 +228,12 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
         map2/=norm_map
     elif (mode==viewslice ):
         zarg = np.argsort(z_p)
-#         map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
         map = sph_plotter.sph_optical_depth_los_area(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
         
         total_luminosity = np.sum(map) * (width*2*3.086e+18/L)**2 / 3.839e33  # check normalisation
         print("log10(L/Lsun) = {}, mean flux = {} erg/s/cm**2, fullwidth = {} pc".format(np.log10(total_luminosity),np.mean(map),width*2))
     elif (mode==weightviewslice ):
         zarg = np.argsort(z_p)
-#         map = sph_plotter.sph_optical_depth_los(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
-
-#         map = sph_plotter.sph_optical_depth_los_weight(x_p,y_p,m_p,h_p,val_p[0],val_p[1],val_p[2],L,corner,width,z_p,zarg,mask,n)
-#         map = sph_plotter.sph_optical_depth_los_weight(x_p,y_p,m_p,h_p,val_p[0],val_p[1],val_p[2],L,corner,width,z_p,zarg,mask,n)
 #         threshold_flux = 1.e-5
         threshold_flux = 1.e-7
         print("HACKY: USING THRESHOLD FLUX OF ",threshold_flux)
@@ -313,14 +257,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
     elif mode==sdevslice:
         map = sph_plotter.sph_sdev(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
     
-#     nerrors = map[0,0]
-    
-#     print(nerrors_in,nerrors)
-    
-    
     if ( mode==vec2dslice_flat or mode==zvec2dslice ):
-        #map1/=1.e5
-        #map2/=1.e5
         map1 = map1.T
         map2 = map2.T
         
@@ -342,22 +279,12 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
             cb = fig.colorbar(qv,label=cblabel,cax=cbax,orientation=cax_orientation)
         else:
             cbax.set_axis_off()
-#         sp.set_xbound(corner[0],corner[0]+width)
-#         sp.set_ybound(corner[1],corner[1]+width)
-#         sp.set_xlim(corner[0],corner[0]+width)
-#         sp.set_ylim(corner[1],corner[1]+width)
-#         sp.set_xmargin(0)
-#         sp.set_ymargin(0)
         outmap = [norm_map,map1,map2]
     else:
-#         xedges = np.arange(corner[0],corner[0]+width,width/L)
-#         yedges = np.arange(corner[1],corner[1]+width,width/L)
         step = width/L
         xedges = np.arange(corner[0]+step/2.,corner[0]+width+step/2.,step)
         yedges = np.arange(corner[1]+step/2.,corner[1]+width+step/2.,step)
         if ( planenorm ):
-            #iy0 = np.argmin(np.abs(yedges))
-            #map[:,:]=(map[:,:].T/map[:,iy0]).T
             map[:,:]=(map[:,:].T/np.max(map[:,:],axis=1)).T
         if ( circnorm ):
             map = azimuthalNorm(map)
@@ -401,12 +328,6 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 
             if ( dolog ):
                 map = np.log10(map)
-#             finiteIndices = np.isfinite(map)
-#             if ( np.sum(finiteIndices)==0 ):
-#                 print(map)
-#                 raise Exception("No finite values in map")
-#             print(np.min(map[finiteIndices]),np.max(map[finiteIndices]))
-#             map = exposure.equalize_hist(map)
 
             if symLog is not None:
                 mesh = safe_pcolormesh(sp,xedges,yedges,map.T,cmap=this_cmap,vmin=clow,vmax=chigh,norm=colors.SymLogNorm(linthresh=symLog,linscale=symLog,vmin=clow,vmax=chigh))
@@ -432,12 +353,6 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
 #             row_axes[icol*2].scatter([data.binary_positions[1][0]],[data.binary_positions[1][1]],marker='+')
 #         else:
 #             sp.plot([0],[0],'+g',markersize=10.,markeredgewidth=1.)
-    
-
-
-    #mesh = sp.pcolormesh(xedges,yedges,map.T,cmap=this_cmap) 
-    #sp.axis('equal')
-#     print(outmap.shape)
     return outmap
     
 #     return nerrors
@@ -804,365 +719,12 @@ def load_gadget(infile, plot_thing
     
     return time,data
 
-def pack_dicts(flatPlot=True,planenorm=False,cmap="viridis"):
-    if ( flatPlot ):
-        quantslice = weightslice
-        dslice = densslice
-        rhounit = r"$\log_{10} \Sigma$ (M$_\odot$/pc$^2$)"
-        drange = [-2.,8.]
-        thisminslice = minslice
-        vslice = vorinoislice
-        mslice = maxslice
-        vec2dslice = vec2dslice_flat
-#         drange = [-2.,2.] # TEMPORARY
-        #drange = [2.,6.]
-        #drange = [-1.,4.]
-    else:
-        quantslice = zweightslice
-        dslice = zdensslice
-        thisminslice = zminslice
-        rhounit = r"$\log_{10} \rho$ (M$_\odot$/pc$^3$)"
-        drange = [-2.,7.]
-        vslice = zvorinoislice   
-        mslice = zmaxslice
-        vec2dslice = zvec2dslice
-    if ( planenorm ):
-        drange_s = [-3.6,0.]
-        drange = [-4.5,0.]
-    else:
-        drange_s = drange
+def pack_dicts():
+    with open('plot_defaults.json', 'r') as f:
+        plot_config = json.load(f)
+    return plot_config
 
-
-    # Pack the dictionaries!
-    # We could do this with a bunch of if/endif statements, but
-    # data-driven is better
-    plotLabel = dict()
-    plotLabel["temp"] = r"$\log_{10} T_g$ (K)"
-    plotLabel["col"] = r"$\log_{10} N$ (cm$^{-2}$)"
-    plotLabel["nH"] = r"$\log_{10} n_{H}$ (cm$^{-3}$)"
-    plotLabel["heat"] = r"$H$"
-    plotLabel["dens"] = rhounit
-    plotLabel["dusttau"] = r"$\log_{10}\tau_d$"
-    plotLabel["depth"] = r"$\tau$"
-    plotLabel["vels"] = r"$\log_{10}v$ (km/s)"
-    plotLabel["tdust"] = r"$\log_{10} T_d$ (K)"
-    plotLabel["dg"] = r"$f_d$"
-    plotLabel["dust"] = rhounit
-    plotLabel["view"] = r"$\log_{10} F$ (arbitrary units)"
-    plotLabel["vlos"] = r"$v_{LOS}$"
-    plotLabel["vthin"] = r"$v_{LOS}$"
-    plotLabel["emit"] = r"$\log_{10} F$"
-    plotLabel["dt"] = r"$\log_{10}$ dt"
-    plotLabel["vel_2d"] = r"$v_{2D}$"
-    plotLabel["vel_x"] = r"$v_{x}$"
-    plotLabel["vel_y"] = r"$v_{y}$"
-    plotLabel["vel_z"] = r"$v_{z}$"
-    plotLabel["vel_r"] = r"$v_{r}$ (km/s)"
-    plotLabel["vmag"] = r"$|v|_{max}$ (km/s)"
-    plotLabel["vel_a"] = r"$v_{\theta}$"
-    plotLabel["arad"] = r"$a_{rad}$ (log cm/s/s)"
-    plotLabel["accel"] = r"$a$ (log cm/s/s)"
-    plotLabel["AGNI"] = r"Unextinced $I_{AGN}$ (log erg/s/cm^2)"
-#     plotLabel["tau"] = r"$\log_{10}\tau$"
-    plotLabel["tau"] = r"$\tau$"
-    plotLabel["list"] = r"$i$"
-    plotLabel["rand"] = r"$q$"
-    plotLabel["opac"] = r"$\kappa$"
-    plotLabel["smooth"] = r"$h_p$"
-    plotLabel["facetemp"] = r"$\log_{10}T_d$ (K)"
-    plotLabel["rad0"] = r"$R_0$ (pc)"
-    plotLabel["nneigh"] = r"$N_n$"
-#     plotLabel["pres"] = r"$P$ (dyne/cm$^2$)"
-    plotLabel["pres"] = r"$P$ (internal)"
-    plotLabel["age"] = r"$age$ (Myr)"
-    for line in lines:
-        plotLabel[line]=line
-        plotLabel[line+"m"]=line+" line intensity - erg/s/cm**2/ster"
-        plotLabel["v"+line]="v"+line
-        plotLabel["dv"+line]="dv"+line
-        plotLabel["view"+line]="view"+line
-        plotLabel["vels"+line]=r"$\log_{10}v_{"+line+r"}$"
-#     plotLabel["co1"] = r"co1"
-#     plotLabel["co2"] = r"co2"
-#     plotLabel["hcn1"] = r"hcn1"
-#     plotLabel["hcn2"] = r"hcn2"
-#     plotLabel["co1m"] = r"CO '1' line intensity - erg/s/cm**2/ster"
-#     plotLabel["co2m"] = r"CO '2' line intensity - erg/s/cm**2/ster"
-#     plotLabel["hcn1m"] = r"HCN '1' line intensity - erg/s/cm**2/ster"
-#     plotLabel["hcn2m"] = r"HCN '2' line intensity - erg/s/cm**2/ster"
-#     plotLabel["vco1"] = r"vco1"
-#     plotLabel["vco2"] = r"vco2"
-#     plotLabel["vhcn1"] = r"vhcn1"
-#     plotLabel["vhcn2"] = r"vhcn2"
-#     plotLabel["dvco1"] = r"dvco1"
-#     plotLabel["dvco2"] = r"dvco2"
-#     plotLabel["dvhcn1"] = r"dvhcn1"
-#     plotLabel["dvhcn2"] = r"dvhcn2"
-
-    plotRanges = dict()
-#     plotRanges["temp"] = [.999,4.]*2
-    plotRanges["temp"] = [.999,6.]*2
-    #plotRanges["temp"] = [3.,4.]*2
-    plotRanges["col"] = [18.,26.]*2
-#     plotRanges["nH"] = [0.,8.]*2 # standard
-    plotRanges["nH"] = [5.,10.]*2
-#     plotRanges["nH"] = [5.,7.]*2
-#     plotRanges["nH"] = [-1.,7.]*2
-#     plotRanges["nH"] = [-7.,7.]*2
-#     plotRanges["heat"] = [1e-2,1.e10]*2
-#     plotRanges["heat"] = [1e-2,1.e10]*2
-    plotRanges["heat"] = [-1e2,1.e2]*2
-    plotRanges["dens"] = drange+drange_s
-#     plotRanges["dusttau"] = [0.,10.]*2
-    plotRanges["dusttau"] = [-3.,3.]*2
-    plotRanges["depth"] = [0.,1.e3]*2
-    plotRanges["vels"] = [0.,3.]*2
-    plotRanges["tdust"] = [0.,3.]*2
-#     plotRanges["tdust"] = [1.,3.]*2
-    #plotRanges["tdust"] = [1.3,2.2]*2
-#     plotRanges["tdust"] = [4.,8.]*2
-#     plotRanges["dg"] = [0.00635,.006363]*2
-    plotRanges["dg"] = [0.0,.000234]*2
-    plotRanges["dust"] = drange+drange_s
-#     plotRanges["view"] = [0.,4.]*2
-    plotRanges["view"] = [1.,7.]*2
-    plotRanges["vlos"] = [-1.2e2,1.2e2]*2
-#     plotRanges["vthin"] = [-1.2e2,1.2e2]*2
-    plotRanges["vthin"] = [-300.,300.]*2
-    plotRanges["emit"] = [-1.,6.]*2
-    plotRanges["dt"] = [-3.,3.]*2
-    #plotRanges["vel_2d"] = [-25.,25.]*2
-    plotRanges["vel_2d"] = [-250.,250.]*2
-#     plotRanges["vel_r"] = [-25.,25.]*2
-#     plotRanges["vel_r"] = [-3.e5,3.e5]*2
-#     plotRanges["vel_r"] = [1.,4.]*2
-#     plotRanges["vel_r"] = [-1.e2,1.e2]*2
-    plotRanges["vel_r"] = [-25.,25.]*2
-    plotRanges["vmag"] = [0.,120.]*2
-    plotRanges["vel_x"] = [-200.,200.]*2
-    plotRanges["vel_y"] = [-200.,200.]*2
-#     plotRanges["vel_z"] = [-25.,25.]*2
-    plotRanges["vel_z"] = [-2000.,2000.]*2
-#     plotRanges["vel_a"] = [-100.,100.]*2
-    plotRanges["vel_a"] = [-50.,50.]*2
-    plotRanges["arad"] = [-9.,0.]*2
-    plotRanges["accel"] = [-3.,0.]*2
-#     plotRanges["AGNI"] = [4.,6.]*2
-    plotRanges["AGNI"] = [-1.,6.]*2
-#     plotRanges["tau"] = [0.,5.]*2
-    plotRanges["tau"] = [0.,7.]*2
-#     plotRanges["tau"] = [0.,1.]*2
-#     plotRanges["tau"] = [-2,3.]*2
-#     plotRanges["tau"] = [0.,250.]*2
-#     plotRanges["tau"] = [0.,50.]*2
-    plotRanges["list"] = [0.,1.e6]*2
-    plotRanges["rand"] = [0.,1.]*2
-#     plotRanges["opac"] = [-7.,-1.6]*2
-    plotRanges["opac"] = [-3.,2]*2
-#     plotRanges["opac"] = [-2.,-1.]*2
-    plotRanges["smooth"] = [-4.,2.]*2
-    plotRanges["facetemp"] = [0.,5.]*2
-    plotRanges["rad0"] = [0.,4.]*2
-    plotRanges["nneigh"] = [0,50]*2
-#     plotRanges["pres"] = [36.3,38.6]*2
-    plotRanges["pres"] = [3.3,16]*2
-    plotRanges["age"] = [0.,3.]*2
-    for line in lines:
-#         plotRanges[line]=[-6.,-2.]*2
-        plotRanges[line]=[-8.,2.]*2
-#         plotRanges[line+"m"]=[-7.,-3.]*2
-        plotRanges[line+"m"]=[-12.,0.]*2
-#         plotRanges["v"+line]=[-100.,100.]*2
-        plotRanges["v"+line]=[-200.,200.]*2
-        plotRanges["dv"+line]=[0.,3.,0.,30.]
-#         plotRanges["view"+line]=[-1.2e2,1.2e2]*2
-#         plotRanges["view"+line]=[-12.,0.]*2
-        plotRanges["view"+line]=[-20.,0.]*2
-        plotRanges["vels"+line]=[0.,3.]*2
-#         plotRanges["view"+line]=[-1.2e1,1.2e1]*2
-#     plotRanges["co1"] = [-6.,-2.]*2
-#     plotRanges["co2"] = [-6.,-2.]*2
-#     plotRanges["hcn1"] = [-6.,-2.]*2
-#     plotRanges["hcn2"] = [-6.,-2.]*2
-#     plotRanges["co1m"] = [-7.,-3.]*2
-#     plotRanges["co2m"] = [-7.,-3.]*2
-#     plotRanges["hcn1m"] = [-7.,-3.]*2
-#     plotRanges["hcn2m"] = [-7.,-3.]*2
-#     plotRanges["vco1"] = [-100.,100.]*2
-#     plotRanges["vco2"] = [-100.,100.]*2
-#     plotRanges["vhcn1"] = [-100.,100.]*2
-#     plotRanges["vhcn2"] = [-100.,100.]*2
-#     plotRanges["dvco1"] = [0.,5.,0.,30.]
-# #     plotRanges["dvco1"] = [-2.,2.]*2
-#     plotRanges["dvco2"] = plotRanges["dvco1"]
-#     plotRanges["dvhcn1"] = plotRanges["dvco1"]
-#     plotRanges["dvhcn2"] = plotRanges["dvco1"]
-
-    plotSliceTypes = dict()
-    plotSliceTypes["temp"] = quantslice
-    plotSliceTypes["col"] = quantslice
-    plotSliceTypes["nH"] = quantslice
-    plotSliceTypes["heat"] = quantslice
-    plotSliceTypes["dens"] = dslice
-    plotSliceTypes["dusttau"] = densslice
-    plotSliceTypes["depth"] = zweightslice
-    plotSliceTypes["vels"] = vec2dslice
-    plotSliceTypes["tdust"] = quantslice
-    plotSliceTypes["dg"] = quantslice
-    plotSliceTypes["dust"] = dslice
-    plotSliceTypes["view"] = viewslice
-    plotSliceTypes["vlos"] = viewslice
-    plotSliceTypes["emit"] = dslice
-    plotSliceTypes["dt"] = thisminslice
-    plotSliceTypes["vel_2d"] = quantslice
-    plotSliceTypes["vel_r"] = quantslice
-    plotSliceTypes["vmag"] = mslice # max
-    plotSliceTypes["vel_x"] = quantslice
-    plotSliceTypes["vel_y"] = quantslice
-    plotSliceTypes["vel_z"] = quantslice
-    plotSliceTypes["vthin"] = quantslice
-    plotSliceTypes["vel_a"] = quantslice
-    plotSliceTypes["arad"] = quantslice
-    plotSliceTypes["accel"] = quantslice
-    plotSliceTypes["AGNI"] = quantslice
-    plotSliceTypes["tau"] = zweightslice
-    plotSliceTypes["list"] = quantslice
-    plotSliceTypes["opac"] = quantslice
-    plotSliceTypes["smooth"] = quantslice
-    plotSliceTypes["facetemp"] = viewslice
-    plotSliceTypes["rand"] = quantslice
-    plotSliceTypes["rad0"] = quantslice
-    plotSliceTypes["nneigh"] = quantslice
-    plotSliceTypes["pres"] = quantslice
-    plotSliceTypes["age"] = quantslice
-    for line in lines:
-        plotSliceTypes[line]=quantslice
-        plotSliceTypes[line+"m"]=dslice
-#         plotSliceTypes["v"+line]=quantslice
-        plotSliceTypes["v"+line]=weightviewslice
-        plotSliceTypes["dv"+line]=sdevslice
-#         plotSliceTypes["view"+line]=weightviewslice
-        plotSliceTypes["view"+line]=viewslice
-        plotSliceTypes["vels"+line]=vec2dslice
-#     plotSliceTypes["co1"] = quantslice
-#     plotSliceTypes["co2"] = quantslice
-#     plotSliceTypes["hcn1"] = quantslice
-#     plotSliceTypes["hcn2"] = quantslice
-#     plotSliceTypes["co1m"] = dslice
-#     plotSliceTypes["co2m"] = dslice
-#     plotSliceTypes["hcn1m"] = dslice
-#     plotSliceTypes["hcn2m"] = dslice
-#     plotSliceTypes["vco1"] = quantslice
-#     plotSliceTypes["vco2"] = quantslice
-#     plotSliceTypes["vhcn1"] = quantslice
-#     plotSliceTypes["vhcn2"] = quantslice
-#     plotSliceTypes["dvco1"] = sdevslice
-#     plotSliceTypes["dvco2"] = sdevslice
-#     plotSliceTypes["dvhcn1"] = sdevslice
-#     plotSliceTypes["dvhcn2"] = sdevslice
-    
-    plotCustomMass = dict()
-    plotCustomMass["dust"] = "dust"
-    plotCustomMass["dusttau"] = "dusttau"
-    for line in lines:
-        plotCustomMass[line+"m"]=line+"m"
-        plotCustomMass["v"+line]=line+"m"
-        plotCustomMass["dv"+line]=line+"m"
-        plotCustomMass["vels"+line]=line+"m"
-#         plotCustomMass["view"+line]=line+"m"
-    
-    plotData = dict()
-    plotData["temp"] = "TK_p"
-    plotData["col"] = "coldens"
-    plotData["nH"] = "nH_p"
-    plotData["heat"] = "heat"
-    #plotData["dens"] = None
-#     plotData["dusttau"] = "dusttau"
-    plotData["depth"] = "depth_p"
-    plotData["vels"] = ["vel_x","vel_y","vel2d","vel_z"]
-    plotData["tdust"] = "dustTemp"
-    plotData["dg"] = "dg"
-#    plotData["dust"] = dslice
-    plotData["view"] = ["brightness","opac","brightness","opac"]
-    plotData["vlos"] = ["vthin","opac","vthin","opac"]
-    plotData["emit"] = "emissivity"
-    plotData["opac"] = "opac"
-    plotData["dt"] = "dt_p"
-    plotData["vel_2d"] = "vel2d"
-    plotData["vel_r"] = "velr"
-    plotData["vmag"] = "vmag"
-    plotData["vel_x"] = "vel_x"
-    plotData["vel_y"] = "vel_y"
-    plotData["vel_z"] = "vel_z"
-    plotData["vel_a"] = "vel_a"
-    plotData["vthin"] = "vthin"
-    plotData["arad"] = "arad"
-    plotData["accel"] = "accel"
-    plotData["tau"] = "tau"
-    plotData["AGNI"] = "AGNI"
-    plotData["list"] = "list"
-    plotData["rand"] = "rand"
-    plotData["smooth"] = "h_p"
-    plotData["rad0"] = "rad0"
-    plotData["facetemp"] = ["dustTemp","opac","dustTemp","opac"]
-    plotData["nneigh"] = "nneigh"
-    plotData["pres"] = "pres"
-    plotData["age"] = "age"
-#     plotData["co1"] = "co1"
-#     plotData["co2"] = "co2"
-#     plotData["hcn1"] = "hcn1"
-#     plotData["hcn2"] = "hcn2"
-    for line in lines:
-        plotData[line]=line
-        plotData[line+"m"]=line+"m"
-        plotData["v"+line]=["vthin",line+"brightness",line+"opac","vythin",line+"brightness",line+"opac"]
-        plotData["dv"+line]="vthin"
-#         plotData["view"+line]=["vthin",line+"m","opac","vel_x",line+"m","opac"]
-        plotData["view"+line] = [line+"brightness",line+"opac",line+"brightness",line+"opac"]
-        plotData["vels"+line]=["vel_x","vel_y","vel2d","vel_z"]
-#     plotData["vco1"] = "vthin"
-#     plotData["vco2"] = "vthin"
-#     plotData["vhcn1"] = "vthin"
-#     plotData["vhcn2"] = "vthin"
-#     plotData["dvco1"] = "vthin"
-#     plotData["co1m"] = "co1m"
-#     plotData["co2m"] = "co2m"
-#     plotData["hcn1m"] = "hcn1m"
-#     plotData["hcn2m"] = "hcn2m"
-    
-    logSliceTypes = [   "temp","col","nH","dens","dust",
-                        "view","emit","dt","arad","accel",
-                        "AGNI","opac","smooth","tdust","pres","dusttau"]
-    logSliceTypes+=lines
-    logSliceTypes+=[line+"m" for line in lines]
-    logSliceTypes+=["view"+line for line in lines]
-    symLogSliceTypes={"heat":1.e-4}
-    # ,
-#                         "co1","co2","hcn1","hcn2","co1m","co2m","hcn1m","hcn2m"
-# #                         ,"dvco1","dvco2","dvhcn1","dvhcn2"
-#                         ]
-#     extraBarTypes = ["heat"]
-#     plusMinusTypes = ["heat"]
-    extraBarTypes = []
-    plusMinusTypes = []
-
-    
-    divergingTypes = ["vel_r","vel_x","vel_y","vel_z","vel_2d","vel_a","vthin"]
-    divergingTypes+=["v"+line for line in lines]
-#     divergingTypes+=["view"+line for line in lines]
-#     ,"vco1","vco2","vhcn1","vhcn2"]
-    
-    customCmaps = dict()
-#     customCmaps["heat"] = 'Reds'
-    customCmaps["dt"] = cmap+"_r"
-
-    customCmaps2 = dict()
-#     customCmaps2["heat"] = 'Blues'
-    
-    
-    return plotLabel, plotRanges, plotSliceTypes, plotCustomMass, plotData, logSliceTypes, extraBarTypes, plusMinusTypes, divergingTypes, symLogSliceTypes, customCmaps, customCmaps2
-
-def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,ringPlot=False,flatPlot=False,maskbounds=None):
+def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,ringPlot=False,flatPlot=False,maskbounds=None):
 #,opac_mu=None):
     need_to_load = list(plot_thing)
     if maskbounds:
@@ -1188,13 +750,6 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
     
     # rotate
     if ( rot[0]!=0. or rot[1]!=0. ):
-#        yr = y*np.cos(rot[1]) - z*np.sin(rot[1])
-#        zr = y*np.sin(rot[1]) + z*np.cos(rot[1])
-#        z = zr
-#
-#        y = x*np.sin(rot[0]) + yr*np.cos(rot[0])
-#        x = x*np.cos(rot[0]) - yr*np.sin(rot[0])
-
          xr = x*np.cos(rot[0]) - y*np.sin(rot[0])
          yr = x*np.sin(rot[0]) + y*np.cos(rot[0])
          x = xr
@@ -1250,21 +805,6 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
         # rotation already done above
         data.vthin = data.vel_z
         data.vythin = data.vel_y
-        
-#         if rot[0]!=0. or rot[1]!=0.:
-#             vyr = data.vel_x*np.sin(rot[0]) + data.vel_y*np.cos(rot[0])
-#             data.vythin = vyr*np.cos(rot[1]) - data.vel_z*np.sin(rot[1])
-# 
-#             data.vthin = vyr*np.sin(rot[1]) + data.vel_z*np.cos(rot[1])
-#         else:
-#             data.vthin = data.vel_z
-#             data.vythin = data.vel_y
-        
-
-
-#         for vthinplot in "vco1","vco2","vhcn1","vhcn2":
-#             if vthinplot in plot_thing:
-#                 data[vthinplot]*=data.vthin
 
     # set x coordinate - cartesian or cylindrical ("ringplot")
     if ( ringPlot ):
@@ -1278,11 +818,11 @@ def load_process_gadget_data(infile,rot,plot_thing,plotData,centredens=False,rin
     deep_side = y
     
     if maskbounds:
-        if maskbounds[0] in plotData:
-            v=data.__dict__[plotData[maskbounds[0]]]
+        if maskbounds[0] in plot_config:
+            v=data.__dict__[plot_config[maskbounds[0]]]
             mask = (v>maskbounds[1]) & (v<maskbounds[2])
         else:
-            raise Exception("mask value {} not found in plotData".format(maskbounds[0]))
+            raise Exception("mask value {} not found in plot_config".format(maskbounds[0]))
     else:
         # mask out non-gas - currently everything is gas
         mask = np.full(n,True,dtype=bool)
@@ -1299,24 +839,11 @@ def makesph_trhoz_frame(*args,**kwargs):
     except Exception as e:
         print("returning exception")
         wropped = ExceptionWrapper(e)
-#         print("wrapped")
         return wropped
-#         print(repr(e))
-#         print("".join(traceback.format_exception(*sys.exc_info())))
-#         print(str(e))
-#         print(sys.exc_info())
-#         traceback.print_exc(file=sys.stdout)
-#         print(traceback.format_tb(sys.exc_info()[2]))
-#         traceback.print_stack()
-#         traceback.print_tb(sys.exc_info()[2])
-#         print("Raising back up")
-#         raise(e)
-#         raise Exception("".join(traceback.format_exception(*sys.exc_info())))
 
 
 
 def makesph_trhoz_frame_wrapped(infile,outfile,
-# def makesph_trhoz_frame(infile,outfile,
                         scale = .7,
                         cmap="viridis",
                         L=256,
@@ -1344,8 +871,6 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
     if version[0]=='2':
         raise Exception("Requires Python 3.X. Current version:"+version)
 
-    #cmap_r = cmap+"_r"
-    #cmap_d = "coolwarm"
     plot_thing = plot
     flatPlot = flat
     ringPlot = ring
@@ -1368,7 +893,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
     if ( not all(view=='face' or view=='side' for view in views) ):
         raise Exception("Views must be an array of size one or two containing only 'face' or 'side'")
     if ( not 'side' in views ):
-        ringPlot = False # IRRELEVANT
+        ringPlot = False # don't care about ring plot if there's no side plot anyway
     
     
     cols = len(views)
@@ -1379,35 +904,18 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         if len(data_ranges)!=len(plot):
             raise Exception("Need to give data ranges for ALL plots or none")
 
-    plotLabel, plotRanges, plotSliceTypes, plotCustomMass, plotData, logSliceTypes, extraBarTypes, plusMinusTypes, divergingTypes, symLogSliceTypes, customCmaps, customCmaps2 = pack_dicts(flatPlot,planenorm,cmap)
+    plot_config = pack_dicts()
 
     nrows = len(plot_thing)
 
     if ( visibleAxes ):
-        # figure properties
-#         if ( "heat" in plot_thing ):
-#             fig, ax = P.subplots(nrows,3*cols, gridspec_kw = {'width_ratios':([1, 1, 16,16,1, 1])[0:3*cols]})
-#             if ( nrows<2 ):
-#                 ax = np.resize(ax, (3,6)) # because 1D arrays have different syntax, we have to pretend it's 3D
-#             cbax2left_index = 0
-#             cbaxleft_index = 1
-#             spleft_index = 2
-#             spright_index = 3
-#             cbaxright_index = 4
-#             cbax2right_index = 5
-#         
-#         else:
-            fig, ax = P.subplots(nrows,2*cols, gridspec_kw = {'width_ratios':([1, 16,16,1])[0:2*cols]})
-            if ( nrows<2 ):
-                ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
-            cbaxleft_index = 0
-            spleft_index = 1
-            spright_index = 2
-            cbaxright_index = 3
+        fig, ax = P.subplots(nrows,2*cols, gridspec_kw = {'width_ratios':([1, 16,16,1])[0:2*cols]},squeeze=False)
+        cbaxleft_index = 0
+        spleft_index = 1
+        spright_index = 2
+        cbaxright_index = 3
     else:
-        fig, ax = P.subplots(nrows,cols)
-        if ( nrows<2 ):
-            ax = np.resize(ax, (3,4)) # because 1D arrays have different syntax, we have to pretend it's 3D
+        fig, ax = P.subplots(nrows,cols,squeeze=False)
         cbaxleft_index = 0
         spleft_index = 0
         spright_index = 1
@@ -1415,7 +923,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         
     if not isinstance(infile,list):
         verboseprint("Loading",infile)
-        time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plotData,centredens,ringPlot,flatPlot,maskbounds)#,opac_mu=opac_mu)
+        time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens,ringPlot,flatPlot,maskbounds)#,opac_mu=opac_mu)
 #         time,data = load_gadget(infile,need_to_load,centredens=centredens)
         verboseprint("Plotting",infile,", t=%.4f Myr"% time)
 
@@ -1441,18 +949,16 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         if isinstance(infile,list):
             thisfile = infile[irow]
             verboseprint("Loading",thisfile)
-            time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(thisfile,need_to_load,centredens,rot,plot_thing,plotData,ringPlot,flatPlot,maskbounds)
+            time,data,x,y,z,rad2d,deep_face,deep_side,mask,n,n_ones = load_process_gadget_data(thisfile,need_to_load,centredens,rot,plot_thing,plot_config,ringPlot,flatPlot,maskbounds)
             verboseprint("Plotting",thisfile,", t=%.4f Myr"% time)
 
         # Process the tables we just made
-        # Believe it or not, this is clearer than writing out each
-        # plot command by hand - there's less repetition
-        if ( not plot_thing[irow] in plotLabel ):
+        if ( not plot_thing[irow] in plot_config ):
             errstr = "{} is not a valid plot type\n".format(plot_thing[irow])
-            matchRatios = list(map(similar,itertools.repeat(plot_thing[irow]),plotLabel))
+            labelstrs = list(plot_config.keys())
+            matchRatios = list(map(similar,itertools.repeat(plot_thing[irow]),labelstrs))
             bestFit = np.argmax(matchRatios)
             errstr+= "Valid plot types:\n"
-            labelstrs = list(plotLabel)
             for i in range(len(labelstrs)):
                 if ( i!=bestFit ):
                     if ( matchRatios[i]>.5 ):
@@ -1460,27 +966,30 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             labelstrs[bestFit]+=" - best match"
             errstr += "\n".join(labelstrs)
             raise Exception(errstr)
-        thisPlotLabel = plotLabel[plot_thing[irow]]
+
+        thisPlotLabel = plot_config[plot_thing[irow]]['label']
+        if isinstance(thisPlotLabel,list):
+            if flatPlot:
+                thisPlotLabel=thisPlotLabel[0]
+            else:
+                thisPlotLabel=thisPlotLabel[1]
+
         if data_ranges is not None:
             thisPlotRanges = data_ranges[irow]*2
         else:
-            thisPlotRanges = plotRanges[plot_thing[irow]]
-#             thisPlotRanges = plotRanges[plot_thing[irow]]*2
-
-#         if isinstance(opac_mu,list):
-            
+            thisPlotRanges = plot_config[plot_thing[irow]]['range']
 
         if isinstance(gaussian,list):
             plot_gaussian = gaussian[irow]
         else:
             plot_gaussian = gaussian
 
-
         # physical coordinates of region to plot, in pc
         if isinstance(scale,list):
             width = scale[irow]*2.
         else:
             width = scale*2.
+
         if centredens or centrecom :
             if centredens and centrecom :
                 raise Exception("Can't set both centredens and centrecom")
@@ -1514,64 +1023,48 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         elif vorinoi:
             thisSliceType = vslice
         else:
-            thisSliceType = plotSliceTypes[plot_thing[irow]]
-        thisDoLog = (plot_thing[irow] in logSliceTypes)
-        thisDiverging = (plot_thing[irow] in divergingTypes)
-        if plot_thing[irow] in symLogSliceTypes:
-            thisSymLog = symLogSliceTypes[plot_thing[irow]]
-        else:
+            thisSliceType = plot_config[plot_thing[irow]]['slice']
+
+        thisDoLog = plot_config[plot_thing[irow]]['log']
+        thisDiverging = plot_config[plot_thing[irow]]['diverging']
+        thisSymLog = plot_config[plot_thing[irow]]['symlog']
+        if not thisSymLog:
             thisSymLog = None
         
-        if ( plot_thing[irow] in plotCustomMass ):
-            thisMass = data.__dict__[plotCustomMass[plot_thing[irow]]]
-        else:
-            thisMass = data.m_p
+        thisMass = data.m_p
 
-        if ( plot_thing[irow] in plusMinusTypes ):
-            plusminus = True
-        else:
-            plusminus = False
+        plusminus = False # NEVER USED
         
-        if ( plot_thing[irow] in plotData ):
-            plotCommand = plotData[plot_thing[irow]]
-            if ( type(plotCommand) is str ):
-                thisPlotQuantityFace = data.__dict__[plotCommand]
-                thisPlotQuantitySide = thisPlotQuantityFace
-            elif ( type(plotCommand) is list ):
-                if thisSliceType==viewslice or thisSliceType==vec2dslice_flat or thisSliceType==zvec2dslice:
-                    if ( len(plotCommand)!=4 ):
-                        raise Exception("{} must have length 4 for view or vec2d slice".format(plotCommand))
-                    thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
-                    thisPlotQuantitySide = [data.__dict__[plotCommand[2]],data.__dict__[plotCommand[3]]]
-                elif thisSliceType==weightviewslice:
-                    if ( len(plotCommand)!=6 ):
-                        raise Exception("{} must have length 6 for weighted view slice".format(plotCommand))
-                    thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]],data.__dict__[plotCommand[2]]]
-                    thisPlotQuantitySide = [data.__dict__[plotCommand[3]],data.__dict__[plotCommand[4]],data.__dict__[plotCommand[5]]]
-                else:
-                    raise Exception("{} can't be an array except for view and vec2d slices".format(plotCommand))
+        if plot_thing[irow] in plot_config:
+            if 'data' not in plot_config[plot_thing[irow]]:
+                thisPlotQuantityFace = None
+                thisPlotQuantitySide = None
             else:
-                raise Exception("{} is not a valid plot format".format(plotCommand))
-        else:
-            thisPlotQuantityFace = None
-            thisPlotQuantitySide = None
-#             raiseprint("{} data type not found! - {}".format(plot_thing[irow],infile))
+                plotCommand = plot_config[plot_thing[irow]]['data']
+                if ( type(plotCommand) is str ):
+                    thisPlotQuantityFace = data.__dict__[plotCommand]
+                    thisPlotQuantitySide = thisPlotQuantityFace
+                elif ( type(plotCommand) is list ):
+                    if thisSliceType==viewslice or thisSliceType=='vec2dslice':
+                        if ( len(plotCommand)!=4 ):
+                            raise Exception("{} must have length 4 for view or vec2d slice".format(plotCommand))
+                        thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
+                        thisPlotQuantitySide = [data.__dict__[plotCommand[2]],data.__dict__[plotCommand[3]]]
+                    elif thisSliceType==weightviewslice:
+                        if ( len(plotCommand)!=6 ):
+                            raise Exception("{} must have length 6 for weighted view slice".format(plotCommand))
+                        thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]],data.__dict__[plotCommand[2]]]
+                        thisPlotQuantitySide = [data.__dict__[plotCommand[3]],data.__dict__[plotCommand[4]],data.__dict__[plotCommand[5]]]
+                    else:
+                        raise Exception("{} can't be an array except for view and vec2d slices".format(plotCommand))
+                else:
+                    raise Exception("{} is not a valid plot format".format(plotCommand))
         
         cbar2_axes = [None,None]
-        if ( plot_thing[irow] in extraBarTypes ):
-            cbar2_axes[0]=ax[irow,cbax2left_index]
-            if ( cols==2 ):
-                cbar2_axes[1]=ax[irow,cbax2right_index]
         
-        if ( plot_thing[irow] in customCmaps ):
-            this_cmap = customCmaps[plot_thing[irow]]
-        else:
-            this_cmap = cmap
+        this_cmap = cmap
 
-        if ( plot_thing[irow] in customCmaps2 ):
-            this_cmap2 = customCmaps2[plot_thing[irow]]
-        else:
-            this_cmap2 = None
+        this_cmap2 = None
 
         row_axes = [ax[irow,spleft_index],ax[irow,cbaxleft_index]]
         if ( cols==2 ):
@@ -1582,8 +1075,9 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             if ( view=='face' ):
                 outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
-                row_axes[icol*2].scatter([data.binary_positions_rot[0][0]],[data.binary_positions_rot[0][1]],marker='x')
-                row_axes[icol*2].scatter([data.binary_positions_rot[1][0]],[data.binary_positions_rot[1][1]],marker='+')
+                if data.binary_positions:
+                    row_axes[icol*2].scatter([data.binary_positions_rot[0][0]],[data.binary_positions_rot[0][1]],marker='x')
+                    row_axes[icol*2].scatter([data.binary_positions_rot[1][0]],[data.binary_positions_rot[1][1]],marker='+')
             elif ( view=='side' ):
                 outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
@@ -1617,10 +1111,6 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
                 this_ax = ax[iax,1]
                 this_ax.yaxis.tick_right()
                 this_ax.yaxis.set_label_position("right")
-#                 this_ax.set_ylabel('pc')
-# 
-#                 this_ax.set_xlabel('pc')
-#                 this_ax.yaxis.set_visible(False)
 
     else:
         P.axis('off')
