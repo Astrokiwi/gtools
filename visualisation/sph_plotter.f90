@@ -23,6 +23,7 @@ module sph_plotter
     integer(kind=1), parameter :: SDEV_MODE = B'00100000'
     integer, parameter :: SDEV_POS = 5
 
+    logical, save :: verbose = .false.
 
     contains
     
@@ -172,9 +173,13 @@ module sph_plotter
         real(kind=8) :: dz
         
         if ( parallel ) then
-            print *,"parallel mode"!", nprocs=",omp_get_num_threads()
+            if ( verbose ) then
+                print *,"parallel mode"!", nprocs=",omp_get_num_threads()
+            endif
         else
-            print *,"serial mode"
+            if ( verbose ) then
+                print *,"serial mode"
+            endif
             call    OMP_SET_NUM_THREADS(1)
         endif
         

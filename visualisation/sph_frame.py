@@ -32,10 +32,13 @@ import itertools
 
 import gizmo_tools
 import pandas as pd
+import pynbody
 
 from scipy import interpolate
 
 import json
+
+import preqs_config
 
 class ExceptionWrapper(object):
 
@@ -113,9 +116,9 @@ def if_not_debug(f):
         pass
     
     if debug_mode:
-        return empty_function
-    else:
         return f
+    else:
+        return empty_function
 
 @if_not_debug
 def verboseprint(*args,**kwargs):
@@ -153,8 +156,8 @@ def azimuthalNorm(image, center=None):
     return image
 
 
-class GadgetData:
-    pass
+# class GadgetData:
+#     pass
 
 #wrapper for pcolormesh so it doesn't die if there's nothing finite to plot
 def safe_pcolormesh(sp,*args,**kwargs):
@@ -316,8 +319,7 @@ def makesph_plot(fig,sp,cbax,x_p,y_p,z_p,zslice,val_p,m_p,h_p,L,mask,corner,widt
                     cbax2.set_axis_off()
             outmap = [plusmap.T,minusmap.T]
         else:
-            if not debug_mode:
-                verboseprint(np.nanmin(map),np.nanmax(map))
+            verboseprint(np.nanmin(map),np.nanmax(map))
                 
             if gaussian is not None:
                 if gaussian>0.:
@@ -367,7 +369,6 @@ def load_gadget(infile, plot_thing
 #     global chTab
 #     global interpTabVec
 
-    data = GadgetData()
 
     f = h5py.File(infile,"r")
     
@@ -375,6 +376,11 @@ def load_gadget(infile, plot_thing
     time = header.attrs.get("Time")
     time*= 0.9778e9 # to yr
     time/=1.e6 # to Myr
+
+    xyz = np.array(f["/PartType0/Coordinates"]) # kpc
+    n = xyz.shape[0]
+    data = pynbody.new(gas=n)
+    data["xyz"]=xyz
 
     try:
         BH_data=f["/BH_binary"]
@@ -389,81 +395,20 @@ def load_gadget(infile, plot_thing
         data.binary_positions = None
 #         verboseprint("No Binary BH data found, skipping")
 
-    data.xyz = np.array(f["/PartType0/Coordinates"]) # kpc
 
-    data.m_p = np.array(f["/PartType0/Masses"]) # 10^10 msun
-    data.m_p*=1e+10 # 10^10 solar masses to solar masses
-    
-    n = data.m_p.size
 
-    data.h_p = np.array(f["/PartType0/SmoothingLength"]) # kpc
+    data["m_p"] = np.array(f["/PartType0/Masses"]) # 10^10 msun
+    data["m_p"]*=1e+10 # 10^10 solar masses to solar masses
+    data["h_p"] = np.array(f["/PartType0/SmoothingLength"]) # kpc
     
-    need_to_load = list(plot_thing)
+    need_to_load = set(plot_thing)
     if centredens:
-        need_to_load.append("nH")
-    if ( "view" in need_to_load or "dusttau" in need_to_load or "emit" in need_to_load):
-        need_to_load.append("tdust")
-        need_to_load.append("opac")
-        need_to_load.append("dg")
-    if ( "facetemp" in need_to_load ):
-        need_to_load.append("tdust")
-        need_to_load.append("opac")
-    if ( "vlos" in need_to_load ):
-        need_to_load.append("opac")
-        need_to_load.append("dg")
-    if ( "vlos" in need_to_load or "vmag" in need_to_load or "vthin" in need_to_load):
-        need_to_load.append("vels")
-    if ( "emit" in need_to_load ):
-        need_to_load.append("tdust")
-        need_to_load.append("dg")
-    if ( "tdust" in need_to_load ):
-        need_to_load.append("table")
-    if ( "dust" in need_to_load ):
-        need_to_load.append("dg")
-    if any(x in need_to_load for x in ("IRdust","IRdustm")):
-        need_to_load.append("dg")
-    if ( "dg" in need_to_load ):
-        need_to_load.append("table")
-    for line in lines:
-        if "dv"+line in need_to_load:
-            need_to_load.append("v"+line)
-        if "v"+line in need_to_load:
-            need_to_load.append("view"+line)
-            need_to_load.append("opac")
-            need_to_load.append("dg")
-        if "view"+line in need_to_load:
-#             need_to_load.append("v"+line)
-            need_to_load.append(line+"m")
-            need_to_load.append("opac")
-            need_to_load.append("dg")
-        if "vels"+line in need_to_load:
-            need_to_load.append(line+"m")
-        if line+"m" in need_to_load:
-            need_to_load.append(line)
-        if line in need_to_load and not "table" in need_to_load:
-            need_to_load.append("table")
-    if ( "col" in need_to_load ):
-        if not "/PartType0/AGNColDens" in f:
-            need_to_load.append("table")
-    if ( "table" in need_to_load ):
-        need_to_load.append("temp")
-        need_to_load.append("nH")
-        need_to_load.append("tau")
-    if "vel0" in need_to_load or "age" in need_to_load:
-        need_to_load.append("id")
-
-#     if "nopac" in need_to_load:ga
-#         need_to_load.append("opac")
-#         need_to_load.append("nH")
-    
-    if any(x in need_to_load for x in ["vmag","vel_2d","vel_r","vel_x","vel_y","vel_z","vel_a"]+["v"+line for line in lines]+["vels"+line for line in lines]):
-        need_to_load.append("vels")
-
+        need_to_load.add("nH")
+    need_to_load = preqs_config.process_preqs(need_to_load)
 
 
     if "id" in need_to_load:
-        data.id_p = np.array(f["/PartType0/ParticleIDs"]).astype(int)
-#         data.id_p-=1
+        data["id_p"] = np.array(f["/PartType0/ParticleIDs"]).astype(int)
 
     if "age" in need_to_load:
         infile_split = infile.split("/")
@@ -472,250 +417,151 @@ def load_gadget(infile, plot_thing
         run_snapfile = infile_split[-1]
         run_isnap = int(run_snapfile[-8:-5])
         age_file = "../data/age_{}_{}_{}.dat".format(run_id,run_name,run_isnap)
-        data.age = time-np.loadtxt(age_file)
+        data["age"] = time-np.loadtxt(age_file)
 
     if ( "pres" in need_to_load ):
-        data.pres = np.array(f["/PartType0/Pressure"])
+        data["pres"] = np.array(f["/PartType0/Pressure"])
 #         data.pres*=1.989e+33 # from internal units to dyne/cm*8*2
 
     if ( "arad" in need_to_load ):
-        data.arads = np.array(f["/PartType0/RadiativeAcceleration"])
-        data.arads*=3.24086617e-12 # to cm/s/s
-        data.arad = np.sqrt(np.sum(data.arads**2,axis=1))
+        data["arads"] = np.array(f["/PartType0/RadiativeAcceleration"])
+        data["arads"]*=3.24086617e-12 # to cm/s/s
+        data["arads"] = np.sqrt(np.sum(data["arads"]**2,axis=1))
 
     if ( "accel" in need_to_load ):
-        data.accels = np.array(f["/PartType0/Acceleration"])
-        data.accels*=3.24086617e-12 # to cm/s/s
-        data.accel = np.sqrt(np.sum(data.accels**2,axis=1))
+        data["accels"] = np.array(f["/PartType0/Acceleration"])
+        data["accels"]*=3.24086617e-12 # to cm/s/s
+        data["accel"] = np.sqrt(np.sum(data["accels"]**2,axis=1))
 
 
     if ( "depth" in need_to_load ):
-        data.depth = np.array(f["/PartType0/AGNOpticalDepth"]) # Msun/kpc**2
+        data["depth"] = np.array(f["/PartType0/AGNOpticalDepth"]) # Msun/kpc**2
 
     if ( "list" in need_to_load ):
-        data.list = np.arange(n)
+        data["list"] = np.arange(n)
 
     if ( "rand" in need_to_load ):
-        data.rand = np.random.random(n)
-        #data.rand = np.random.randint(n,size=n)
+        data["rand"] = np.random.random(n)
 
     if ( "nneigh" in need_to_load ):
-        data.nneigh = np.array(f["/PartType0/TrueNumberOfNeighbours"])
+        data["nneigh"] = np.array(f["/PartType0/TrueNumberOfNeighbours"])
     
     if ( "temp" in need_to_load ):
-        data.u_p = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
-        data.u_p*=1.e10 # to erg/g
+        data["u_p"] = np.array(f["/PartType0/InternalEnergy"]) # 1e10 erg/g
+        data["u_p"]*=1.e10 # to erg/g
 
-        data.TK_p = (gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*data.u_p)
+        data["TK_p"] = (gamma_minus_one/boltzmann_cgs*(molecular_mass*proton_mass_cgs)*data["u_p"])
 
     if ( "vels" in need_to_load ):
-        data.vels = np.array(f["/PartType0/Velocities"]) # in km/s
+        data["vels"] = np.array(f["/PartType0/Velocities"]) # in km/s
 
     # doesn't work well
     if ( "dt" in need_to_load ):
-        data.dt_p = np.array(f["/PartType0/TimeStep"])
-        data.dt_p*=0.9778e9 # to yr
+        data["dt_p"] = np.array(f["/PartType0/TimeStep"])
+        data["dt_p"]*=0.9778e9 # to yr
 
     # doesn't work well
     if ( "heat" in need_to_load ):
-        data.heat = np.array(f["/PartType0/AGNHeat"])
-        data.heat*=1e10/3.08568e+16# to erg/s/g
+        data["heat"] = np.array(f["/PartType0/AGNHeat"])
+        data["heat"]*=1e10/3.08568e+16# to erg/s/g
         
-#         heatplus = (data.heat>0.)
-#         heatminus = (data.heat<0.)
-#         
-#         data.heat[heatplus] = np.maximum(0.,np.log10(data.heat[heatplus]))
-#         data.heat[heatminus] = -np.maximum(0.,np.log10(-data.heat[heatminus]))
-
-#     if ( "depth" in need_to_load):
-#         #rho_p = np.array(f["/PartType0/Density"])
-#         #agn_heat_p = np.array(f["/PartType0/AGNHeat"])
-#         data.depth_p = np.array(f["/PartType0/AGNDepth"]) # unitless
 
     if ( "nH" in need_to_load ):
-        data.rho_p = np.array(f["/PartType0/Density"])
-        data.rho_p*=6.77e-22 # to g/cm**3 
-        data.nH_p = data.rho_p/(molecular_mass*proton_mass_cgs)
+        data["rho_p"] = np.array(f["/PartType0/Density"])
+        data["rho_p"]*=6.77e-22 # to g/cm**3 
+        data["nH_p"] = data["rho_p"]/(molecular_mass*proton_mass_cgs)
 
     if ( "tau" in need_to_load ):
-        data.tau = np.array(f["/PartType0/AGNDepth"])
+        data["tau"] = np.array(f["/PartType0/AGNDepth"])
 
     if ( "AGNI" in need_to_load ):
-        data.AGNI = np.array(f["/PartType0/AGNIntensity"])
-        data.AGNI*= (1.989e53/(0.9778e9*3.154e7)/3.086e21**2) # convert from internal units (energy/Gyr-ish/kpc**2) to erg/s/cm**2
+        data["AGNI"] = np.array(f["/PartType0/AGNIntensity"])
+        data["AGNI"]*= (1.989e53/(0.9778e9*3.154e7)/3.086e21**2) # convert from internal units (energy/Gyr-ish/kpc**2) to erg/s/cm**2
 
     if ( "table" in need_to_load ):
-#         if ( not chTab ):
         verboseprint("Load dust tables")
-#             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_090818tau.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_tau.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_labels_090818taunodust.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taunodust.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_labels_090818taudense.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_090818_m0.0001_hsmooth_taudense.dat")
-#                                             )
 
-      #      tableDate="281118"
-#             tableDate="181018"
-       #     tableRes="0.001"
-       #     tableDate="010519"
-#             tableRes="0.0001"
-#             tableDate="281118"
-#             tableRes="0.0001"
-    #        tableDate="060319"
-    #        tableRes="0.1"
-#             tableDate="281118"
-#             tableRes="0.0001"
         tableDate="060319"
         tableRes="0.1"
-        cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"../")
-#         cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"/sfs/fs2/work-sh1/supas356/tables/")
-#             chTab = tab_interp.CoolHeatTab( ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"tau.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taunodust.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_labels_"+tableDate+"taudense.dat"),
-#                                             ("../coolheat_tab_marta/shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
-#                                             )
-#             interpTabVec = np.vectorize(chTab.interpTab)
-        data.flux_p = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
-        data.flux_p*=1.989e+53/(3.086e21)**2/(3.08568e+16)
+        cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"../coolheat_tab_marta/")
+        data["flux_p"] = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
+        data["flux_p"]*=1.989e+53/(3.086e21)**2/(3.08568e+16)
         
         table_particles = pd.DataFrame()
-        table_particles["nH"] = data.nH_p
-        table_particles["temp"] = data.TK_p
-        table_particles["AGNIntensity"] = data.flux_p
-        table_particles["AGNDepth"] = data.tau
+        table_particles["nH"] = data["nH_p"]
+        table_particles["temp"] = data["TK_p"]
+        table_particles["AGNIntensity"] = data["flux_p"]
+        table_particles["AGNDepth"] = data["tau"]
 
         verboseprint("Calculating dust/cooling/heating properties from table")
-#         tabStructs = interpTabVec(data.nH_p.astype(np.float64),data.TK_p.astype(np.float64),data.flux_p.astype(np.float64),data.tau.astype(np.float64))
         cloudy_table.interp(table_particles)
     
     if ( "col" in need_to_load ):
         if "/PartType0/AGNColDens" in f:
-            data.coldens = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
-            data.coldens*=(1.989e+43/3.086e+21**2) # to g/cm**2
-            data.coldens/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
+            data["coldens"] = np.array(f["/PartType0/AGNColDens"]) # Msun/kpc**2
+            data["coldens"]*=(1.989e+43/3.086e+21**2) # to g/cm**2
+            data["coldens"]/=(molecular_mass*proton_mass_cgs) # N in cm**(-2)
         else:
-            data.coldens = table_particles["column_out"]
-#             data.coldens = np.array(list(map(lambda y: y.column_out, tabStructs)))
+            data["coldens"] = table_particles["column_out"]
 
     if ( "tdust" in need_to_load ):
-        data.dustTemp = table_particles["dustT"]
-#         data.dustTemp = map(lambda y: y.dustT, tabStructs)
-#         data.dustTemp = np.array(list(data.dustTemp))
-#         data.dustTemp = 10.**data.dustTemp
-#         print(np.max(data.dustTemp),np.min(data.dustTemp))
-#         data.dustTemp = data.dustTemp**4 # for test
+        data["dustTemp"] = table_particles["dustT"]
     for line in lines[1:]:
         if line in need_to_load:
-#             data.__dict__[line] = np.array(list(map(lambda y: y.__getattr__("line_"+line), tabStructs)))
-            data.__dict__[line] = table_particles["line_"+line]
+            data[line] = table_particles["line_"+line]
         if line+"m" in need_to_load:
-            data.__dict__[line+"m"] = table_particles["line_"+line]*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
-#     if ( "co1" in need_to_load ):
-#         data.co1 = np.array(list(map(lambda y: y.line_co1, tabStructs))) # erg/s/g
-# #         data.co1/=data.rho_p # to erg/g
-#     if ( "co2" in need_to_load ):
-#         data.co2 = np.array(list(map(lambda y: y.line_co2, tabStructs))) # erg/s/g
-# #         data.co2/=data.rho_p # to erg/g
-#     if ( "hcn1" in need_to_load ):
-#         data.hcn1 = np.array(list(map(lambda y: y.line_hcn1, tabStructs))) # erg/s/g
-# #         data.hcn1/=data.rho_p # to erg/g
-#     if ( "hcn2" in need_to_load ):
-#         data.hcn2 = np.array(list(map(lambda y: y.line_hcn2, tabStructs))) # erg/s/g
-# #         data.hcn2/=data.rho_p # to erg/g
-#     if ( "co1m" in need_to_load ):
-#         data.co1m=data.co1*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
-#     if ( "co2m" in need_to_load ):
-#         data.co2m=data.co2*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
-#     if ( "hcn1m" in need_to_load ):
-#         data.hcn1m=data.hcn1*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
-#     if ( "hcn2m" in need_to_load ):
-#         data.hcn2m=data.hcn2*data.m_p*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s
+            data[line+"m"] = table_particles["line_"+line]*data["m_p"]*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
 
     if ( "dg" in need_to_load ):
-#         data.dg = map(lambda y: y.dg, tabStructs)
-#         data.dg = np.array(list(data.dg))
-        data.dg = table_particles["dg"]
+        data["dg"] = table_particles["dg"]
 
     if ( "dust" in need_to_load ):
-        data.dust = data.dg * data.m_p
+        data["dust"] = data["dg"] * data["m_p"]
     
     if ( "emit" in need_to_load ):
-#         data.emissivity = 1.e-20*data.m_p * data.dustTemp**4. # arbitrary units
-        data.emissivity = 5.67e-5 * data.dustTemp**4. * data.dg/np.nanmax(data.dg) # erg/s/cm^2
+        data["emissivity"] = 5.67e-5 * data["dustTemp"]**4. * data["dg"]/np.nanmax(data["dg"]) # erg/s/cm^2
 
     if ( "opac" in need_to_load ):
-        data.opac = np.array(f["/PartType0/AGNOpacity"]) # internal units: kpc**2/1e10 solar mass
-#         data.opac*= 1.e-4 # to pc**2/solar mass
-        data.opac*= 0.478679108 # to cm**2/g
-#         print("faking opacity")
-#         opacity = 65.2 # cm^2/g, somewhat arbitrary
-#         opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
-#         data.opac = np.full((n),opacity)
+        data["opac"] = np.array(f["/PartType0/AGNOpacity"]) # internal units: kpc**2/1e10 solar mass
+        data["opac"]*= 0.478679108 # to cm**2/g
 
     if ( "view" in need_to_load or "vlos" in need_to_load or any(x in need_to_load for x in ["view"+line for line in lines])
             or "dusttau" in need_to_load ):
         if ( "view" in need_to_load ):
-            data.brightness = 5.67e-5 * data.dustTemp**4. * data.dg/np.nanmax(data.dg) # erg/s/cm^2
-        #opacity = 652. # cm^2/g, somewhat arbitrary
-        #opacity = 1. # cm^2/g, somewhat arbitrary
-
-        # we want infrared opacity, not the flux-weighted opacity
-#         opacity = 1. # cm^2/g, somewhat arbitrary
+            data["brightness"] = 5.67e-5 * data["dustTemp"]**4. * data["dg"]/np.nanmax(data["dg"]) # erg/s/cm^2
         
-#         print("SUPER faking opacity")
-#         opacity*=1.e3 # for lulz
-
-#         if opac_mu and opac_file:
-#             opacity = load_interpolate_opacity(opac_mu,opac_file)
-# #             opac_data = np.loadtxt(opac_file)
-# #             opacity=interpolate.interp1d(opac_data[:,0],opac_data[:,1])(opac_mu)
-# #             print("Setting opacity to ",opacity," cm^2/g")
-        print("faking opacity")
+        verboseprint("faking opacity")
         opacity = 65.2 # cm^2/g, somewhat arbitrary
-        print("Broad opacity is now ",opacity," cm^2/g")
+        verboseprint("Broad IR opacity is now ",opacity," cm^2/g")
 
         opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
-        data.opac = np.full((n),opacity)
-        data.opac*=data.dg/np.nanmax(data.dg) # take into account dust fraction
+        data["opac"] = np.full((n),opacity)
+        data["opac"]*=data["dg"]/np.nanmax(data["dg"]) # take into account dust fraction
 
         if "dusttau" in need_to_load:
-            data.dusttau = data.opac * data.m_p
+            data["dusttau"] = data["opac"] * data["m_p"]
         for line in lines[1:]:
             if not "view"+line in need_to_load:
                 continue
-            data.__dict__[line+"opac"]=np.full((n),line_opacities[line])
-            data.__dict__[line+"brightness"]=data.__dict__[line+"m"]/data.__dict__[line+"opac"] # erg/s/cm^2 - multiply by opacity to get actual emission
+            data[line+"opac"]=np.full((n),line_opacities[line])
+            data[line+"brightness"]=data[line+"m"]/data[line+"opac"] # erg/s/cm^2 - multiply by opacity to get actual emission
 #             data.__dict__[line+"brightness"]=data.__dict__[line+"m"] # erg/s, gets SPH smoothed to get erg/s/cm**2
-
         
         if ( "view" in need_to_load ):
             #sputtered = (data.dustTemp>2.5e3) # or something, super arbitrary
-            sputtered = (data.dustTemp>1.e5) # or something, super arbitrary
-            data.brightness[sputtered] = 0.
-            data.opac[sputtered] = 0.
+            sputtered = (data["dustTemp"]>1.e5) # or something, super arbitrary
+            data["brightness"][sputtered] = 0.
+            data["opac"][sputtered] = 0.
     if any(x in need_to_load for x in ("IRdustm","IRdust","IRdustopac","IRdustbrightness","viewIRdust")):
-        data.dustTemp = table_particles["dustT"]
-        data.IRdustbrightness = 5.67e-5 * data.dustTemp**4. * data.dg/np.nanmax(data.dg)
-        data.IRdustopac = np.full((n),line_opacities["IRdust"])
-        data.IRdustm = data.IRdustbrightness*data.IRdustopac
-        data.IRdust = data.IRdustm/(data.m_p*1.9891e33/9.52140614e36/(4.*np.pi))
+        data["dustTemp"] = table_particles["dustT"]
+        data["IRdustbrightness"] = 5.67e-5 * data["dustTemp"]**4. * data["dg"]/np.nanmax(data["dg"])
+        data["IRdustopac"] = np.full((n),line_opacities["IRdust"])
+        data["IRdustm"] = data["IRdustbrightness"]*data["IRdustopac"]
+        data["IRdust"] = data["IRdustm"]/(data["m_p"]*1.9891e33/9.52140614e36/(4.*np.pi))
 
-
-    #rho_p*=6.77e-22 # to g/cm**3
-    #m_p*=1.989e+43 # 10^10 solar masses to g
-    #agn_heat_p*=1e10/3.08568e+16# to erg/s/g
-    #agn_heat_p*=rho_p# to erg/cm**3/s
-    
-#     if ( 'agn_heat_p' in globals() ):
-#         depth_p = agn_heat_p*rho_p*h_p*(16./3./np.pi)
     if "rad0" in need_to_load:
-#         data.id_p = np.array(f["/PartType0/ParticleIDs"]).astype(int)
-#         data.id_p-=1
-        data.rad0 = np.load("rad0.npy")
-        data.rad0 = data.rad0[data.id_p-1]
+        data["rad0"] = np.load("rad0.npy")
+        data["rad0"] = data["rad0"][data["id_p"]-1]
     
     return time,data
 
@@ -732,7 +578,7 @@ def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,
 
     time,data = load_gadget(infile,need_to_load,centredens=centredens)#,opac_mu=opac_mu)
 
-    n = data.h_p.size
+    n = len(data)
     
     
     # corotate with binaries?
@@ -743,10 +589,10 @@ def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,
 
         
     # convert to pc
-    x = data.xyz[:,0]*1.e3
-    y = data.xyz[:,1]*1.e3
-    z = data.xyz[:,2]*1.e3
-    data.h_p*=1.e3
+    x = data["xyz"][:,0]*1.e3
+    y = data["xyz"][:,1]*1.e3
+    z = data["xyz"][:,2]*1.e3
+    data["h_p"]*=1.e3
     
     # rotate
     if ( rot[0]!=0. or rot[1]!=0. ):
@@ -774,37 +620,37 @@ def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,
 
     if ( any(x in plot_thing for x in ["vels","vmag","vel_2d","vel_x","vel_y","vel_z","vel_r","vel_a","vthin","vlos"] + ["v"+line for line in lines] + ["dv"+line for line in lines] + ["vels"+line for line in lines]) ): #+ ["view"+line for line in lines] 
         #vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
-        data.vel_a = (-x*data.vels[:,1]+y*data.vels[:,0])/np.sqrt(x**2+y**2)
-        data.velr = (x*data.vels[:,0]+y*data.vels[:,1]+z*data.vels[:,2])/np.sqrt(x**2+y**2+z**2)
-        data.vel_x = data.vels[:,0]
-        data.vel_y = data.vels[:,1]
-        data.vel_z = data.vels[:,2]
-        data.vmag = np.sqrt(np.sum(data.vels**2,axis=1))
+        data["vel_a"] = (-x*data["vels"][:,1]+y*data["vels"][:,0])/np.sqrt(x**2+y**2)
+        data["velr"] = (x*data["vels"][:,0]+y*data["vels"][:,1]+z*data["vels"][:,2])/np.sqrt(x**2+y**2+z**2)
+        data["vel_x"] = data["vels"][:,0]
+        data["vel_y"] = data["vels"][:,1]
+        data["vel_z"] = data["vels"][:,2]
+        data["vmag"] = np.sqrt(np.sum(data["vels"]**2,axis=1))
         if rot[0]!=0. or rot[1]!=0.:
             if ( ringPlot ):
                 raise NotImplementedError()
             else:
-                vyr = data.vel_y*np.cos(rot[1]) - data.vel_z*np.sin(rot[1])
-                vzr = data.vel_y*np.sin(rot[1]) + data.vel_z*np.cos(rot[1])
-                data.vel_z = vzr
+                vyr = data["vel_y"]*np.cos(rot[1]) - data["vel_z"]*np.sin(rot[1])
+                vzr = data["vel_y"]*np.sin(rot[1]) + data["vel_z"]*np.cos(rot[1])
+                data["vel_z"] = vzr
 
-                data.vel_y = data.vel_x*np.sin(rot[0]) + vyr*np.cos(rot[0])
-                data.vel_x = data.vel_x*np.cos(rot[0]) - vyr*np.sin(rot[0])
+                data["vel_y"] = data["vel_x"]*np.sin(rot[0]) + vyr*np.cos(rot[0])
+                data["vel_x"] = data["vel_x"]*np.cos(rot[0]) - vyr*np.sin(rot[0])
 
-                data.vel2d = data.vel_x
+                data["vel2d"] = data["vel_x"]
         else:
             if ( ringPlot ):
-                data.vel2d = (x*data.vel_x+y*data.vel_y)/np.sqrt(x**2+y**2)
+                data["vel2d"] = (x*data["vel_x"]+y*data["vel_y"])/np.sqrt(x**2+y**2)
             else:
-                data.vel2d = data.vel_x
+                data["vel2d"] = data["vel_x"]
     
     if any(x in plot_thing for x in ["vthin","vlos"]+["v"+line for line in lines] + ["dv"+line for line in lines]): # + ["view"+line for line in lines]
         if ringPlot:
             raise Exception("can't do optically thin line of sight velocity while integrating around ring")
 
         # rotation already done above
-        data.vthin = data.vel_z
-        data.vythin = data.vel_y
+        data["vthin"] = data["vel_z"]
+        data["vythin"] = data["vel_y"]
 
     # set x coordinate - cartesian or cylindrical ("ringplot")
     if ( ringPlot ):
@@ -819,7 +665,7 @@ def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,
     
     if maskbounds:
         if maskbounds[0] in plot_config:
-            v=data.__dict__[plot_config[maskbounds[0]]]
+            v=data[plot_config[maskbounds[0]]]
             mask = (v>maskbounds[1]) & (v<maskbounds[2])
         else:
             raise Exception("mask value {} not found in plot_config".format(maskbounds[0]))
@@ -994,7 +840,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             if centredens and centrecom :
                 raise Exception("Can't set both centredens and centrecom")
             if centredens:
-                i_maxdens = np.argmax(data.nH_p)
+                i_maxdens = np.argmax(data["nH_p"])
                 corners = [x[i_maxdens]-width/2,y[i_maxdens]-width/2.]
                 corners_side = [rad2d[i_maxdens]-width/2.,z[i_maxdens]-width/2.]
             if centrecom:
@@ -1031,7 +877,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         if not thisSymLog:
             thisSymLog = None
         
-        thisMass = data.m_p
+        thisMass = data["m_p"]
 
         plusminus = False # NEVER USED
         
@@ -1042,19 +888,19 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
             else:
                 plotCommand = plot_config[plot_thing[irow]]['data']
                 if ( type(plotCommand) is str ):
-                    thisPlotQuantityFace = data.__dict__[plotCommand]
+                    thisPlotQuantityFace = data[plotCommand]
                     thisPlotQuantitySide = thisPlotQuantityFace
                 elif ( type(plotCommand) is list ):
                     if thisSliceType==viewslice or thisSliceType=='vec2dslice':
                         if ( len(plotCommand)!=4 ):
                             raise Exception("{} must have length 4 for view or vec2d slice".format(plotCommand))
-                        thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]]]
-                        thisPlotQuantitySide = [data.__dict__[plotCommand[2]],data.__dict__[plotCommand[3]]]
+                        thisPlotQuantityFace = [data[plotCommand[0]],data[plotCommand[1]]]
+                        thisPlotQuantitySide = [data[plotCommand[2]],data[plotCommand[3]]]
                     elif thisSliceType==weightviewslice:
                         if ( len(plotCommand)!=6 ):
                             raise Exception("{} must have length 6 for weighted view slice".format(plotCommand))
-                        thisPlotQuantityFace = [data.__dict__[plotCommand[0]],data.__dict__[plotCommand[1]],data.__dict__[plotCommand[2]]]
-                        thisPlotQuantitySide = [data.__dict__[plotCommand[3]],data.__dict__[plotCommand[4]],data.__dict__[plotCommand[5]]]
+                        thisPlotQuantityFace = [data[plotCommand[0]],data[plotCommand[1]],data[plotCommand[2]]]
+                        thisPlotQuantitySide = [data[plotCommand[3]],data[plotCommand[4]],data[plotCommand[5]]]
                     else:
                         raise Exception("{} can't be an array except for view and vec2d slices".format(plotCommand))
                 else:
@@ -1073,13 +919,13 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
         # actually do the plot
         for icol,view in enumerate(views):
             if ( view=='face' ):
-                outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data.h_p,L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
+                outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],x,y,deep_face,0.,thisPlotQuantityFace,thisMass,data["h_p"],L,mask,corners,width,thisPlotLabel,thisPlotRanges[0],thisPlotRanges[1],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,circnorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
                 if data.binary_positions:
                     row_axes[icol*2].scatter([data.binary_positions_rot[0][0]],[data.binary_positions_rot[0][1]],marker='x')
                     row_axes[icol*2].scatter([data.binary_positions_rot[1][0]],[data.binary_positions_rot[1][1]],marker='+')
             elif ( view=='side' ):
-                outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data.h_p,L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
+                outmap=makesph_plot(fig,row_axes[icol*2],row_axes[icol*2+1],rad2d,z,deep_side,0.,thisPlotQuantitySide,thisMass,data["h_p"],L,mask,corners_side,width,thisPlotLabel,thisPlotRanges[2],thisPlotRanges[3],this_cmap,thisSliceType,thisDoLog,
                         cmap2=this_cmap2,planenorm=planenorm,cbar2=cbar2_axes[icol],plusminus=plusminus,visibleAxes=visibleAxes,diverging=thisDiverging,gaussian=plot_gaussian,symLog=thisSymLog)
             if return_maps:
                 out_maps.append(outmap)

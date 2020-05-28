@@ -20,6 +20,7 @@ import gizmo_tools
 
 import argparse
 
+import tqdm
 
 # def sort_nicely( l ):
 #     """ Sort the given list in the way that humans expect.
@@ -217,9 +218,13 @@ if __name__ == '__main__':
     def frame_i(i):
         return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
         #,opac_mu=opac_mu)
-    
+
     with Pool(processes=nprocs) as pool:
-        maps = pool.map(frame_i,range(snapf+1-snapi))
+        maps=[]
+        for _ in tqdm.tqdm(pool.imap_unordered(frame_i,range(snapf+1-snapi)),total=snapf+1-snapi):
+            maps.append(_)
+#         maps = pool.map(frame_i,range(snapf+1-snapi))
+
 #     maps=Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian) for i in range(snapf+1-snapi))
 #     if len(maps)==1:
 #         maps = [maps]
