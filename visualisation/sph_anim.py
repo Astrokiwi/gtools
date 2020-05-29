@@ -119,52 +119,65 @@ if __name__ == '__main__':
 #    parser.add_argument('--opac_mu',type=float,help="Wavelength in microns of dust opacity to use")
     args = parser.parse_args()
     
-#     run_id = args.run_id
-#     output_dir = args.output_dir
+    anim_prams = dict()
+    frame_prams = dict()
     
-    # TODO: don't do this!
+    # copy from parser into run_prams dict
     for parseval in parsevals:
         if ( vars(args)[parseval] ):
-            vars()[parseval] = vars(args)[parseval]
-            print("setting {} to {}, current value:{}".format(parseval,vars(args)[parseval],vars()[parseval]))
+            anim_prams[parseval] = vars(args)[parseval]
+            print("setting {} to {}, current value:{}".format(parseval,vars(args)[parseval],anim_prams[parseval]))
         else:
             if ( parseval in default_values ):
-                vars()[parseval] = default_values[parseval]
-                print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],vars()[parseval]))
+                anim_prams[parseval] = default_values[parseval]
+                print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],anim_prams[parseval]))
             else:
                 raise Exception("No default value for {} - it must be specified!".format(parseval))
 
-    flatPlot = not slice
-    ringPlot = flatPlot
-    if noring:
-        ringPlot = False
+    frame_prams["flat"] = not anim_prams["slice"]
+    frame_prams["ring"] = frame_prams["flat"]
+    if anim_prams["noring"]:
+        frame_prams["ring"] = False
 
-    if dotmode:
+    if anim_prams["dotmode"]:
         smooth_str = dotmode
-    elif flatPlot:
+    elif frame_prams["flat"]:
         smooth_str = "smooth"
     else:
         smooth_str = "slice"
     
-    rad = string_to_list_or_float(rad)
-    gaussian = string_to_list_or_float(gaussian)
+    frame_prams["gaussian"] = string_to_list_or_float(anim_prams["gaussian"])
     
-    if len(data_ranges)<=0:
-        data_ranges = None
+    if len(anim_prams["data_ranges"])<=0:
+        frame_prams["data_ranges"] = None
     else:
-        data_ranges=[[float(y) for y in x.split(",")] for x in data_ranges.split("+")]
+        frame_prams["data_ranges"]=[[float(y) for y in x.split(",")] for x in anim_prams["data_ranges"].split("+")]
     
-    toplot = plot.split(",")
-    outp_plot = "".join(toplot)
+    frame_prams["plot"] = anim_prams["plot"].split(",")
+    outp_plot = "".join(frame_prams["plot"])
 
-    toview = views.split(",")
-    outp_views = "".join(toview)
+    frame_prams["views"] = anim_prams["views"].split(",")
+    outp_views = "".join(frame_prams["views"])
     
-    phi*=2.*np.pi/360.
-    theta*=2.*np.pi/360.
+    anim_prams["phi"]*=2.*np.pi/360.
+    anim_prams["theta"]*=2.*np.pi/360.
     
-    visibleAxes=not noaxes
+    frame_prams["visibleAxes"]=not anim_prams["noaxes"]
+    
+    prams_to_copy = ["cmap","L","centredens","centrecom","dotmode","pixsize"]
+    for key in prams_to_copy:
+        frame_prams[key] = anim_prams[key]
+    
     print("Running")
+    
+    gizmoDir = anim_prams["gizmoDir"]
+    run_id = anim_prams["run_id"]
+    output_dir = anim_prams["output_dir"]
+    snap0 = anim_prams["snap0"]
+    maxsnapf = anim_prams["maxsnapf"]
+    snapstep = anim_prams["snapstep"]
+    absurd = anim_prams["absurd"]
+    rad = string_to_list_or_float(anim_prams["rad"])
 
     if gizmoDir is None:
         gizmoDir = gizmo_tools.getGizmoDir(run_id)
@@ -202,85 +215,60 @@ if __name__ == '__main__':
         ungles = np.linspace(0.,np.pi/period_alt*nfiles,nfiles)
         rads = np.sin(ungles)*rad/2.+rad
     else:
-        thetas = np.full(nfiles,theta)
-        if isinstance(phi,list):
-            phis=[phi]*nfiles
+        thetas = np.full(nfiles,anim_prams["theta"])
+        if isinstance(anim_prams["phi"],list):
+            phis=[anim_prams["phi"]]*nfiles
         else:
-            phis = np.full(nfiles,phi)
+            phis = np.full(nfiles,anim_prams["phi"])
         if isinstance(rad,list):
             rads = [rad]*nfiles
         else: # if float
             rads = np.full(nfiles,rad)
     
-    if "rad0" in toplot:
+    if "rad0" in frame_prams["plot"]:
         dump_rad0(infiles[0])
 
+    # copy other keys into frame_prams kwargs, to simplify function call
+
     def frame_i(i):
-        return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
+#         return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview
+        #,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize
+        #,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
+        return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],**frame_prams,scale=rads[i],rot=[thetas[i],phis[i]])
         #,opac_mu=opac_mu)
 
-    with Pool(processes=nprocs) as pool:
+    with Pool(processes=anim_prams["nprocs"]) as pool:
         maps=[]
         for _ in tqdm.tqdm(pool.imap_unordered(frame_i,range(snapf+1-snapi)),total=snapf+1-snapi):
             maps.append(_)
-#         maps = pool.map(frame_i,range(snapf+1-snapi))
 
-#     maps=Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian) for i in range(snapf+1-snapi))
-#     if len(maps)==1:
-#         maps = [maps]
     for result in maps:
         if isinstance(result, sph_frame.ExceptionWrapper):
             result.re_raise()
-    if savemap:
-        plot_strs = list(np.repeat(toplot,len(toview)))
-#         for plot_str in toplot:
-#             if plot_str in ["vels"]: # n.b. list of things with 3 maps each
-#                 plot_strs+=[plot_str]*3
-#             else:
-#                 plot_strs+=[plot_str]
+    if anim_prams["savemap"]:
+        plot_strs = list(np.repeat(frame_prams["plot"],len(frame_prams["views"])))
+
     
         for itime,maps_timeslice in enumerate(maps):
             idump = isnaps[itime]
             print(len(maps_timeslice))
             for iplot,map in enumerate(maps_timeslice):
-                print(iplot,idump,toplot,plot_strs)
+                print(iplot,idump,frame_prams["plot"],plot_strs)
                 plot_str = plot_strs[iplot]
-                if toplot.count(plot_str)>0:
+                if frame_prams["plot"].count(plot_str)>0:
                     plot_str+="_%03d"%plot_strs[:iplot].count(plot_strs[iplot])
                 print("type=",type(map))
                 if type(map) is list:
                     for imap,submap in enumerate(map):
-                        outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+suffix+"_%03d"%idump+"_"+plot_str+"_%03d.dat"%imap
+                        outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+"_%03d.dat"%imap
                         np.savetxt(outfile,submap)
                 else:
-                    outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+suffix+"_%03d"%idump+"_"+plot_str+".dat"
+                    outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+".dat"
                     np.savetxt(outfile,map)
-    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1))
-    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='viridis',flat=True,ring=True,plot=['dt'],L=200,scale=15.,pixsize=2) for i in range(snapi,snapf+1))
-    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens','temp'],L=400,scale=15.) for i in range(snapi,snapf+1))
-    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['vels','dens'],L=400) for i in range(snapi,snapf+1))
-    #Parallel(n_jobs=nprocs)(delayed(sph_frame.makesph_trhoz_frame)(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['vels'],L=400,scale=10.) for i in range(snapi,snapf+1))
-    #[sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap='plasma',flat=True,ring=True,plot=['dens'],L=400) for i in range(snapi,snapf+1)]
 
-#     for snapx in range(snapi,snapf+1):
-#         infile = fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5"
-#         outfile = "../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True)
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['dens','temp'],L=400)
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='Greys',flat=True,ring=True,plot=['dens'],L=400)
-#         sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['dens'],L=400)
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['temp','dens'],L=400)
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['temp','tdust'],L=400)
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['temp','tdust'],L=400)
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=False,ring=False,plot=['dens','temp'],L=400)
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='plasma',flat=True,ring=True,plot=['vels','dens'],L=400,subsample=10,pixsize=1)   
-#         #sph_frame.makesph_trhoz_frame(infile,outfile,cmap='Greys',flat=True,ring=True,plot=['emit','temp','dens'],L=200)
-
-    
-    #for snapx in [37]:
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+suffix+".mp4"
+    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
 
     print(cmd)
     os.system(cmd)
