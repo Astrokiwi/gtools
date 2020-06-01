@@ -1,36 +1,25 @@
 # Import libraries to do our magic
-import tblib.pickling_support
-tblib.pickling_support.install()
 
 import math
 
 import numpy as np
-import h5py
 import matplotlib as mpl
 mpl.use('Agg')
 
 from matplotlib import colors,rc
 import matplotlib.pyplot as plt
-# rc('text', usetex=True)
-# rc('font',family='serif')
-
-from sys import path, version, exit
-path.append("src/")
-import tab_interp
-
-import sys
-
-import itertools
 
 import gizmo_tools
-import argparse
 from multiprocessing import Pool
 
 import pandas as pd
 from scipy import linalg
 import functools
 
-G_pc3_yr_2_msun_1 = 4.5e-15
+import pynbody
+import sys
+
+# G_pc3_yr_2_msun_1 = 4.5e-15
 
 runs = [ ["binary_ecc0_norm_fast","binary_ecc0"]
         ,["binary_ecc0_HPM_MM_radoff","binary_ecc0"]
@@ -47,15 +36,9 @@ def extract_bh_data(run_id,output_dir,gizmoDir="/export/2/lb1g19/data/",snap0=0,
     if snap0>0:
         snapi=snap0
     snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False,gizmoDir=gizmoDir)
-
-#     gizmoDir = gizmo_tools.getGizmoDir(run_id)
-    gizmoDir = "/export/2/lb1g19/data"
-    movieDir = gizmo_tools.getMovieDir()
-    fullDir = gizmoDir+"/"+run_id+"/"+output_dir
     
 # max run
-#     if ( maxsnapf>-1 and snapf>maxsnapf ):
-    if maxsnapf>-1:
+    if ( maxsnapf>-1 and snapf>maxsnapf ):
         print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
@@ -63,9 +46,7 @@ def extract_bh_data(run_id,output_dir,gizmoDir="/export/2/lb1g19/data/",snap0=0,
     
     isnaps = range(snapi,snapf+1)
     
-    infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in isnaps]
-    
-    nfiles = len(infiles)
+    nfiles = len(isnaps)
 
     angmom = np.zeros((nfiles,3),dtype=float)
     torque = np.zeros((nfiles,3),dtype=float)
@@ -79,12 +60,30 @@ def extract_bh_data(run_id,output_dir,gizmoDir="/export/2/lb1g19/data/",snap0=0,
 #       BH_Binary_alltimes = pool.map(load_gadget,range(snapf+1-snapi))
       BH_Binary_alltimes = pool.map(extract_header_func,snap_strs)
 
+    
+    # convert list of dicts of 1D arrays to dict of 2D arrays
     d={k: np.array([dic[k] for dic in BH_Binary_alltimes]) for k in BH_Binary_alltimes[0]} 
+    
+    # load force manually
+    BH_force = np.loadtxt(f"data/bh_forces_{run_id}_{output_dir}.dat")
+    # Units: km**2 kpc**-1 s**-2, i.e. actually acceleration
+    # Target unit: pc yr**-2, then multiply by mass in Msun to get Msun pc yr**-2
+    BH_force *= pynbody.units.Unit("km**2 kpc**-1 s**-2").in_units("pc yr**-2")
+
+    d['BH_force_1']=BH_force[:,0:3]*d['BH_mass_1'][:,np.newaxis]
+    d['BH_force_2']=BH_force[:,3:6]*d['BH_mass_2'][:,np.newaxis]
+
+    BH_50centiles = np.loadtxt(f"data/bh_50cent_{run_id}_{output_dir}.dat")
+    d['BH_50_1'] = BH_50centiles[:,0]
+    d['BH_50_2'] = BH_50centiles[:,1]
+
     return d
 
 def calc_torque_etc(d):
     # fix BH vels
     dtime = np.gradient(d['time'])
+    # assume fixed dt
+    dt = dtime[0]
     d['BH_vel_1']=np.gradient(d['BH_pos_1'],axis=0)/dtime[:,np.newaxis]/1.e6
     d['BH_vel_2']=np.gradient(d['BH_pos_2'],axis=0)/dtime[:,np.newaxis]/1.e6
 
@@ -92,6 +91,7 @@ def calc_torque_etc(d):
     d['angmom'] = d['BH_mass_1'][:,np.newaxis]*np.cross(d['BH_pos_1'],d['BH_vel_1'])  \
              + d['BH_mass_2'][:,np.newaxis]*np.cross(d['BH_pos_2'],d['BH_vel_2'])
     d['torque'] = np.cross(d['BH_pos_1'],d['BH_force_1']) + np.cross(d['BH_pos_2'],d['BH_force_2'])
+    d['cum_torque'] = np.cumsum(d['torque']*dt,axis=0)
     
 #     d['radial_force_1'] = (d['BH_pos_1']-d['BH_pos_2'])*d['BH_force_1']/linalg.norm(d['BH_pos_1']-d['BH_pos_2'],axis=1)[:,np.newaxis]
 #     d['radial_force_2'] = (d['BH_pos_2']-d['BH_pos_1'])*d['BH_force_2']/linalg.norm(d['BH_pos_2']-d['BH_pos_1'],axis=1)[:,np.newaxis]
@@ -113,10 +113,10 @@ def plot_torque(run_id,output_dir,d):
     angmom = d['angmom']
     torque = d['torque']
 
-    nrows=6
+    nrows=7
     ncols=2
 
-    scale = 2.
+    scale = 3.
     fig,sp = plt.subplots(nrows,ncols,sharex=True,constrained_layout=True,figsize=(ncols*scale*2,nrows*scale))
 
     sp[0,0].plot(time,dist)
@@ -130,7 +130,8 @@ def plot_torque(run_id,output_dir,d):
 
         sp[1,0].plot(time,torque[:,iaxis],label=r"$\tau_{{{}}}$".format(axis))
 #         sp[1,1].plot(time,angmom[:,iaxis]/torque[:,iaxis],label=r"$'\tau_{{{}}}$".format(axis))
-        sp[1,1].plot(time,d['net_force'][:,iaxis],label=r"$F_{{{}}}$".format(axis))
+#         sp[1,1].plot(time,d['net_force'][:,iaxis],label=r"$F_{{{}}}$".format(axis))
+        sp[1,1].plot(time,d['cum_torque'][:,iaxis],label=r"$\int\tau_{{{}}}dt$".format(axis))
 
         sp[2,0].plot(time,d['BH_pos_1'][:,iaxis],label=r"${{{}}}_1$".format(axis))
         sp[2,1].plot(time,d['BH_pos_2'][:,iaxis],label=r"${{{}}}_2$".format(axis))
@@ -145,13 +146,17 @@ def plot_torque(run_id,output_dir,d):
         sp[5,0].plot(time,(d['radial_force_1'][:,iaxis]),label=r"$F_{{r,{},1}}$".format(axis))
         sp[5,1].plot(time,(d['BH_force_2'][:,iaxis]-d['radial_force_2'][:,iaxis]),label=r"$F_{{c,{},2}}$".format(axis))
         sp[5,1].plot(time,(d['radial_force_2'][:,iaxis]),label=r"$F_{{r,{},2}}$".format(axis,axis))
+        
+    sp[6,0].plot(time,(1.-d['BH_50_1']),label='1')
+    sp[6,0].plot(time,(1.-d['BH_50_2']),label='2')
 
 #         sp[5,0].plot(time,d['BH_force_1'][:,iaxis]-d['BH_BH_accel_1'][:,iaxis],label=r"$\Delta F_{{{},1}}$".format(axis))
 #         sp[5,1].plot(time,d['BH_force_2'][:,iaxis]-d['BH_BH_accel_2'][:,iaxis],label=r"$\Delta F_{{{},2}}$".format(axis))
     sp[0,1].set_ylabel('Angular momentum\n(M$_{\odot}$ pc$^2$ / yr)')
     sp[1,0].set_ylabel('Torque\n(M$_{\odot}$ pc$^2$ / yr$^{{-2}}$)')
 #     sp[1,1].set_ylabel('Torque time-scale\n(yr)')
-    sp[1,1].set_ylabel('Force sum')
+#     sp[1,1].set_ylabel('Force sum')
+    sp[1,1].set_ylabel('Integraed Torque\n(M$_{\odot}$ pc$^2$ / yr)')
     sp[2,0].set_ylabel('Pos 1')
     sp[2,1].set_ylabel('Pos 2')
     sp[3,0].set_ylabel('Vel 1')
@@ -159,14 +164,17 @@ def plot_torque(run_id,output_dir,d):
 
     sp[4,0].set_ylabel('Force 1')
     sp[4,1].set_ylabel('Force 2')
-    sp[5,0].set_ylabel('Non-radial force 1')
-    sp[5,1].set_ylabel('Non-radial force 2')
+    sp[5,0].set_ylabel('Radial/non-radial force 1')
+    sp[5,1].set_ylabel('Radial/non-radial force 2')
+
+    sp[6,0].set_ylabel('BH force 50 centile')
+    sp[6,0].set_yscale('log')
     
     for ix in range(ncols):
         sp[-1,ix].set_xlabel(r'Time / Myr')
-        for iy in [4,5]:
+#         for iy in [4,5]:
 #             sp[iy,ix].set_yscale('symlog',linthresh=1.e-1)
-            sp[iy,ix].set_ylim(-0.06,0.06)
+#             sp[iy,ix].set_ylim(-0.06,0.06)
         for iy in range(nrows):
             sp[iy,ix].legend()
 
