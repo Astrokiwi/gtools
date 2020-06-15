@@ -440,7 +440,7 @@ def nbody_calc_vals(snap,vals,**kwargs):
     for val in vals:
         nbody_calc_val(snap,val,**kwargs)
 
-def nbody_quickhist2d(snap,val1,val2,run_name="quickhist",cmap='viridis',log=False,logx=False,logy=False,**kwargs):
+def nbody_quickhist2d(snap,val1,val2,weights=None,run_name="quickhist",cmap='viridis',log=False,logx=False,logy=False,**kwargs):
     fig,sp = plt.subplots()
     scale_x_func = np.log10 if logx else lambda x:x
     scale_y_func = np.log10 if logy else lambda x:x
@@ -460,12 +460,24 @@ def nbody_quickhist2d(snap,val1,val2,run_name="quickhist",cmap='viridis',log=Fal
     
     nonanslice = (np.isfinite(v1)) & (np.isfinite(v2))
     
-    hist,xs,ys = np.histogram2d(v1[nonanslice],v2[nonanslice],bins=(100,100),**kwargs)
+    suffix=""
+    
+    if weights is None:
+        hist,xs,ys = np.histogram2d(v1[nonanslice],v2[nonanslice],bins=(100,100),**kwargs)
+    else:
+        if type(weights)==str:
+            w = snap[weights]
+            suffix="_"+weights
+        else:
+            w = weights
+        whist,xs,ys = np.histogram2d(v1[nonanslice],v2[nonanslice],weights=w,bins=(100,100),**kwargs)
+        nhist,xs,ys = np.histogram2d(v1[nonanslice],v2[nonanslice],bins=(100,100),**kwargs)
+        hist=whist/nhist
     if log:
         hist = np.log10(hist)
     mappable = sp.pcolormesh(xs,ys,hist.T,cmap=cmap)
     fig.colorbar(mappable)
-    fig.savefig(f"../figures/hist2d_{run_name}_{val1}_{val2}.png")
+    fig.savefig(f"../figures/hist2d_{run_name}_{val1}_{val2}{suffix}.png")
     plt.close()
 
 

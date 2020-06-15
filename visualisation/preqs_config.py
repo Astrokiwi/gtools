@@ -13,6 +13,7 @@ preqs_list = [
     ,["dg"  , "table"]
     ,["table"  ,  ["temp","nH","tau"]]
     ,[["vel0" ,"age"],"id"]
+    ,["arad","arads"]
     ,[lines,"table"]
 ]
 

@@ -14,7 +14,10 @@ import pylab as P
 #from joblib import Parallel, delayed
 from scipy.ndimage.filters import gaussian_filter
 
-from sph_plotter import sph_plotter
+from sph_plotter import sph_plotter as sph_plotter_noisy
+import output_suppressor
+sph_plotter=output_suppressor.suppressed(sph_plotter_noisy)
+# from sph_plotter import sph_plotter
 
 from sys import path, version, exit
 path.append("../src/")
@@ -90,7 +93,8 @@ mindotslice	=	'mindotslice'
 sdevslice	=	'sdevslice'
 weightviewslice	=	'weightviewslice'
 zvec2dslice	=	'zvec2dslice'
-
+quiverslice_flat	=	'quiverslice_flat'
+zquiverslice	=	'zquiverslice'
 
 flat_choices = { 'quantslice'   :   [weightslice,zweightslice]
                 ,'dslice'       :   [densslice,zdensslice]
@@ -98,6 +102,7 @@ flat_choices = { 'quantslice'   :   [weightslice,zweightslice]
                 ,'vslice'       :   [vorinoislice,zvorinoislice]
                 ,'mslice'       :   [maxslice,zmaxslice]
                 ,'vec2dslice'   :   [vec2dslice_flat,zvec2dslice]
+                ,'quiverslice'   :   [quiverslice_flat,zquiverslice]
                 }
 
 
@@ -245,18 +250,12 @@ def makesph_plot(data,plane_keys,
         map = sph_plotter.sph_dense_slice(x_p,y_p,m_p,h_p,L,corner,width,z_p,zslice,mask,n)
     elif (mode==zweightslice ):
         map = sph_plotter.sph_weight_slice(x_p,y_p,m_p,h_p,val_p,L,corner,width,z_p,zslice,mask,n)
-    elif (mode==vec2dslice_flat ):
+    elif (mode==vec2dslice_flat or mode==quiverslice_flat ):
         map1 = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p[0],L,corner,width,mask,n)
         map2 = sph_plotter.sph_weight(x_p,y_p,m_p,h_p,val_p[1],L,corner,width,mask,n)
-        norm_map = np.sqrt(map1**2+map2**2)
-        map1/=norm_map
-        map2/=norm_map
-    elif (mode==zvec2dslice ):
+    elif (mode==zvec2dslice or mode==zquiverslice):
         map1 = sph_plotter.sph_weight_slice(x_p,y_p,m_p,h_p,val_p[0],L,corner,width,z_p,zslice,mask,n)
         map2 = sph_plotter.sph_weight_slice(x_p,y_p,m_p,h_p,val_p[1],L,corner,width,z_p,zslice,mask,n)
-        norm_map = np.sqrt(map1**2+map2**2)
-        map1/=norm_map
-        map2/=norm_map
     elif (mode==viewslice ):
         zarg = np.argsort(z_p)
         map = sph_plotter.sph_optical_depth_los_area(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
@@ -283,12 +282,19 @@ def makesph_plot(data,plane_keys,
         map = sph_plotter.sph_max(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
     elif mode==zmaxslice:
         map = sph_plotter.sph_max_slice(x_p,y_p,m_p,h_p,val_p,L,corner,width,z_p,zslice,mask,n)
-    elif mode==maxdotslice or mode==mindotslice:
-        map = sph_plotter.sph_dot(x_p,y_p,val_p,L,corner,width,mode-maxdotslice,mask,n)
+    elif mode==maxdotslice:
+        map = sph_plotter.sph_dot(x_p,y_p,val_p,L,corner,width,0,mask,n)
+    elif mode==mindotslice:
+        map = sph_plotter.sph_dot(x_p,y_p,val_p,L,corner,width,1,mask,n)
     elif mode==sdevslice:
         map = sph_plotter.sph_sdev(x_p,y_p,m_p,h_p,val_p,L,corner,width,mask,n)
     
-    if ( mode==vec2dslice_flat or mode==zvec2dslice ):
+    if ( mode==vec2dslice_flat or mode==zvec2dslice or mode==quiverslice_flat or mode==zquiverslice ):
+        norm_map = np.sqrt(map1**2+map2**2)
+        map1/=norm_map
+        map2/=norm_map
+
+
         map1 = map1.T
         map2 = map2.T
         
@@ -300,7 +306,33 @@ def makesph_plot(data,plane_keys,
         #sp.set_axis_bgcolor('black') # deprecated apparently?
         sp.set_facecolor('black')
         norm_map = np.log10(norm_map)
-        #qv = sp.quiver(xmids,ymids,map1,map2,norm_map,headwidth=10.,pivot='mid',cmap=this_cmap,clim=[clow,chigh])
+        xedges = np.arange(corner[0],corner[0]+width,width/L)
+        yedges = np.arange(corner[1],corner[1]+width,width/L)
+
+        if sp is not None:
+            qv = safe_pcolormesh(sp,xedges,yedges,norm_map,cmap=this_cmap,vmin=vmin,vmax=vmax)
+            if mode==quiverslice_flat or mode==zquiverslice:
+                qv = sp.quiver(xmids,ymids,map1,map2,norm_map,headwidth=10.,pivot='mid',cmap='jet')
+            else:
+                sp.streamplot(xmids,ymids,map1,map2)
+            if cbax is not None:
+                if ( visibleAxes ):
+                    cb = fig.colorbar(qv,label=cblabel,cax=cbax,orientation=cax_orientation)
+                else:
+                    cbax.set_axis_off()
+        outmap = [norm_map,map1,map2]
+    elif mode==quiverslice_flat or mode==zquiverslice:
+        map1 = map1.T
+        map2 = map2.T
+        
+        norm_map = norm_map.T
+        
+        step = width/L
+        xmids = np.arange(corner[0]+step,corner[0]+width+step,step)
+        ymids = np.arange(corner[1]+step,corner[1]+width+step,step)
+        #sp.set_axis_bgcolor('black') # deprecated apparently?
+        sp.set_facecolor('black')
+        norm_map = np.log10(norm_map)
         xedges = np.arange(corner[0],corner[0]+width,width/L)
         yedges = np.arange(corner[1],corner[1]+width,width/L)
 
@@ -465,10 +497,12 @@ def load_gadget(infile, plot_thing
         data["pres"] = np.array(f["/PartType0/Pressure"])
 #         data.pres*=1.989e+33 # from internal units to dyne/cm*8*2
 
-    if ( "arad" in need_to_load ):
+    if ( "arads" in need_to_load ):
         data["arads"] = np.array(f["/PartType0/RadiativeAcceleration"])
         data["arads"]*=3.24086617e-12 # to cm/s/s
-        data["arads"] = np.sqrt(np.sum(data["arads"]**2,axis=1))
+
+    if "arad" in need_to_load:
+        data["arad"] = np.sqrt(np.sum(data["arads"]**2,axis=1))
 
     if ( "accel" in need_to_load ):
         data["accels"] = np.array(f["/PartType0/Acceleration"])
@@ -515,10 +549,22 @@ def load_gadget(infile, plot_thing
 
     if ( "tau" in need_to_load ):
         data["tau"] = np.array(f["/PartType0/AGNDepth"])
+    if ( "tau_2" in need_to_load ):
+        data["tau_2"] = np.array(f["/PartType0/AGNDepth_2"])
+    if ( "tau_eff" in need_to_load ):
+        data["tau_eff"] = np.array(f["/PartType0/AGNDepth_Effective"])
 
     if ( "AGNI" in need_to_load ):
         data["AGNI"] = np.array(f["/PartType0/AGNIntensity"])
         data["AGNI"]*= (1.989e53/(0.9778e9*3.154e7)/3.086e21**2) # convert from internal units (energy/Gyr-ish/kpc**2) to erg/s/cm**2
+
+    if ( "AGNI2" in need_to_load ):
+        data["AGNI2"] = np.array(f["/PartType0/AGNIntensity_2"])
+        data["AGNI2"]*= (1.989e53/(0.9778e9*3.154e7)/3.086e21**2) # convert from internal units (energy/Gyr-ish/kpc**2) to erg/s/cm**2
+
+    if ( "AGNIeff" in need_to_load ):
+        data["AGNIeff"] = np.array(f["/PartType0/AGNIntensity_Effective"])
+        data["AGNIeff"]*= (1.989e53/(0.9778e9*3.154e7)/3.086e21**2) # convert from internal units (energy/Gyr-ish/kpc**2) to erg/s/cm**2
 
     if ( "table" in need_to_load ):
         verboseprint("Load dust tables")
@@ -534,6 +580,11 @@ def load_gadget(infile, plot_thing
         table_particles["temp"] = data["TK_p"]
         table_particles["AGNIntensity"] = data["flux_p"]
         table_particles["AGNDepth"] = data["tau"]
+        # TODO: correct optical depths etc for binary
+#         if "tau_eff" in data:
+#             table_particles["AGNDepth"] = data["tau_eff"]
+#         else:
+#             table_particles["AGNDepth"] = data["tau"]
 
         verboseprint("Calculating dust/cooling/heating properties from table")
         cloudy_table.interp(table_particles)
@@ -688,6 +739,19 @@ def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,
                 data["vel2d"] = (x*data["vel_x"]+y*data["vel_y"])/np.sqrt(x**2+y**2)
             else:
                 data["vel2d"] = data["vel_x"]
+    
+    if any(x in plot_thing for x in ["arads","arad_x","arad_y","arad_z","arad_2d"]):
+        data["arad_x"] = data["arads"][:,0]
+        data["arad_y"] = data["arads"][:,1]
+        data["arad_z"] = data["arads"][:,2]
+        if rot[0]!=0. or rot[1]!=0.:
+            raise NotImplementedError() # can't be arsed
+        else:
+            if ( ringPlot ):
+                data["arad2d"] = (x*data["arad_x"]+y*data["arad_y"])/np.sqrt(x**2+y**2)
+            else:
+                data["arad2d"] = data["arad_x"]
+    
     
     if any(x in plot_thing for x in ["vthin","vlos"]+["v"+line for line in lines] + ["dv"+line for line in lines]): # + ["view"+line for line in lines]
         if ringPlot:
@@ -936,7 +1000,7 @@ def makesph_trhoz_frame_wrapped(infile,outfile,
                     thisPlotQuantityFace = data[plotCommand]
                     thisPlotQuantitySide = thisPlotQuantityFace
                 elif ( type(plotCommand) is list ):
-                    if thisSliceType==viewslice or thisSliceType=='vec2dslice':
+                    if thisSliceType==viewslice or thisSliceType=='vec2dslice' or thisSliceType=='quiverslice':
                         if ( len(plotCommand)!=4 ):
                             raise Exception("{} must have length 4 for view or vec2d slice".format(plotCommand))
                         thisPlotQuantityFace = [data[plotCommand[0]],data[plotCommand[1]]]

@@ -140,7 +140,7 @@ if __name__ == '__main__':
         frame_prams["ring"] = False
 
     if anim_prams["dotmode"]:
-        smooth_str = dotmode
+        smooth_str = anim_prams["dotmode"]
     elif frame_prams["flat"]:
         smooth_str = "smooth"
     else:

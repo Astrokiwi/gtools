@@ -13,6 +13,34 @@
         "slice": "quantslice",
         "symlog": false
     },
+    "AGNI2": {
+        "data": "AGNI2",
+        "diverging": false,
+        "label": "Unextinced $I_{AGN,2}$ (log erg/s/cm^2)",
+        "log": true,
+        "range": [
+            -1.0,
+            6.0,
+            -1.0,
+            6.0
+        ],
+        "slice": "quantslice",
+        "symlog": false
+    },
+    "AGNIeff": {
+        "data": "AGNIeff",
+        "diverging": false,
+        "label": "Unextinced $I_{AGN,eff}$ (log erg/s/cm^2)",
+        "log": true,
+        "range": [
+            -1.0,
+            6.0,
+            -1.0,
+            6.0
+        ],
+        "slice": "quantslice",
+        "symlog": false
+    },
     "IRdust": {
         "data": "IRdust",
         "diverging": false,
@@ -84,6 +112,25 @@
         "slice": "quantslice",
         "symlog": false
     },
+    "arads": {
+        "data": [
+            "arad_x",
+            "arad_y",
+            "arad2d",
+            "arad_z"
+        ],
+        "diverging": false,
+        "label": "$a_{rad}$ (log cm/s/s)",
+        "log": false,
+        "range": [
+            -9.0,
+            0.0,
+            -9.0,
+            0.0
+        ],
+        "slice": "quiverslice",
+        "symlog": false
+    },
     "co1": {
         "data": "co1",
         "diverging": false,
@@ -95,7 +142,7 @@
             -8.0,
             2.0
         ],
-        "slice": "quantslice",
+        "slice": "quiverslice",
         "symlog": false
     },
     "co1m": {
@@ -671,6 +718,34 @@
     },
     "tau": {
         "data": "tau",
+        "diverging": false,
+        "label": "$\\tau$",
+        "log": false,
+        "range": [
+            0.0,
+            7.0,
+            0.0,
+            7.0
+        ],
+        "slice": "zweightslice",
+        "symlog": false
+    },
+    "tau_2": {
+        "data": "tau_2",
+        "diverging": false,
+        "label": "$\\tau$",
+        "log": false,
+        "range": [
+            0.0,
+            7.0,
+            0.0,
+            7.0
+        ],
+        "slice": "zweightslice",
+        "symlog": false
+    },
+    "tau_eff": {
+        "data": "tau_eff",
         "diverging": false,
         "label": "$\\tau$",
         "log": false,

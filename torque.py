@@ -21,17 +21,22 @@ import sys
 
 # G_pc3_yr_2_msun_1 = 4.5e-15
 
-runs = [ ["binary_ecc0_norm_fast","binary_ecc0"]
-        ,["binary_ecc0_HPM_MM_radoff","binary_ecc0"]
-        ,["binary_ecc0_HPM_radoff_long","binary_ecc0"] ]
+# runs = [ ["binary_ecc0_norm_fast","binary_ecc0"]
+#         ,["binary_ecc0_HPM_MM_radoff","binary_ecc0"]
+#         ,["binary_ecc0_HPM_radoff_long","binary_ecc0"] ]
 
+# gizmoDir = "/export/2/lb1g19/data"
+
+runs = [ ["classic","test_two_BH"]]
+
+gizmoDir = "/srv/djw1g16/gizmos/bh_merge/"
 
 
 def load_gadget(run_id,output_dir,snap_str):
-    return gizmo_tools.load_gizmo_nbody(run_id,output_dir,snap_str=snap_str,gizmoDir="/export/2/lb1g19/data"
+    return gizmo_tools.load_gizmo_nbody(run_id,output_dir,snap_str=snap_str,gizmoDir=gizmoDir
                                         ,load_binary_headers=True,only_header=True)
 
-def extract_bh_data(run_id,output_dir,gizmoDir="/export/2/lb1g19/data/",snap0=0,maxsnapf=-1,nprocs=64):
+def extract_bh_data(run_id,output_dir,gizmoDir=gizmoDir,snap0=0,maxsnapf=-1,nprocs=64):
     snapi = 0
     if snap0>0:
         snapi=snap0

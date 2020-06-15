@@ -118,4 +118,5 @@ def calc_smbh_forces(runs):
         return calc_smbh_force(*runs)
 
 if __name__ == '__main__':
-     snap_forces=calc_smbh_forces(runs)
+#      snap_forces=calc_smbh_forces(runs)
+    calc_smbh_force("classic","test_two_BH",gizmoDir="/srv/djw1g16/gizmos/bh_merge/",nprocs=128)
