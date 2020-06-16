@@ -140,6 +140,8 @@ def getGizmoDir(irun):
             raise Exception("Directory not found on {}".format(sname))
         elif sname=="srv01921":
             return "/srv/djw1g16/gizmos"
+        elif "cluster.local" in sname:
+            return "/mainfs/VEILS/djw1g16/gizmos"
 
     if uname=='lb1g19':
         if sname=="trillian":
@@ -152,7 +154,7 @@ def getGizmoDir(irun):
         if sname in ("neshcl226","neshcl227"):
             return "/sfs/fs2/work-sh1/supas356"
           
-    raise Exception("Unknown server/username; add server, username and directory to gizmo_tools.py")
+    raise Exception(f"Unknown server/username; add server ({sname}), username ({uname}) and directory (?) to getGizmoDir gizmo_tools.py")
 
 def getMovieDir():
     sname = socket.gethostname()
@@ -163,6 +165,8 @@ def getMovieDir():
             return "/export/1/djw/movies"
         elif ( sname=="srv01921" ):
             return "/srv/djw1g16/movies"
+        elif "cluster.local" in sname:
+            return "/mainfs/VEILS/djw1g16/movies"
 
     if uname=='lb1g19':
         if sname=="trillian":
@@ -174,7 +178,7 @@ def getMovieDir():
         if sname in ("neshcl226","neshcl227"):
           return "/sfs/fs2/work-sh1/supas356/movies"
 
-    raise Exception("Unknown server; add server and directory to gizmo_tools.py")
+    raise Exception(f"Unknown server/username; add server ({sname}), username ({uname}) and directory (?) to getMovieDir gizmo_tools.py")
 
 def lastConsecutiveSnapshot(run_id,output_dir,dumpsOrdered=True,gizmoDir=None):
     """When models are rerun, the snapshot file with the largest number (e.g. snapshot_100.dat)
