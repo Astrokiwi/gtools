@@ -196,7 +196,7 @@ if __name__ == '__main__':
         print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
-    os.system("rm ../pics_HPM_test/sphplot"+run_id+output_dir+"???.png")
+    os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
 
 
     print("nfiles:",snapf-snapi+1)
