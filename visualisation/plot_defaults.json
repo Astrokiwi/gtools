@@ -1,4 +1,92 @@
 {
+
+    "12mic": {
+        "data": "12mic",
+        "diverging": false,
+        "label": "12mic",
+        "log": true,
+        "range": [
+            -8.0,
+            2.0,
+            -8.0,
+            2.0
+        ],
+        "slice": "quantslice",
+        "symlog": false
+    },
+    "12micm": {
+        "data": "12micm",
+        "diverging": false,
+        "label": "12mic line intensity - erg/s/cm**2/ster",
+        "log": true,
+        "mass": "12micm",
+        "range": [
+            -12.0,
+            0.0,
+            -12.0,
+            0.0
+        ],
+        "slice": "dslice",
+        "symlog": false
+    },
+    "18mic": {
+        "data": "18mic",
+        "diverging": false,
+        "label": "18mic",
+        "log": true,
+        "range": [
+            -8.0,
+            2.0,
+            -8.0,
+            2.0
+        ],
+        "slice": "quantslice",
+        "symlog": false
+    },
+    "18micm": {
+        "data": "18micm",
+        "diverging": false,
+        "label": "18mic line intensity - erg/s/cm**2/ster",
+        "log": true,
+        "mass": "18micm",
+        "range": [
+            -12.0,
+            0.0,
+            -12.0,
+            0.0
+        ],
+        "slice": "dslice",
+        "symlog": false
+    },
+    "850mic": {
+        "data": "850mic",
+        "diverging": false,
+        "label": "850mic",
+        "log": true,
+        "range": [
+            -8.0,
+            2.0,
+            -8.0,
+            2.0
+        ],
+        "slice": "quantslice",
+        "symlog": false
+    },
+    "850micm": {
+        "data": "850micm",
+        "diverging": false,
+        "label": "850mic line intensity - erg/s/cm**2/ster",
+        "log": true,
+        "mass": "850micm",
+        "range": [
+            -12.0,
+            0.0,
+            -12.0,
+            0.0
+        ],
+        "slice": "dslice",
+        "symlog": false
+    },
     "AGNI": {
         "data": "AGNI",
         "diverging": false,
@@ -142,7 +230,7 @@
             -8.0,
             2.0
         ],
-        "slice": "quiverslice",
+        "slice": "quantslice",
         "symlog": false
     },
     "co1m": {

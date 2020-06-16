@@ -647,6 +647,11 @@ class cloudy_table:
              'line_h2_3',
              'line_hcn1',
              'line_hcn2',
+             'line_12mic',
+             'line_18mic',
+             'line_850mic',
+             'line_hcn2',
+             'line_hcn2',
              'opac_abs',
              'opac_scat'
              ]

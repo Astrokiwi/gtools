@@ -81,6 +81,9 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile, boo
     agn_line_h2_1 = new double[ntab];
     agn_line_h2_2 = new double[ntab];
     agn_line_h2_3 = new double[ntab];
+    agn_line_12m = new double[ntab];
+    agn_line_18m = new double[ntab];
+    agn_line_850m = new double[ntab];
     
     std::ifstream f_tabvals (tableFile, std::ifstream::in);
 
@@ -94,7 +97,8 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile, boo
     for ( i=0 ; i<ntab ; i++ ) {
         f_tabvals >> agn_heat_tab[i] >> agn_cool_tab[i] >> agn_dust_tab[i] >> agn_arad_tab[i] >> agn_dg_tab[i] >>
                      agn_opac_abs_tab[i] >> agn_opac_scat_tab[i] >> agn_column_out_tab[i] >> agn_line_co1[i] >> agn_line_co2[i] >>
-                     agn_line_hcn1[i] >> agn_line_hcn2[i] >> agn_line_h2_1[i] >> agn_line_h2_2[i] >> agn_line_h2_3[i];
+                     agn_line_hcn1[i] >> agn_line_hcn2[i] >> agn_line_h2_1[i] >> agn_line_h2_2[i] >> agn_line_h2_3[i] >>
+                     agn_line_12m[i] >> agn_line_18m[i] >> agn_line_850m[i];
     }
     f_tabvals.close();
     
@@ -105,6 +109,9 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile, boo
     lineArrays[4]=agn_line_h2_1;
     lineArrays[5]=agn_line_h2_2;
     lineArrays[6]=agn_line_h2_3;
+    lineArrays[7]=agn_line_12m;
+    lineArrays[8]=agn_line_18m;
+    lineArrays[9]=agn_line_850m;
     
     if ( convertLines ) { // if we are preprocessing the tables, convert lines to erg/s/g. Output tables have this already done
             // divide lines by density to get emission per gram
@@ -117,7 +124,7 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile, boo
     //         double physical_density = pow(10.,agn_dense_vals[id]-23.6904);
             double physical_density = agn_dense_vals[id]-23.6904;
             for ( i=agn_tab_index(id,0,0,0) ; i<agn_tab_index(id,agn_ntemp-1,agn_nintensity-1,agn_ncolumn_in-1) ; i++ ) {
-                for ( iline=0 ; iline<7 ; iline++ ) {
+                for ( iline=0 ; iline<10 ; iline++ ) {
                     lineArrays[iline][i]=log10(lineArrays[iline][i])-physical_density;
                     if ( !isfinite(lineArrays[iline][i]) ) lineArrays[iline][i] = min_line;
                 }
@@ -137,7 +144,7 @@ void AGN_heat_table::setupTable(const char* labelFile,const char* tableFile, boo
         }
     } else { // log for better interpolation
         for ( i=0 ; i<ntab ; i++ ) {
-            for ( iline=0 ; iline<7 ; iline++ ) {
+            for ( iline=0 ; iline<10 ; iline++ ) {
                 lineArrays[iline][i]=log10(lineArrays[iline][i]);
             }
 //             agn_line_co1[i]=log10(agn_line_co1[i]);
@@ -228,6 +235,9 @@ struct coolHeatDustArray CoolHeatTab::interpTabArray(int n0, double* density, in
     dustStructs.line_h2_1 = new double[n0];
     dustStructs.line_h2_2 = new double[n0];
     dustStructs.line_h2_3 = new double[n0];
+    dustStructs.line_12mic = new double[n0];
+    dustStructs.line_18mic = new double[n0];
+    dustStructs.line_850mic = new double[n0];
     
 //     struct coolHeatDust *dustStructs = new coolHeatDust[n0];
 //     struct coolHeatDust *dustStructs = (struct coolHeatDust *)malloc(sizeof(struct coolHeatDust)*n0);
@@ -249,6 +259,9 @@ struct coolHeatDustArray CoolHeatTab::interpTabArray(int n0, double* density, in
         dustStructs.line_h2_1[i] = nextEntry.line_h2_1;
         dustStructs.line_h2_2[i] = nextEntry.line_h2_2;
         dustStructs.line_h2_3[i] = nextEntry.line_h2_3;
+        dustStructs.line_12mic[i] = nextEntry.line_12m;
+        dustStructs.line_18mic[i] = nextEntry.line_18m;
+        dustStructs.line_850mic[i] = nextEntry.line_850m;
     }
     return dustStructs;
 }
@@ -312,9 +325,9 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
            opac_scat_interp=0.,column_out_interp=0.,arad_interp=0.;           
 //            ,co1_interp=0.,co2_interp=0.,
 //            hcn1_interp=0.,hcn2_interp=0.;
-    double line_interp[7];
+    double line_interp[10];
     int iline;
-    for ( iline=0 ; iline<7 ; iline++ ) {
+    for ( iline=0 ; iline<10 ; iline++ ) {
         line_interp[iline]=0.;
     }
 
@@ -363,7 +376,7 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
             opac_abs_interp+=weight*curTable->agn_opac_abs_tab[idex];
             column_out_interp+=weight*curTable->agn_column_out_tab[idex];
             arad_interp+=weight*curTable->agn_arad_tab[idex];
-            for ( iline=0 ; iline<7 ; iline++ ) {
+            for ( iline=0 ; iline<10 ; iline++ ) {
                 line_interp[iline]+=weight*curTable->lineArrays[iline][idex];
             }
 
@@ -391,7 +404,7 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
 //             co2_interp+=weight*thisTable->agn_line_co2[idex];
 //             hcn1_interp+=weight*thisTable->agn_line_hcn1[idex];
 //             hcn2_interp+=weight*thisTable->agn_line_hcn2[idex];
-            for ( iline=0 ; iline<7 ; iline++ ) {
+            for ( iline=0 ; iline<10 ; iline++ ) {
                 line_interp[iline]+=weight*thisTable->lineArrays[iline][idex];
             }
         }
@@ -437,6 +450,9 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
     outp.line_h2_1 = pow(10.,line_interp[4]);
     outp.line_h2_2 = pow(10.,line_interp[5]);
     outp.line_h2_3 = pow(10.,line_interp[6]);
+    outp.line_12m = pow(10.,line_interp[7]);
+    outp.line_18m = pow(10.,line_interp[8]);
+    outp.line_850m = pow(10.,line_interp[9]);
 //     outp.line_co1 = co1_interp;
 //     outp.line_co2 = co2_interp;
 //     outp.line_hcn1 = hcn1_interp;

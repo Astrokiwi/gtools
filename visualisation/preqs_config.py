@@ -1,4 +1,4 @@
-lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
+lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3","12mic","18mic","850mic"]
 
 preqs_list = [
      [["vmag","vel_2d","vel_r","vel_x","vel_y","vel_z","vel_a"]+["v"+line for line in lines]+["vels"+line for line in lines],"vels"]

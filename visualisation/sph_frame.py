@@ -67,8 +67,8 @@ def load_interpolate_opacity(opac_mu,
     return opacity
 
 
-lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
-line_wavelengths = [866.727,433.438,845.428,422.796,2.121,28.18,9.66]
+lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3","12mic","18mic","850mic"]
+line_wavelengths = [866.727,433.438,845.428,422.796,2.121,28.18,9.66,12,18,850]
 line_opacities = {line:load_interpolate_opacity(mu) for line,mu in zip(lines,line_wavelengths)}
 
 # count "IRdust" as a line
@@ -569,7 +569,8 @@ def load_gadget(infile, plot_thing
     if ( "table" in need_to_load ):
         verboseprint("Load dust tables")
 
-        tableDate="060319"
+#         tableDate="060319" # used in paper - not all intensities are there
+        tableDate="160620" 
         tableRes="0.1"
         cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"../coolheat_tab_marta/")
         data["flux_p"] = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
