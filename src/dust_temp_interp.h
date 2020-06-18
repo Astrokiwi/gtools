@@ -16,7 +16,7 @@ struct coolHeatDust {
     double line_h2_2;
     double line_h2_3;
     double line_12m;
-    double line_18m;
+    double line_8m;
     double line_850m;
     
     /*int id,it,ii,ic;
@@ -41,7 +41,7 @@ struct coolHeatDustArray {
     double *line_h2_2;
     double *line_h2_3;
     double *line_12mic;
-    double *line_18mic;
+    double *line_8mic;
     double *line_850mic;
     
     /*int id,it,ii,ic;
@@ -74,7 +74,7 @@ struct AGN_heat_table {
             *agn_line_h2_2,
             *agn_line_h2_3,
             *agn_line_12m,
-            *agn_line_18m,
+            *agn_line_8m,
             *agn_line_850m,
             *agn_column_out_tab;
     double *tables[4];
