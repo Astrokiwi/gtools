@@ -69,17 +69,20 @@ def load_interpolate_opacity(opac_mu,
     opacity*=0.000208908219 # convert to pc**2/solar mass for consistency
     return opacity
 
-line_bases = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3"]
+line_bases = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3","12mic","8mic","850mic"]
 line_codes = ["line_"+line for line in line_bases]
-lineWavelengths_list = ['866.727', '433.438', '845.428', '422.796', '2.121', '28.18', '9.66']
+lineWavelengths_list = ['866.727', '433.438', '845.428', '422.796', '2.121', '28.18', '9.66', '12', '8', '850']
 lineNames_list = ['CO(3-2)',
  'CO(6-5)',
  'HCN(4-3)',
  'HCN(8-7)',
  'H$_2$ (1-0) S(1)',
  'H$_2$ (0-0) S(0)',
- 'H$_2$ (0-0) S(3)']
-line_wavelengths = [866.727,433.438,845.428,422.796,2.121,28.18,9.66]
+ 'H$_2$ (0-0) S(3)',
+ 'Continuum',
+ 'Continuum',
+ 'Continuum']
+line_wavelengths = [866.727,433.438,845.428,422.796,2.121,28.18,9.66,12,8,850]
 
 lineNamesFull = {code: name+f" ${wavelength}$ $\\mu$m"
                 for code,wavelength,name in zip(line_bases,lineWavelengths_list,lineNames_list)}
@@ -652,7 +655,7 @@ class cloudy_table:
              'line_hcn1',
              'line_hcn2',
              'line_12mic',
-             'line_18mic',
+             'line_8mic',
              'line_850mic',
              'line_hcn2',
              'line_hcn2',
@@ -674,7 +677,7 @@ class cloudy_table:
     def __init__(self,tableDate="281118",tableRes="0.0001",prefix=""):
         self.load_table(tableDate,tableRes,prefix)
 
-    def load_table(self,tableDate="281118",tableRes="0.0001",prefix="/sfs/fs2/work-sh1/supas356/tables/"):
+    def load_table(self,tableDate="281118",tableRes="0.0001",prefix="../coolheat_tab_marta"):
         self.chTab = tab_interp.CoolHeatTab( (prefix+"shrunk_table_labels_"+tableDate+"tau.dat"),
                                         (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
                                         (prefix+"shrunk_table_labels_"+tableDate+"taunodust.dat"),

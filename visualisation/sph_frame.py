@@ -67,8 +67,8 @@ def load_interpolate_opacity(opac_mu,
     return opacity
 
 
-lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3","12mic","18mic","850mic"]
-line_wavelengths = [866.727,433.438,845.428,422.796,2.121,28.18,9.66,12,18,850]
+lines = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3","12mic","8mic","850mic"]
+line_wavelengths = [866.727,433.438,845.428,422.796,2.121,28.18,9.66,12,8,850]
 line_opacities = {line:load_interpolate_opacity(mu) for line,mu in zip(lines,line_wavelengths)}
 
 # count "IRdust" as a line
@@ -261,7 +261,7 @@ def makesph_plot(data,plane_keys,
         map = sph_plotter.sph_optical_depth_los_area(x_p,y_p,m_p,h_p,val_p[0],val_p[1],L,corner,width,z_p,zarg,mask,n)
         
         total_luminosity = np.sum(map) * (width*2*3.086e+18/L)**2 / 3.839e33  # check normalisation
-        print("log10(L/Lsun) = {}, mean flux = {} erg/s/cm**2, fullwidth = {} pc".format(np.log10(total_luminosity),np.mean(map),width*2))
+        verboseprint("log10(L/Lsun) = {}, mean flux = {} erg/s/cm**2, fullwidth = {} pc".format(np.log10(total_luminosity),np.mean(map),width*2))
     elif (mode==weightviewslice ):
         zarg = np.argsort(z_p)
 #         threshold_flux = 1.e-5
@@ -570,7 +570,7 @@ def load_gadget(infile, plot_thing
         verboseprint("Load dust tables")
 
 #         tableDate="060319" # used in paper - not all intensities are there
-        tableDate="160620" 
+        tableDate="180620" 
         tableRes="0.1"
         cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"../coolheat_tab_marta/")
         data["flux_p"] = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
@@ -600,9 +600,12 @@ def load_gadget(infile, plot_thing
 
     if ( "tdust" in need_to_load ):
         data["dustTemp"] = table_particles["dustT"]
+
     for line in lines[1:]:
         if line in need_to_load:
             data[line] = table_particles["line_"+line]
+            if line in ["12mic","8mic","850mic"]: # these are given in erg/cm**3/s, need to convert to erg/g/s
+                data[line]/=data["nH_p"]
         if line+"m" in need_to_load:
             data[line+"m"] = table_particles["line_"+line]*data["m_p"]*1.9891e33/9.52140614e36/(4.*np.pi) # erg/s/g to erg/s, extra factor for pc**2 to ster cm**2, output is erg/s/cm**2/ster
 
@@ -647,7 +650,7 @@ def load_gadget(infile, plot_thing
             data["brightness"][sputtered] = 0.
             data["opac"][sputtered] = 0.
     if any(x in need_to_load for x in ("IRdustm","IRdust","IRdustopac","IRdustbrightness","viewIRdust")):
-        data["dustTemp"] = table_particles["dustT"]
+#         data["dustTemp"] = table_particles["dustT"]
         data["IRdustbrightness"] = 5.67e-5 * data["dustTemp"]**4. * data["dg"]/np.nanmax(data["dg"])
         data["IRdustopac"] = np.full((n),line_opacities["IRdust"])
         data["IRdustm"] = data["IRdustbrightness"]*data["IRdustopac"]
@@ -662,6 +665,11 @@ def load_gadget(infile, plot_thing
 def pack_dicts():
     with open('plot_defaults.json', 'r') as f:
         plot_config = json.load(f)
+
+    # assign defaults
+    for d in plot_config.values():
+        if isinstance(d["range"],str):
+            d["range"] = plot_config[d["range"]]["range"]
     return plot_config
 
 def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,ringPlot=False,flatPlot=False,maskbounds=None):
@@ -673,7 +681,6 @@ def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,
     time,data = load_gadget(infile,need_to_load,centredens=centredens)#,opac_mu=opac_mu)
 
     n = len(data)
-    
     
     # corotate with binaries?
 #     if data.binary_positions is not None:
@@ -699,6 +706,10 @@ def load_process_gadget_data(infile,rot,plot_thing,plot_config,centredens=False,
          
          y = yr*np.cos(rot[1]) - z*np.sin(rot[1])
          z = yr*np.sin(rot[1]) + z*np.cos(rot[1])
+         
+         data["x"]=x
+         data["y"]=y
+         data["z"]=z
          
          if data.binary_positions:
             data.binary_positions_rot = [None,None]

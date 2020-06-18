@@ -1,16 +1,35 @@
 {
+    "line_defaults": {
+        "range": [
+            2.0,
+            8.0,
+            2.0,
+            8.0
+        ]
+    },
+    "mass_weighted_line_defaults": {
+        "range": [
+            -5.0,
+            8.0,
+            -5.0,
+            8.0
+        ]
+    },
+    "view_line_defaults": {
+        "range": [
+            -5.0,
+            5.0,
+            -5.0,
+            5.0
+        ]
+    },
 
     "12mic": {
         "data": "12mic",
         "diverging": false,
         "label": "12mic",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
         "slice": "quantslice",
         "symlog": false
     },
@@ -20,42 +39,55 @@
         "label": "12mic line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "12micm",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
         "symlog": false
     },
-    "18mic": {
-        "data": "18mic",
-        "diverging": false,
-        "label": "18mic",
-        "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
+    "view12mic": {
+        "data": [
+            "12micbrightness",
+            "12micopac",
+            "12micbrightness",
+            "12micopac"
         ],
+        "diverging": false,
+        "label": "view12mic",
+        "log": true,
+        "range": "view_line_defaults",
+        "slice": "viewslice",
+        "symlog": false
+    },
+    "8mic": {
+        "data": "8mic",
+        "diverging": false,
+        "label": "8mic",
+        "log": true,
+        "range": "line_defaults",
         "slice": "quantslice",
         "symlog": false
     },
-    "18micm": {
-        "data": "18micm",
+    "8micm": {
+        "data": "8micm",
         "diverging": false,
-        "label": "18mic line intensity - erg/s/cm**2/ster",
+        "label": "8mic line intensity - erg/s/cm**2/ster",
         "log": true,
-        "mass": "18micm",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "mass": "8micm",
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
+        "symlog": false
+    },
+    "view8mic": {
+        "data": [
+            "8micbrightness",
+            "8micopac",
+            "8micbrightness",
+            "8micopac"
+        ],
+        "diverging": false,
+        "label": "view8mic",
+        "log": true,
+        "range": "view_line_defaults",
+        "slice": "viewslice",
         "symlog": false
     },
     "850mic": {
@@ -63,12 +95,7 @@
         "diverging": false,
         "label": "850mic",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
         "slice": "quantslice",
         "symlog": false
     },
@@ -78,13 +105,22 @@
         "label": "850mic line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "850micm",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
+        "symlog": false
+    },
+    "view850mic": {
+        "data": [
+            "850micbrightness",
+            "850micopac",
+            "850micbrightness",
+            "850micopac"
+        ],
+        "diverging": false,
+        "label": "view850mic",
+        "log": true,
+        "range": "view_line_defaults",
+        "slice": "viewslice",
         "symlog": false
     },
     "AGNI": {
@@ -224,12 +260,7 @@
         "diverging": false,
         "label": "co1",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
         "slice": "quantslice",
         "symlog": false
     },
@@ -239,12 +270,7 @@
         "label": "co1 line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "co1m",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
         "symlog": false
     },
@@ -253,12 +279,8 @@
         "diverging": false,
         "label": "co2",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
+
         "slice": "quantslice",
         "symlog": false
     },
@@ -268,12 +290,7 @@
         "label": "co2 line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "co2m",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
         "symlog": false
     },
@@ -538,12 +555,7 @@
         "diverging": false,
         "label": "h2_1",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
         "slice": "quantslice",
         "symlog": false
     },
@@ -553,12 +565,7 @@
         "label": "h2_1 line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "h2_1m",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
         "symlog": false
     },
@@ -567,12 +574,7 @@
         "diverging": false,
         "label": "h2_2",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
         "slice": "quantslice",
         "symlog": false
     },
@@ -582,12 +584,7 @@
         "label": "h2_2 line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "h2_2m",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
         "symlog": false
     },
@@ -596,12 +593,7 @@
         "diverging": false,
         "label": "h2_3",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
         "slice": "quantslice",
         "symlog": false
     },
@@ -611,12 +603,7 @@
         "label": "h2_3 line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "h2_3m",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
         "symlog": false
     },
@@ -625,12 +612,8 @@
         "diverging": false,
         "label": "hcn1",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
+
         "slice": "quantslice",
         "symlog": false
     },
@@ -640,12 +623,7 @@
         "label": "hcn1 line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "hcn1m",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
         "symlog": false
     },
@@ -654,12 +632,7 @@
         "diverging": false,
         "label": "hcn2",
         "log": true,
-        "range": [
-            -8.0,
-            2.0,
-            -8.0,
-            2.0
-        ],
+        "range": "line_defaults",
         "slice": "quantslice",
         "symlog": false
     },
@@ -669,12 +642,7 @@
         "label": "hcn2 line intensity - erg/s/cm**2/ster",
         "log": true,
         "mass": "hcn2m",
-        "range": [
-            -12.0,
-            0.0,
-            -12.0,
-            0.0
-        ],
+        "range": "mass_weighted_line_defaults",
         "slice": "dslice",
         "symlog": false
     },
@@ -853,9 +821,9 @@
         "log": true,
         "range": [
             0.0,
-            3.0,
+            3.5,
             0.0,
-            3.0
+            3.5
         ],
         "slice": "quantslice",
         "symlog": false
@@ -1342,12 +1310,7 @@
         "diverging": false,
         "label": "viewIRdust",
         "log": true,
-        "range": [
-            -20.0,
-            0.0,
-            -20.0,
-            0.0
-        ],
+        "range": "view_line_defaults",
         "slice": "viewslice",
         "symlog": false
     },
@@ -1361,12 +1324,7 @@
         "diverging": false,
         "label": "viewco1",
         "log": true,
-        "range": [
-            -20.0,
-            0.0,
-            -20.0,
-            0.0
-        ],
+        "range": "view_line_defaults",
         "slice": "viewslice",
         "symlog": false
     },
@@ -1380,12 +1338,7 @@
         "diverging": false,
         "label": "viewco2",
         "log": true,
-        "range": [
-            -20.0,
-            0.0,
-            -20.0,
-            0.0
-        ],
+        "range": "view_line_defaults",
         "slice": "viewslice",
         "symlog": false
     },
@@ -1399,12 +1352,7 @@
         "diverging": false,
         "label": "viewh2_1",
         "log": true,
-        "range": [
-            -20.0,
-            0.0,
-            -20.0,
-            0.0
-        ],
+        "range": "view_line_defaults",
         "slice": "viewslice",
         "symlog": false
     },
@@ -1418,12 +1366,7 @@
         "diverging": false,
         "label": "viewh2_2",
         "log": true,
-        "range": [
-            -20.0,
-            0.0,
-            -20.0,
-            0.0
-        ],
+        "range": "view_line_defaults",
         "slice": "viewslice",
         "symlog": false
     },
@@ -1437,12 +1380,7 @@
         "diverging": false,
         "label": "viewh2_3",
         "log": true,
-        "range": [
-            -20.0,
-            0.0,
-            -20.0,
-            0.0
-        ],
+        "range": "view_line_defaults",
         "slice": "viewslice",
         "symlog": false
     },
@@ -1456,12 +1394,7 @@
         "diverging": false,
         "label": "viewhcn1",
         "log": true,
-        "range": [
-            -20.0,
-            0.0,
-            -20.0,
-            0.0
-        ],
+        "range": "view_line_defaults",
         "slice": "viewslice",
         "symlog": false
     },
@@ -1475,12 +1408,7 @@
         "diverging": false,
         "label": "viewhcn2",
         "log": true,
-        "range": [
-            -20.0,
-            0.0,
-            -20.0,
-            0.0
-        ],
+        "range": "view_line_defaults",
         "slice": "viewslice",
         "symlog": false
     },
