@@ -101,7 +101,7 @@ if __name__ == '__main__':
     parser.add_argument('--plot',type=str,help="values to plot, separated by commas")
     parser.add_argument('--views',type=str,help="face and/or side view, separated by commas")
     parser.add_argument('--cmap',type=str,help="colourmap palette")
-    parser.add_argument('--phi',type=float,help="phi (latitudinal) rotation angle in degrees")
+    parser.add_argument('--phi',type=str,help="phi (latitudinal) rotation angle in degrees")
     parser.add_argument('--theta',type=float,help="theta (azimuthal) rotation angle in degrees")
     parser.add_argument('--slice',help="option to be slice plot",action='store_true')
     parser.add_argument('--noaxes',help="don't show axes - fill frame with plot",action='store_true')
@@ -147,6 +147,9 @@ if __name__ == '__main__':
         smooth_str = "slice"
     
     frame_prams["gaussian"] = string_to_list_or_float(anim_prams["gaussian"])
+    anim_prams["phi"] = string_to_list_or_float(anim_prams["phi"])
+
+    frame_prams["return_maps"] = anim_prams["savemap"]
     
     if len(anim_prams["data_ranges"])<=0:
         frame_prams["data_ranges"] = None
@@ -159,7 +162,10 @@ if __name__ == '__main__':
     frame_prams["views"] = anim_prams["views"].split(",")
     outp_views = "".join(frame_prams["views"])
     
-    anim_prams["phi"]*=2.*np.pi/360.
+    if isinstance(anim_prams["phi"],list):
+        anim_prams["phi"]=[x*2.*np.pi/360. for x in anim_prams["phi"]]
+    else:
+        anim_prams["phi"]*=2.*np.pi/360.
     anim_prams["theta"]*=2.*np.pi/360.
     
     frame_prams["visibleAxes"]=not anim_prams["noaxes"]
