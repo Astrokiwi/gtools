@@ -710,12 +710,15 @@ class cloudy_table:
 
 
 if __name__=='__main__':
-    header,snap = load_gizmo_nbody("binary_ecc0_HPM_MM_radoff","binary_ecc0","120",gizmoDir="/export/2/lb1g19/data/",load_binary_headers=True)
-#     run_table = load_run_parameters("3032")
-#     run_parameters_angles(run_table)
+#     header,snap = load_gizmo_nbody("binary_ecc0_HPM_MM_radoff","binary_ecc0","120",gizmoDir="/export/2/lb1g19/data/",load_binary_headers=True)
+    run_table = load_run_parameters("3032")
+    run_parameters_angles(run_table)
 #     run_parameters_names(run_table)
 
 
-#     ordered_keys = run_parameters_names(run_table)
+    ordered_keys = run_parameters_names(run_table)
+    for x in ordered_keys:
+        print("{0:64s}{1:32s}".format(x,run_table[x]['name']))
+    
 #     print([(x,run_table[x]['name']) for x in ordered_keys])
 #     print(run_parameters_table(load_run_parameters("3032"))[0])
