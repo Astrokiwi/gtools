@@ -139,6 +139,74 @@ module sph_plotter
         end do
         
     end function sph_vel_absorb
+
+    function sph_dense_spherical(x,y,z,m,h,L,c,w,n) result(g)
+        use omp_lib
+        implicit none
+        integer :: n
+        real(kind=8), dimension(n) :: m,h ! mass, smoothing
+        real(kind=8), dimension(n) :: x,y,z ! particle positions
+        integer :: L ! ncells
+        real(kind=8), dimension(2) :: c ! top-left corner in radians
+        real(kind=8) :: w ! size in radians
+        
+        real(kind=8), dimension(L,L) :: g ! mass/density grid, to return
+        
+        integer :: ip ! this particle
+        integer :: ix,iy ! grid position of particle
+        integer :: hix,hiy ! position in h circle
+        integer :: ix0,iy0,ix1,iy1 ! bounds of h circle
+        
+        integer :: ih ! integer h
+        
+        real(kind=8) :: r_cell, l_cell
+        
+        real(kind=8) :: rdist, weight
+
+        real(kind=8) :: rad,phi,theta
+        
+        if ( .not. kernel_initialized ) then
+            call kernel_init
+        endif
+        
+        g = 0.d0
+        
+        l_cell = w/L ! cell size in radians
+        
+        do ip=1,n
+            rad = sqrt(x(ip)**2+y(ip)**2+z(ip)**2)
+            theta = atan2(y(ip),x(ip))
+            phi = acos(z(ip)/rad)
+            
+            r_cell = rad*l_cell ! cell size in cartesian
+
+            ix = int((phi-c(1))/l_cell)+1
+            iy = int((theta-c(2))/l_cell)+1
+
+            ih = ceiling(h(ip)/r_cell)
+    
+            ix0 = max(1,ix-ih)
+            iy0 = max(1,iy-ih)
+
+            ix1 = min(L,ix+ih)
+            iy1 = min(L,iy+ih)
+    
+            if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+                do hix=ix0,ix1
+                    do hiy=iy0,iy1
+                        rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*r_cell*r_cell)
+                        weight = fkern(rdist/h(ip))/h(ip)**2
+                    
+                        g(hix,hiy) = g(hix,hiy) + weight * m(ip)
+                    end do
+                end do
+
+            endif
+
+        end do
+        return
+    end function sph_dense_spherical
+    
     
     function sph_general(x,y,m,h,v,L,c,w,f,z,zslice,mode,n) result(g)
         use omp_lib
