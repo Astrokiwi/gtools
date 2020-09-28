@@ -103,12 +103,12 @@ def pack_dicts():
     plotRanges["emit"] = [-1.,6.]*2
     plotRanges["dt"] = [-3.,3.]*2
     plotRanges["vel_2d"] = [-250.,250.]*2
-    plotRanges["vel_r"] = [-25.,25.]*2
+    plotRanges["vel_r"] = [-300.,300.]*2
     plotRanges["vmag"] = [0.,120.]*2
     plotRanges["vel_x"] = [-200.,200.]*2
     plotRanges["vel_y"] = [-200.,200.]*2
     plotRanges["vel_z"] = [-2000.,2000.]*2
-    plotRanges["vel_a"] = [-50.,50.]*2
+    plotRanges["vel_a"] = [-300.,300.]*2
     plotRanges["arad"] = [-9.,0.]*2
     plotRanges["accel"] = [-3.,0.]*2
     plotRanges["AGNI"] = [-1.,6.]*2

@@ -47,15 +47,16 @@ cmap = matplotlib.cm.get_cmap('coolwarm')
 dust_opacity_function = None
 
 binary_headers_unit_name_conversions = {
-        "Binary_pos_1":("BH_pos_1",1000.,"pc"), # pc 
-        "Binary_pos_2":("BH_pos_2",1000.,"pc"), # pc
-        "Binary_vel_1":("BH_vel_1",1000./0.9778e9,"pc yr**-1"), # pc/yr
-        "Binary_vel_2":("BH_vel_2",1000./0.9778e9,"pc yr**-1"), # pc/yr
-        "Binary_force_1":("BH_force_1",1e10 * 1000.0/(0.9778e9)**2,"Msol pc yr**-2"),   # msun * pc / yr**2
-        "Binary_force_2":("BH_force_2",1e10 * 1000.0/(0.9778e9)**2,"Msol pc yr**-2"),   # msun * pc / yr**2
-        "Binary_mass_1":("BH_mass_1",1.e10,"Msol"), # msun
-        "Binary_mass_2":("BH_mass_2",1.e10,"Msol")  # msun
-
+        "Binary_pos_1":("BH_pos_1",1000.,"pc") # pc 
+        ,"Binary_pos_2":("BH_pos_2",1000.,"pc") # pc
+        ,"Binary_vel_1":("BH_vel_1",1000./0.9778e9,"pc yr**-1") # pc/yr
+        ,"Binary_vel_2":("BH_vel_2",1000./0.9778e9,"pc yr**-1") # pc/yr
+        ,"Binary_force_1":("BH_force_1",1e10 * 1000.0/(0.9778e9)**2,"Msol pc yr**-2")   # msun * pc / yr**2
+        ,"Binary_force_2":("BH_force_2",1e10 * 1000.0/(0.9778e9)**2,"Msol pc yr**-2")   # msun * pc / yr**2
+        ,"Binary_mass_1":("BH_mass_1",1.e10,"Msol") # msun
+        ,"Binary_mass_2":("BH_mass_2",1.e10,"Msol")  # msun
+        ,"Binary_accreted_momentum_1":("BH_acc_mom_1",1.e10*1000./0.9778e9,"Msol pc yr**-1")  # msun * pc / yr
+        ,"Binary_accreted_momentum_2":("BH_acc_mom_2",1.e10*1000./0.9778e9,"Msol pc yr**-1")  # msun * pc / yr
     }
 
 def load_interpolate_opacity(opac_mu,
@@ -237,7 +238,7 @@ def load_unit_conversions():
             split_line = stripped_line.split()
             unit_conversions[split_line[0]] = float(split_line[1])
             unit_names[split_line[0]] = split_line[2]
-#     print(unit_conversions)
+    print(unit_conversions)
 
 def check_requirements(gizmo_dataframe,reqs):
     if type(reqs)==str:
@@ -436,6 +437,15 @@ def load_gizmo_nbody(run_id,output_dir,snap_str,load_vals=None,gizmoDir=None,loa
 
     if load_vals is not None:
         nbody_calc_vals(snap,load_vals)
+
+#     for key in ["AGNIntensity","AGNIntensity_2","AGNIntensity_Effective"]:
+# #         if key in snap:
+#             snap[key].units = "6.76849409e-7 erg s**-1 cm**-2"
+# #             print(key,snap[key].units)
+#     for key in ["RadiativeAcceleration"]:
+# #         if key in snap:
+#             snap[key].units = "1.02269032e-6 km s**-1 kyr**-1"
+# #             print(key,snap[key].units)
     
     return header,snap
 
@@ -546,7 +556,8 @@ def nbody_calc_val(snap
         snap["nH"] = snap.gas['rho'].in_units("g cm**-3")/(molecular_mass*pynbody.array.SimArray(proton_mass_cgs,'g'))
     elif val=="temp":
         snap["temp"] = (gamma_minus_one/pynbody.array.SimArray(boltzmann_cgs,"erg K**-1")*(molecular_mass*pynbody.array.SimArray(proton_mass_cgs,'g'))*snap["u"]).in_units('K') 
-    
+    elif val=="RadiativeAcceleration_r":
+        snap["RadiativeAcceleration_r"] = np.sum(snap["RadiativeAcceleration"]*snap["pos"],axis=1)/snap["r"]
 
 def gridsize_from_n(n,aspect=1.):
     nx = 1
@@ -678,12 +689,19 @@ class cloudy_table:
         self.load_table(tableDate,tableRes,prefix)
 
     def load_table(self,tableDate="281118",tableRes="0.0001",prefix="../coolheat_tab_marta"):
+#         self.chTab = tab_interp.CoolHeatTab( (prefix+"shrunk_table_labels_"+tableDate+"tau.dat"),
+#                                         (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+#                                         (prefix+"shrunk_table_labels_"+tableDate+"taunodust.dat"),
+#                                         (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+#                                         (prefix+"shrunk_table_labels_"+tableDate+"taudense.dat"),
+#                                         (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+#                                         )
         self.chTab = tab_interp.CoolHeatTab( (prefix+"shrunk_table_labels_"+tableDate+"tau.dat"),
-                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
+                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"hsmooth_tau.dat"),
                                         (prefix+"shrunk_table_labels_"+tableDate+"taunodust.dat"),
-                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taunodust.dat"),
+                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"hsmooth_taunodust.dat"),
                                         (prefix+"shrunk_table_labels_"+tableDate+"taudense.dat"),
-                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_taudense.dat")
+                                        (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"hsmooth_taudense.dat")
                                         )
  
 #    def load_table(self,tableDate="281118",tableRes="0.0001",prefix=""):

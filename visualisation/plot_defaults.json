@@ -652,10 +652,10 @@
         "label": "$H$",
         "log": false,
         "range": [
-            -100.0,
-            100.0,
-            -100.0,
-            100.0
+            -10000,
+            10000,
+            -10000,
+            10000
         ],
         "slice": "quantslice",
         "symlog": true
@@ -680,10 +680,10 @@
         "label": "$\\log_{10} n_{H}$ (cm$^{-3}$)",
         "log": true,
         "range": [
-            5.0,
-            10.0,
-            5.0,
-            10.0
+            0.0,
+            7.0,
+            0.0,
+            7.0
         ],
         "slice": "quantslice",
         "symlog": false
@@ -928,10 +928,10 @@
         "label": "$v_{\\theta}$",
         "log": false,
         "range": [
-            -50.0,
-            50.0,
-            -50.0,
-            50.0
+            -100.0,
+            100.0,
+            -100.0,
+            100.0
         ],
         "slice": "quantslice",
         "symlog": false
@@ -942,10 +942,10 @@
         "label": "$v_{r}$ (km/s)",
         "log": false,
         "range": [
-            -25.0,
-            25.0,
-            -25.0,
-            25.0
+            -100.0,
+            100.0,
+            -100.0,
+            100.0
         ],
         "slice": "quantslice",
         "symlog": false

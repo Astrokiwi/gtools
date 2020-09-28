@@ -43,6 +43,8 @@ import json
 
 import preqs_config
 
+import copy
+
 class ExceptionWrapper(object):
 
     def __init__(self, ee):
@@ -171,7 +173,7 @@ def safe_pcolormesh(sp,*args,**kwargs):
         args = list(args)
         args[2][:,:] = kwargs["vmin"]
         args = tuple(args)
-    return sp.pcolormesh(*args,**kwargs)
+    return sp.pcolormesh(*args, shading='auto',**kwargs)
 
 
 def makesph_plot(data,plane_keys,
@@ -215,10 +217,10 @@ def makesph_plot(data,plane_keys,
     cmap_label2=cmap2
     cbax2=cbar2
 
-    this_cmap = P.get_cmap(cmap)
+    this_cmap = copy.copy(P.get_cmap(cmap))
 
     if ( cmap_label2 ):
-        this_cmap2 = P.get_cmap(cmap_label2)
+        this_cmap2 = copy.copy(P.get_cmap(cmap_label2))
     
     if ( not plusminus and not diverging ):
         this_cmap.set_bad('black',1.)
@@ -399,7 +401,7 @@ def makesph_plot(data,plane_keys,
 
             if sp is not None:
                 if symLog is not None:
-                    mesh = safe_pcolormesh(sp,xedges,yedges,map.T,cmap=this_cmap,vmin=vmin,vmax=vmax,norm=colors.SymLogNorm(linthresh=symLog,linscale=symLog,vmin=clow,vmax=chigh))
+                    mesh = safe_pcolormesh(sp,xedges,yedges,map.T,cmap=this_cmap,vmin=vmin,vmax=vmax,norm=colors.SymLogNorm(linthresh=symLog,linscale=symLog,vmin=vmin,vmax=vmax))
                 else:
                     mesh = safe_pcolormesh(sp,xedges,yedges,map.T,cmap=this_cmap,vmin=vmin,vmax=vmax)
             if cbax is not None:

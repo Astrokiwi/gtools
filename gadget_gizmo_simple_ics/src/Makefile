@@ -8,7 +8,7 @@ FFLAGS = ${OPTIONS}
 
 .SUFFIXES : .o .f90 .F
 
-DISC_OBJS=gadget_ics_IO.o disc_ICs.o
+DISC_OBJS=gadget_ics_IO.o merge.o disc_ICs.o 
 DISC_EXEC=disc_ICs
 
 disc : ${DISC_OBJS}

@@ -27,16 +27,24 @@ import sys
 
 # gizmoDir = "/export/2/lb1g19/data"
 
-runs = [ ["classic","test_two_BH"]]
+# runs = [ ["classic","test_two_BH"]]
+# 
+# gizmoDir = "/srv/djw1g16/gizmos/bh_merge/"
 
-gizmoDir = "/srv/djw1g16/gizmos/bh_merge/"
+# runs = [ ["devel_norad","open_binary_test"]]
+# runs = [ ["devel_norad","open_binary_inslice_cont"]]
+# runs = [ ["rad_cont","open_binary_rad_cont_inslice_evolved"]]
+# runs = [ ["devel_independent","test_0m0001"]]
+runs = [ ["devel_norad","open_binary_test"], ["devel_norad","open_binary_inslice_cont"], ["rad_cont","open_binary_rad_cont_inslice_evolved"]]
+
+gizmoDir = "/srv/djw1g16/gizmos/"
 
 
 def load_gadget(run_id,output_dir,snap_str):
     return gizmo_tools.load_gizmo_nbody(run_id,output_dir,snap_str=snap_str,gizmoDir=gizmoDir
                                         ,load_binary_headers=True,only_header=True)
 
-def extract_bh_data(run_id,output_dir,gizmoDir=gizmoDir,snap0=0,maxsnapf=-1,nprocs=64):
+def extract_bh_data(run_id,output_dir,gizmoDir=gizmoDir,snap0=0,maxsnapf=-1,nprocs=64,patch_accretion=False):
     snapi = 0
     if snap0>0:
         snapi=snap0
@@ -75,12 +83,22 @@ def extract_bh_data(run_id,output_dir,gizmoDir=gizmoDir,snap0=0,maxsnapf=-1,npro
     # Target unit: pc yr**-2, then multiply by mass in Msun to get Msun pc yr**-2
     BH_force *= pynbody.units.Unit("km**2 kpc**-1 s**-2").in_units("pc yr**-2")
 
-    d['BH_force_1']=BH_force[:,0:3]*d['BH_mass_1'][:,np.newaxis]
-    d['BH_force_2']=BH_force[:,3:6]*d['BH_mass_2'][:,np.newaxis]
+    d['BH_force_1']=BH_force[isnaps,0:3]*d['BH_mass_1'][:,np.newaxis]
+    d['BH_force_2']=BH_force[isnaps,3:6]*d['BH_mass_2'][:,np.newaxis]
 
-    BH_50centiles = np.loadtxt(f"data/bh_50cent_{run_id}_{output_dir}.dat")
-    d['BH_50_1'] = BH_50centiles[:,0]
-    d['BH_50_2'] = BH_50centiles[:,1]
+#     BH_50centiles = np.loadtxt(f"data/bh_50cent_{run_id}_{output_dir}.dat")
+#     d['BH_50_1'] = BH_50centiles[isnaps,0]
+#     d['BH_50_2'] = BH_50centiles[isnaps,1]
+    
+#     if patch_accretion:
+#         d['BH_acc_mom_1'][177:,:]+=d['BH_acc_mom_1'][176,:]
+#         d['BH_acc_mom_2'][177:,:]+=d['BH_acc_mom_2'][176,:]
+
+#         d_acc = np.diff(d['BH_acc_mom_1'],axis=0)
+#         d_acc/= d['BH_acc_mom_1'][0:-1,:]
+#         max_d_acc = np.nanmin(d_acc,axis=1)
+#         print(max_d_acc)
+#         print(np.argwhere(np.abs(d['BH_acc_mom_1'])<1.e-7))
 
     return d
 
@@ -102,6 +120,12 @@ def calc_torque_etc(d):
 #     d['radial_force_2'] = (d['BH_pos_2']-d['BH_pos_1'])*d['BH_force_2']/linalg.norm(d['BH_pos_2']-d['BH_pos_1'],axis=1)[:,np.newaxis]
     d['radial_force_1'] = d['BH_pos_1']*d['BH_force_1']/linalg.norm(d['BH_pos_1'],axis=1)[:,np.newaxis]
     d['radial_force_2'] = d['BH_pos_1']*d['BH_force_2']/linalg.norm(d['BH_pos_2'],axis=1)[:,np.newaxis]
+
+#     d['radial_acc_mom_1'] = d['BH_pos_1']*d['BH_acc_mom_1']/linalg.norm(d['BH_pos_1'],axis=1)[:,np.newaxis]
+#     d['radial_acc_mom_2'] = d['BH_pos_2']*d['BH_acc_mom_2']/linalg.norm(d['BH_pos_2'],axis=1)[:,np.newaxis]
+    
+#     d['acc_cum_torque'] = np.cross(d['BH_pos_1'],d['BH_acc_mom_1']) + np.cross(d['BH_pos_2'],d['BH_acc_mom_2'])
+    d['acc_cum_torque'] = np.cross(d['BH_pos_2']-d['BH_pos_1'],d['BH_acc_mom_2']-d['BH_acc_mom_1'])
     
     d['net_force'] = d['BH_force_1']+d['BH_force_2']
         
@@ -112,68 +136,132 @@ def calc_torque_etc(d):
     d['angmom']*=-1
     d['torque']*=-1
 
+def next_axis(sp):
+    irow=0
+    icol=0
+    
+    while True:
+        print(irow,icol)
+        yield sp[irow,icol]
+        icol+=1
+        if icol>=sp.shape[1]:
+            icol=0
+            irow+=1
+
 def plot_torque(run_id,output_dir,d):
     time = d['time']
     dist = d['dist']
     angmom = d['angmom']
     torque = d['torque']
 
-    nrows=7
+    plots = [    'gcumtorque'
+                ,'acc_cumtorque'
+    
+    ]
+
+    nplots = len(plots)
+    nrows=int(np.ceil(nplots/2))
     ncols=2
 
-    scale = 3.
-    fig,sp = plt.subplots(nrows,ncols,sharex=True,constrained_layout=True,figsize=(ncols*scale*2,nrows*scale))
+#     nrows=7
+#     ncols=2
 
-    sp[0,0].plot(time,dist)
-    sp[0,0].set_ylabel(r'$d$ (pc)')
+    scale = 3.
+    fig,sp = plt.subplots(nrows,ncols,sharex=True,constrained_layout=True,figsize=(ncols*scale*2,nrows*scale),squeeze=False)
+    
+    print(plots,nplots)
     
     time_offset = (time[:-1]+time[1:])/2
     dtime = np.gradient(time)
 
     for iaxis,axis in enumerate(["x","y","z"]):
-        sp[0,1].plot(time,angmom[:,iaxis],label=r"$L_{{{}}}$".format(axis))
+        na = next_axis(sp)
 
-        sp[1,0].plot(time,torque[:,iaxis],label=r"$\tau_{{{}}}$".format(axis))
-#         sp[1,1].plot(time,angmom[:,iaxis]/torque[:,iaxis],label=r"$'\tau_{{{}}}$".format(axis))
-#         sp[1,1].plot(time,d['net_force'][:,iaxis],label=r"$F_{{{}}}$".format(axis))
-        sp[1,1].plot(time,d['cum_torque'][:,iaxis],label=r"$\int\tau_{{{}}}dt$".format(axis))
+        if 'dist' in plots:
+            ax = next(na)
+            if iaxis==0:
+                ax.plot(time,dist)
+                ax.set_ylabel(r'$d$ (pc)')
 
-        sp[2,0].plot(time,d['BH_pos_1'][:,iaxis],label=r"${{{}}}_1$".format(axis))
-        sp[2,1].plot(time,d['BH_pos_2'][:,iaxis],label=r"${{{}}}_2$".format(axis))
 
-        sp[3,0].plot(time,d['BH_vel_1'][:,iaxis],label=r"$v_{{{},1}}$".format(axis))
-        sp[3,1].plot(time,d['BH_vel_2'][:,iaxis],label=r"$v_{{{},2}}$".format(axis))
+        if 'angmom' in plots:
+            ax = next(na)
+            ax.plot(time,angmom[:,iaxis],label=r"$L_{{{}}}$".format(axis))
+            ax.set_ylabel('Angular momentum\n(M$_{\odot}$ pc$^2$ / yr)')
 
-        sp[4,0].plot(time,d['BH_force_1'][:,iaxis],label=r"$F_{{{},1}}$".format(axis))
-        sp[4,1].plot(time,d['BH_force_2'][:,iaxis],label=r"$F_{{{},2}}$".format(axis))
+        if 'gtorque' in plots:
+            ax = next(na)
+            ax.plot(time,torque[:,iaxis],label=r"$\tau_{{{}}}$".format(axis))
+            ax.set_ylabel('Grav Torque\n(M$_{\odot}$ pc$^2$ / yr$^{{-2}}$)')
+#         ax.plot(time,angmom[:,iaxis]/torque[:,iaxis],label=r"$'\tau_{{{}}}$".format(axis))
+#         ax.plot(time,d['net_force'][:,iaxis],label=r"$F_{{{}}}$".format(axis))
+        if 'gcumtorque' in plots:
+            ax = next(na)
+            ax.plot(time,d['cum_torque'][:,iaxis],label=r"$\int\tau_{{{}}}dt$".format(axis))
+            ax.set_ylabel('Integrated Grav Torque\n(M$_{\odot}$ pc$^2$ / yr)')
 
-        sp[5,0].plot(time,(d['BH_force_1'][:,iaxis]-d['radial_force_1'][:,iaxis]),label=r"$F_{{c,{},1}}$".format(axis))
-        sp[5,0].plot(time,(d['radial_force_1'][:,iaxis]),label=r"$F_{{r,{},1}}$".format(axis))
-        sp[5,1].plot(time,(d['BH_force_2'][:,iaxis]-d['radial_force_2'][:,iaxis]),label=r"$F_{{c,{},2}}$".format(axis))
-        sp[5,1].plot(time,(d['radial_force_2'][:,iaxis]),label=r"$F_{{r,{},2}}$".format(axis,axis))
-        
-    sp[6,0].plot(time,(1.-d['BH_50_1']),label='1')
-    sp[6,0].plot(time,(1.-d['BH_50_2']),label='2')
+        if 'bh_pos_1' in plots:
+            ax = next(na)
+            ax.plot(time,d['BH_pos_1'][:,iaxis],label=r"${{{}}}_1$".format(axis))
+            ax.set_ylabel('Pos 1')
+        if 'bh_pos_2' in plots:
+            ax = next(na)
+            ax.plot(time,d['BH_pos_2'][:,iaxis],label=r"${{{}}}_2$".format(axis))
+            ax.set_ylabel('Pos 2')
+
+        if 'bh_vel_1' in plots:
+            ax = next(na)
+            ax.plot(time,d['BH_vel_1'][:,iaxis],label=r"$v_{{{},1}}$".format(axis))
+            ax.set_ylabel('Vel 1')
+        if 'bh_pos_2' in plots:
+            ax = next(na)
+            ax.plot(time,d['BH_vel_2'][:,iaxis],label=r"$v_{{{},2}}$".format(axis))
+            ax.set_ylabel('Vel 2')
+
+        if 'bh_force_1' in plots:
+            ax = next(na)
+            ax.plot(time,d['BH_force_1'][:,iaxis],label=r"$F_{{{},1}}$".format(axis))
+            ax.set_ylabel('Force 1')
+        if 'bh_force_2' in plots:
+            ax = next(na)
+            ax.plot(time,d['BH_force_2'][:,iaxis],label=r"$F_{{{},2}}$".format(axis))
+            ax.set_ylabel('Force 2')
+
+        if 'bh_circradforce_1' in plots:
+            ax = next(na)
+            ax.plot(time,(d['BH_force_1'][:,iaxis]-d['radial_force_1'][:,iaxis]),label=r"$F_{{c,{},1}}$".format(axis))
+            ax.plot(time,(d['radial_force_1'][:,iaxis]),label=r"$F_{{r,{},1}}$".format(axis))
+            ax.set_ylabel('Radial/non-radial force 1')
+        if 'bh_circradforce_2' in plots:
+            ax = next(na)
+            ax.plot(time,(d['BH_force_2'][:,iaxis]-d['radial_force_2'][:,iaxis]),label=r"$F_{{c,{},2}}$".format(axis))
+            ax.plot(time,(d['radial_force_2'][:,iaxis]),label=r"$F_{{r,{},2}}$".format(axis,axis))
+            ax.set_ylabel('Radial/non-radial force 2')
+
+        if 'bh_accmom' in plots:
+            ax = next(na)
+            ax.plot(time,d['BH_acc_mom_1'][:,iaxis],label=r"$P_{{a,{},1}}$".format(axis))
+            ax.plot(time,d['BH_acc_mom_2'][:,iaxis],label=r"$P_{{a,{},2}}$".format(axis))
+            ax.set_ylabel('Accreted momentum')
+
+        if 'acc_cumtorque' in plots:
+            ax = next(na)
+            ax.plot(time,d['acc_cum_torque'][:,iaxis],label=r"$\int\tau_{{{}}}dt$".format(axis))
+            ax.set_ylabel('Accreted torque')
+
+                
+#     sp[6,0].plot(time,(1.-d['BH_50_1']),label='1')
+#     sp[6,0].plot(time,(1.-d['BH_50_2']),label='2')
 
 #         sp[5,0].plot(time,d['BH_force_1'][:,iaxis]-d['BH_BH_accel_1'][:,iaxis],label=r"$\Delta F_{{{},1}}$".format(axis))
 #         sp[5,1].plot(time,d['BH_force_2'][:,iaxis]-d['BH_BH_accel_2'][:,iaxis],label=r"$\Delta F_{{{},2}}$".format(axis))
-    sp[0,1].set_ylabel('Angular momentum\n(M$_{\odot}$ pc$^2$ / yr)')
-    sp[1,0].set_ylabel('Torque\n(M$_{\odot}$ pc$^2$ / yr$^{{-2}}$)')
 #     sp[1,1].set_ylabel('Torque time-scale\n(yr)')
 #     sp[1,1].set_ylabel('Force sum')
-    sp[1,1].set_ylabel('Integraed Torque\n(M$_{\odot}$ pc$^2$ / yr)')
-    sp[2,0].set_ylabel('Pos 1')
-    sp[2,1].set_ylabel('Pos 2')
-    sp[3,0].set_ylabel('Vel 1')
-    sp[3,1].set_ylabel('Vel 2')
 
-    sp[4,0].set_ylabel('Force 1')
-    sp[4,1].set_ylabel('Force 2')
-    sp[5,0].set_ylabel('Radial/non-radial force 1')
-    sp[5,1].set_ylabel('Radial/non-radial force 2')
 
-    sp[6,0].set_ylabel('BH force 50 centile')
-    sp[6,0].set_yscale('log')
+
+#     sp[6,0].set_ylabel('BH force 50 centile')
+#     sp[6,0].set_yscale('log')
     
     for ix in range(ncols):
         sp[-1,ix].set_xlabel(r'Time / Myr')
@@ -200,4 +288,6 @@ def plot_all_torques():
 
 if __name__ == '__main__':
     plot_all_torques()      
-#     extract_plot_torque(*runs[0])      
+#     extract_plot_torque(*runs[0],patch_accretion=True)    
+#     extract_plot_torque(*runs[0])    
+#     extract_plot_torque(*runs[1])#,maxsnapf=20)    

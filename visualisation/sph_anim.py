@@ -68,7 +68,7 @@ if __name__ == '__main__':
     default_values["views"]="face,side"
     default_values["cmap"]="viridis"
     default_values["slice"]=False
-    default_values["phi"]=0.
+    default_values["phi"]="0."
     default_values["theta"]=0.
     default_values["noaxes"]=False
     default_values["centredens"]=False

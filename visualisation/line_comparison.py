@@ -68,7 +68,11 @@ config3032.setup("../")
 
 
 # samples, for paper plots
-output_dirs = ["longrun_medflow_vesc_defaultaniso_polar","newflow_vesc_thin_45"]
+# output_dirs = ["longrun_medflow_vesc_defaultaniso_polar","newflow_vesc_thin_45"]
+
+# sample, for proposal
+output_dirs = ["longrun_medflow_vesc_defaultaniso_polar"]
+
 
 # samples, for poster plots
 # output_dirs = ["longrun_medflow_vesc_defaultaniso_polar"]
@@ -126,17 +130,24 @@ vranges = { "viewIRdust":[-5.,5.],
             "viewco2":[-20.,0.],
             "viewhcn1":[-20.,0.],
             "viewhcn2":[-20.,0.],
-            "viewh2_1":[-20.,0.],
-            "viewh2_2":[-20.,0.],
-            "viewh2_3":[-20.,0.]
+#             "viewh2_1":[-20.,0.],
+#             "viewh2_2":[-20.,0.],
+#             "viewh2_3":[-20.,0.]
+            "viewh2_1":[-10.,0.],
+            "viewh2_3":[-10.,0.]
             }
 # line_codes_all = ["viewco1_000","viewco2_000","viewhcn1_000","viewhcn2_000","viewh2_1_000","viewh2_2_000","viewh2_3_000","viewIRdust_000","viewco1_001","viewco2_001","viewhcn1_001","viewhcn2_001","viewh2_1_001","viewh2_2_001","viewh2_3_001","viewIRdust_001"]
+
+# all lines
 line_codes_all = ["viewco1_000","viewco2_000","viewhcn1_000","viewhcn2_000","viewh2_1_000","viewh2_3_000","viewh2_2_000","viewIRdust_000","viewco1_001","viewco2_001","viewhcn1_001","viewhcn2_001","viewh2_1_001","viewh2_3_001","viewh2_2_001","viewIRdust_001"]
 
 # POSTER lines
 # line_codes = [line_codes_all[0],line_codes_all[6],line_codes_all[7],line_codes_all[8],line_codes_all[14],line_codes_all[15]]
 # paper lines
-line_codes = line_codes_all
+# line_codes = line_codes_all
+# proposal lines
+line_codes = ["viewh2_1_001","viewh2_3_001"]
+
 
 line_ids = [x[4:-4] for x in line_codes]
 extinction_suffix = "extinction"
@@ -347,21 +358,22 @@ def plot_lines_together(run_id,output_dirs,idump,split=False):
                 ax.yaxis.set_visible(False)
                 ax.set_ylabel("")
 
-    # add boxes, from every 2nd to every 1st row
-#     square_corner = -10.
-    square_corner = -9.
-    square_size = -square_corner*2.
-    box_color = '#10D7AE'
-#     for iy_0 in range(0,ny*2,2):
-#     for iy_0 in [0,2]:
-    for iy_0 in [0]:
-        for ix in range(nx):
-            print(ix,iy_0)
-            gizmo_tools.box_connected_two_axes(sp[iy_0,ix]
-                                ,sp[iy_0+1,ix]
-                                ,[square_corner,square_corner]
-                                ,[square_size,square_size]
-                                ,color=box_color)
+    if False:
+        # add boxes, from every 2nd to every 1st row
+    #     square_corner = -10.
+        square_corner = -9.
+        square_size = -square_corner*2.
+        box_color = '#10D7AE'
+    #     for iy_0 in range(0,ny*2,2):
+    #     for iy_0 in [0,2]:
+        for iy_0 in [0]:
+            for ix in range(nx):
+                print(ix,iy_0)
+                gizmo_tools.box_connected_two_axes(sp[iy_0,ix]
+                                    ,sp[iy_0+1,ix]
+                                    ,[square_corner,square_corner]
+                                    ,[square_size,square_size]
+                                    ,color=box_color)
 #             small_ax = sp[iy_0,ix]
 #             big_ax = sp[iy_0+1,ix]
 #             big_ax.add_patch(patches.Rectangle( (square_corner,square_corner),square_size,square_size,fill=False,color=box_color))
@@ -391,7 +403,8 @@ def plot_lines_together(run_id,output_dirs,idump,split=False):
     
     print(my_dpi)
 
-    plt.savefig("../../figures/lines_together_summary_{}_{}.png".format(extinction_suffix,idump),dpi=my_dpi)
+    plt.savefig("../../figures/lines_together_summary_PROPOSAL_{}_{}.png".format(extinction_suffix,idump),dpi=my_dpi)
+#     plt.savefig("../../figures/lines_together_summary_{}_{}.png".format(extinction_suffix,idump),dpi=my_dpi)
 #     plt.savefig("../../figures/lines_together_summary_{}_{}_smoothed.png".format(extinction_suffix,idump),dpi=my_dpi)
 #     plt.savefig("../../figures/lines_together_summary_POSTER_{}_{}.png".format(extinction_suffix,idump),dpi=my_dpi)
 #     plt.savefig("../../figures/lines_together_summary_POSTER_{}_{}.pdf".format(extinction_suffix,idump),dpi=my_dpi)

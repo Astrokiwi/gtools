@@ -76,8 +76,8 @@ labels['TK_p'] = r"$\log T_g$ (K)"
 # dolog['TK_p'] = False
 # ranges['TK_p'] = [0,1e4]
 dolog['TK_p'] = True
-# ranges['TK_p'] = [1.,8.]
-ranges['TK_p'] = [1.,5.]
+ranges['TK_p'] = [1.,8.]
+# ranges['TK_p'] = [1.,5.]
 # ranges['TK_p'] = [.9,8.1]
 # ranges['TK_p'] = [.9,8.1]
 
@@ -106,7 +106,7 @@ dolog['arad_p'] = 1.e7
 ranges['arad_p'] = [-13.,13.]
 
 labels['dHeat'] = r"$H$"
-dolog['dHeat'] = False
+dolog['dHeat'] = 10.
 ranges['dHeat'] = None
 
 labels['dt_heat'] = r"dt$_H$"
@@ -118,13 +118,8 @@ labels['vrad'] = r"$v_{rad}$ (km/s)"
 dolog['vrad'] = False
 # #ranges['vrad'] = [-300,300]
 # ranges['vrad'] = [-300,1.e3]
-<<<<<<< HEAD
-# ranges['vrad'] = [-100,600.]
-ranges['vrad'] = [-50,200.]
-=======
 # ranges['vrad'] = [-100,300.]
 ranges['vrad'] = [-200,200.]
->>>>>>> f8a13a36d791877ad598f9a41965ef2b77bcf0db
 # # ranges['vrad'] = [-50,300.]
 # # ranges['vrad'] = [-50,600.]
 # ranges['vrad'] = [-4.,4.]
@@ -160,11 +155,12 @@ labels['vcirc'] = r"$v_{circ}$ km/s"
 dolog['vcirc'] = False
 ranges['vcirc'] = [-20.,150.]
 
-labels['vel'] = r"$v$ km/s"
+# labels['vel'] = r"$v$ km/s"
+labels['vel'] = r"$\log_{10} v$ km/s"
 # dolog['vel'] = True
 dolog['vel'] = False
-ranges['vel'] = [0.,1.e3]
-# ranges['vel'] = [0.,5.]
+# ranges['vel'] = [0.,1.e3]
+ranges['vel'] = [-1.e5,1.e5]
 # ranges['vel'] = None
 
 # labels['vel'] = r"$\log v$ km/s"
@@ -294,7 +290,7 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
     for x in ["dustTemp","dHeat"]+lines:
         preqs[x] = ["table"]
     preqs["table"] = ["nH_p","TK_p","flux_p","tau"]
-    preqs["dHeat"] = ["u_p","agn_heat_p"]
+    preqs["dHeat"]+= ["u_p","agn_heat_p"]
     preqs["cs_p"] = ["u_p"]
     preqs["mJ_p"] = ["cs_p"]
     preqs["prat"] = ["p_p","nH_p","TK_p","mJ_p","m_p"]
@@ -476,8 +472,8 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
 #         tableDate="281118"
 #         tableRes="0.0001"
 
-        tableDate="060319"
-        tableRes="0.1"
+        tableDate="130720" 
+        tableRes="0.001"
 
 #         print("Loading table and extracting values")
 #         start = timer.time()
@@ -500,7 +496,7 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
 
         print("Loading table and extracting values")
         start = timer.time()
-        cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"./")
+        cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"coolheat_tab_marta/")
         end = timer.time()
         print("Table loaded",end-start)
         
@@ -547,7 +543,8 @@ def loadvalues(run_id,output_dir,snap_str,includedVals,rcut=None):
 #             values[lineVal] = np.array(list(map(lambda y: y.__getattr__("line_"+lineVal), tabStructs)))
 
 
-#     if ( "dHeat" in requiredVals ):
+    if ( "dHeat" in requiredVals ):
+        values["dHeat"] = table_particles["dHeat"]
 #         values["dHeat"] = map(lambda y: y.dHeat, tabStructs)
 #         values["dHeat"] = np.array(values["dHeat"])
 

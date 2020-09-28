@@ -8,7 +8,7 @@ module IC_parameters
     real(kind=8) :: v0,v0rad,v_index
     real(kind=8) :: T0
     real(kind=8) :: vloop0,vlooprad
-    real(kind=8) :: hotcore
+    real(kind=8) :: hotcore,corescale
     integer :: nhotcore,ndisc
     
     real(kind=8) :: dense_index
@@ -27,7 +27,10 @@ module IC_parameters
     logical :: selfgrav
     logical :: constant_surf
 
-    character(len=256) :: position_file
+    character(len=512) :: position_file
+
+    character(len=512) :: velpos_file
+    integer :: n_velpos_input
 
 
     real(kind=8), parameter :: cooled_sound_speed = .67d0
@@ -58,8 +61,8 @@ program disc_ICs
     use IC_parameters
     implicit none
     
-    character(len=256) :: pramfile,intext,invariable,invalue,outfile,trimtext
-    character(len=256) :: tproffile
+    character(len=512) :: pramfile,intext,invariable,invalue,outfile,trimtext
+    character(len=512) :: tproffile
     integer :: ios
     integer :: whitey
     
@@ -94,6 +97,8 @@ program disc_ICs
     constant_surf = .false. ! if true, Q_target is *minimum* Q, and try to make surface density & 3d density constant 
     
     position_file = "" ! generate positions randomly
+    velpos_file = "" ! "" means generate disc, otherwise filename to read in velocities and positions
+    n_velpos_input=-1
 
     NumofBHs = -1
     binary_bh = .FALSE.
@@ -103,9 +108,10 @@ program disc_ICs
     hernquist_mass = 1.d9
     hernquist_scale = 250.d0
     
-    ! negative = not initial hot core, otherwise = temp of hot core
+    ! negative = not initial hot core, 0 = generate hot core profile, positive = temp of hot core
     hotcore = -1.
     nhotcore = 0
+    corescale = -1 ! set to inner_disc_rad if <0, else in pc
 
     !mtot = 2.d6/1.d10 ! units of 1.d10 msun
     mtot = 8.426453d6 ! units of Msun
@@ -249,11 +255,17 @@ program disc_ICs
                 case("temp")
                     read(invalue,*) T0
                 case("hotcore")
-                    read(intext,*,iostat=ios) invariable,hotcore,nhotcore
+                    read(intext,*,iostat=ios) invariable,hotcore,nhotcore,corescale
 
                 case("pfile")
                     read(intext,"(A6,A)",iostat=ios) invariable,position_file
                     ! read in N too
+
+                case("pvfile")
+                    read(intext,"(A6,A)",iostat=ios) invariable,velpos_file
+                    ! read in N too
+                case("N_in")
+                    read(invalue,*) n_velpos_input
 
                 case("N")
                     read(invalue,*) np
@@ -302,7 +314,7 @@ program disc_ICs
     vlooprad = vlooprad/1.e3
     
     ndisc = np
-    if ( hotcore>0. .and. nhotcore>0 ) then
+    if ( hotcore>=0. .and. nhotcore>0 ) then
         print *,"Increasing np from ",np," to ",np+nhotcore," to produce hot core"
         print *,"Increasing mtot from ",mtot," to ",mtot/np*(np+nhotcore)," to maintain resolution"
         mtot = mtot/np*(np+nhotcore)
@@ -325,10 +337,14 @@ program disc_ICs
     header%boxSize = 0. ! ignored with periodic boundaries turned off
 
     call p_data%doAllocations
+
+    if ( velpos_file=="" ) then
+        call disc_locs(tproffile)
+    else
+        call file_locs_vels
+    endif
     
-    call disc_locs(tproffile)
-    
-    if ( hotcore>0. .and. nhotcore>0 ) then
+    if ( hotcore>=0. .and. nhotcore>0 ) then
         call hotcore_locs()
     endif
     
@@ -588,6 +604,73 @@ subroutine calc_const_q_surf_profile(rans)
     
 end subroutine
 
+subroutine file_locs_vels
+    use gadget_ics_IO
+    use IC_parameters
+    use merge
+    implicit none
+    
+    real(kind=4),dimension(:,:),allocatable :: r,v
+    real(kind=4),dimension(:),allocatable :: u,rad
+    integer,dimension(:),allocatable :: iarg
+    
+    print*,"Reading positions, velocities, and temperatures from `",adjustl(trim(velpos_file)),"`"
+
+    if ( n_velpos_input==ndisc ) then
+
+        open(unit=16,file=adjustl(trim(velpos_file)),form='unformatted')
+        read(16) p_data%r_p(1,1:ndisc)
+        read(16) p_data%r_p(2,1:ndisc)
+        read(16) p_data%r_p(3,1:ndisc)
+        read(16) p_data%v_p(1,1:ndisc)
+        read(16) p_data%v_p(2,1:ndisc)
+        read(16) p_data%v_p(3,1:ndisc)
+        read(16) p_data%u_p(1:ndisc)
+        close(16)
+    else
+        allocate(r(1:3,n_velpos_input))
+        allocate(v(1:3,n_velpos_input))
+        allocate(u(n_velpos_input))
+        allocate(rad(n_velpos_input))
+        allocate(iarg(n_velpos_input))
+        
+        print *,n_velpos_input
+        print *,size(r(1,1:n_velpos_input))
+
+        open(unit=16,file=adjustl(trim(velpos_file)),form='unformatted')
+        read(16) r(1,1:n_velpos_input)
+        read(16) r(2,1:n_velpos_input)
+        read(16) r(3,1:n_velpos_input)
+        read(16) v(1,1:n_velpos_input)
+        read(16) v(2,1:n_velpos_input)
+        read(16) v(3,1:n_velpos_input)
+        read(16) u(1:n_velpos_input)
+        close(16)
+        
+        rad = sum(r(1:3,1:n_velpos_input)**2,1)     
+
+        call merge_argsort(rad,iarg)
+        
+        print *,rad(iarg(1:5))
+        p_data%r_p(1:3,1:ndisc) = r(1:3,iarg(n_velpos_input-ndisc:n_velpos_input))
+        p_data%v_p(1:3,1:ndisc) = v(1:3,iarg(n_velpos_input-ndisc:n_velpos_input))
+        p_data%u_p(1:ndisc) = u(iarg(n_velpos_input-ndisc:n_velpos_input))
+
+        deallocate(iarg)
+        deallocate(r)
+        deallocate(v)
+        deallocate(u)
+        deallocate(rad)
+    endif
+    
+    print *,p_data%r_p(1:3,1)
+    print *,p_data%v_p(1:3,1)
+    print *,p_data%u_p(1:10)
+    
+    print *,sum(p_data%r_p,2)/ndisc
+    print *,sum(p_data%v_p,2)/ndisc
+end subroutine
+
 subroutine disc_locs(tproffile)
     use gadget_ics_IO
     use IC_parameters
@@ -595,7 +678,7 @@ subroutine disc_locs(tproffile)
     implicit none
     
     integer :: ip
-    character(len=256) :: tproffile
+    character(len=512) :: tproffile
     
     real(kind=8), dimension(:,:), allocatable :: rans
     real(kind=8), dimension(:),allocatable :: rads, vcircs, mrads, vrads, vphis
@@ -677,8 +760,6 @@ subroutine disc_locs(tproffile)
             p_data%r_p(2,ip) = (-p_data%r_p(2,ip)+180)*1.e-5
             p_data%r_p(3,ip) = real((rans(ip,3)-.5e0)*2.e-5+.5e-3)
         end do
-        
-        close(16)
     endif
     deallocate(rans)
     
@@ -829,13 +910,25 @@ subroutine hotcore_locs
     allocate(theta(nhotcore))
     call random_number(rans) ! generate random numbers
 
+    if ( corescale<0. ) then
+        corescale = disc_inner_rad
+    else
+        corescale = corescale*1.d-3 ! pc to kpc
+    endif
+
     phi = rans(:,1)*2.d0*pi
     theta = acos(rans(:,2)*2.d0-1.d0)
-    rad = disc_inner_rad*rans(:,3)**(1.d0/3.d0)
+    rad = corescale*rans(:,3)**(1.d0/3.d0)
 
     p_data%r_p(1,ndisc+1:ndisc+nhotcore) = real(rad*sin(theta)*cos(phi))
     p_data%r_p(2,ndisc+1:ndisc+nhotcore) = real(rad*sin(theta)*sin(phi))
     p_data%r_p(3,ndisc+1:ndisc+nhotcore) = real(rad*cos(theta))
+
+    if ( hotcore>0 ) then
+        p_data%u_p(ndisc+1:ndisc+nhotcore)=real(hotcore/u_to_TK/uunit_cgs)
+    else
+        call gen_hotcore_temp_prof(rad)
+    endif
 
     deallocate(rans)
     deallocate(rad)
@@ -844,9 +937,40 @@ subroutine hotcore_locs
     
     p_data%v_p(:,ndisc+1:ndisc+nhotcore)=0.d0
 
-    p_data%u_p(ndisc+nhotcore)=real(T0/u_to_TK/uunit_cgs)
 
 end subroutine hotcore_locs
+
+subroutine gen_hotcore_temp_prof(rad)
+    use gadget_ics_IO
+    use IC_parameters
+    use Units
+    implicit none
+    
+    real(kind=8), dimension(nhotcore), intent(in) :: rad
+    
+    integer :: i
+    
+    p_data%u_p(ndisc+1:ndisc+nhotcore) = real(SUM(bh_mass(:))*(atan(rad/c_scale)-atan(1.))) ! change atan(1) to r0 at some point
+    
+    select case(pot_type)
+        case(HERNQUIST_POT)
+            p_data%u_p(ndisc+1:ndisc+nhotcore) = p_data%u_p(ndisc+1:ndisc+nhotcore) + &
+                    real(hernquist_mass*( 1./(hernquist_scale+1.) - 1./(hernquist_scale+rad)))
+        case default
+            print*,"POT NOT SUPPORTED FOR HOTCORE TEMP PROFILE"
+    end select
+
+    p_data%u_p(ndisc+1:ndisc+nhotcore) = real(-p_data%u_p(ndisc+1:ndisc+nhotcore)*G*gamma_minus_one)
+    
+    print *,"dumping"
+    
+    open(unit=62,file="test.dat")
+    do i=1,nhotcore
+        write(62,*) rad(i),p_data%u_p(ndisc+i)
+    end do
+    close(62)  
+    
+end subroutine gen_hotcore_temp_prof
 
 ! set temperature profile by interpolating from points in a file
 subroutine temp_profile(tproffile, rads, vcircs)
@@ -854,7 +978,7 @@ subroutine temp_profile(tproffile, rads, vcircs)
     use IC_parameters, only: ndisc 
     implicit none
     
-    character(len=256) :: tproffile
+    character(len=512) :: tproffile
     real(kind=8), dimension(p_data%ng), intent(in) :: rads
     real(kind=8), dimension(p_data%ng), intent(out) :: vcircs
     
