@@ -1,3 +1,4 @@
+
 print("Importing")
 
 import tblib.pickling_support
@@ -7,16 +8,18 @@ tblib.pickling_support.install()
 import numpy as np
 import sys
 import os
+this_dir, this_filename = os.path.split(__file__)
+
 # from joblib import Parallel, delayed
 from multiprocessing import Pool
 import functools
 
-import sph_frame
+from . import sph_frame
 import re
 
 from sys import path
-path.append("../")
-import gizmo_tools
+# path.append("../../")
+from ... import gizmo_tools
 
 import argparse
 
@@ -56,7 +59,7 @@ def plotter_parallel_exception_wrapper(*args,**kwargs):
         print(e) # should give some output at least
         raise(e) # might not work
 
-if __name__ == '__main__':
+def parse_input():
     default_values = dict()
     default_values["nprocs"]=8
     default_values["maxsnapf"]=-1
@@ -120,7 +123,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     anim_prams = dict()
-    frame_prams = dict()
     
     # copy from parser into run_prams dict
     for parseval in parsevals:
@@ -133,6 +135,24 @@ if __name__ == '__main__':
                 print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],anim_prams[parseval]))
             else:
                 raise Exception("No default value for {} - it must be specified!".format(parseval))
+    return anim_prams
+
+
+# TODO: copy other keys into frame_prams kwargs, to simplify function call
+# and/or use functools properly
+def frame_i(i):
+    global infiles,outfiles,rads,thetas,phis,frame_prams
+#         return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview
+    #,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize
+    #,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
+    return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],**frame_prams,scale=rads[i],rot=[thetas[i],phis[i]])
+    #,opac_mu=opac_mu)
+
+
+def animate(anim_prams):
+    global infiles,outfiles,rads,thetas,phis,frame_prams # I hate this, but it makes pickle happy
+
+    frame_prams = dict()
 
     frame_prams["flat"] = not anim_prams["slice"]
     frame_prams["ring"] = frame_prams["flat"]
@@ -160,7 +180,7 @@ if __name__ == '__main__':
     outp_plot = "".join(frame_prams["plot"])
 
     frame_prams["views"] = anim_prams["views"].split(",")
-    outp_views = "".join(frame_prams["views"])
+#     outp_views = "".join(frame_prams["views"])
     
     if isinstance(anim_prams["phi"],list):
         anim_prams["phi"]=[x*2.*np.pi/360. for x in anim_prams["phi"]]
@@ -185,6 +205,8 @@ if __name__ == '__main__':
     absurd = anim_prams["absurd"]
     rad = string_to_list_or_float(anim_prams["rad"])
 
+
+
     if gizmoDir is None:
         gizmoDir = gizmo_tools.getGizmoDir(run_id)
     movieDir = gizmo_tools.getMovieDir()
@@ -202,15 +224,16 @@ if __name__ == '__main__':
         print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
-    os.system("rm ../pics/sphplot"+run_id+output_dir+"???.png")
-
+    pic_dir = os.path.join(this_dir,"../../pics/")
+    data_dir = os.path.join(this_dir,"../../data/")
+    os.system("rm "+pic_dir+"/sphplot"+run_id+output_dir+"???.png")
 
     print("nfiles:",snapf-snapi+1)
     
     isnaps = range(snapi,snapf+1,snapstep)
     
     infiles = [fullDir+"/snapshot_"+("%03d" % snapx)+".hdf5" for snapx in isnaps]
-    outfiles = ["../pics/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
+    outfiles = [pic_dir+"/sphplot"+run_id+output_dir+"%03d.png"%snapx for snapx in isnaps]
     
     nfiles = len(infiles)
     if absurd:
@@ -233,15 +256,6 @@ if __name__ == '__main__':
     
     if "rad0" in frame_prams["plot"]:
         dump_rad0(infiles[0])
-
-    # copy other keys into frame_prams kwargs, to simplify function call
-
-    def frame_i(i):
-#         return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview
-        #,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize
-        #,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
-        return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],**frame_prams,scale=rads[i],rot=[thetas[i],phis[i]])
-        #,opac_mu=opac_mu)
 
     with Pool(processes=anim_prams["nprocs"]) as pool:
         maps=[]
@@ -266,15 +280,20 @@ if __name__ == '__main__':
                 print("type=",type(map))
                 if type(map) is list:
                     for imap,submap in enumerate(map):
-                        outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+"_%03d.dat"%imap
+                        outfile = data_dir+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+"_%03d.dat"%imap
                         np.savetxt(outfile,submap)
                 else:
-                    outfile = "../data/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+".dat"
+                    outfile = data_dir+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+".dat"
                     np.savetxt(outfile,map)
 
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -i ../pics/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
+    cmd = "ffmpeg -y -r 24 -i "+pic_dir+"sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
 
     print(cmd)
     os.system(cmd)
+
+
+if __name__ == '__main__':
+    anim_prams = parse_input()
+    animate(anim_prams)

@@ -1,3 +1,10 @@
+#import pkg_resources - with setup.py to set locations of things
+
+#This is obsolete, but do it anyway because we're not in a package:
+
+import os
+this_dir, this_filename = os.path.split(__file__)
+
 # Import libraries to do our magic
 import tblib.pickling_support
 tblib.pickling_support.install()
@@ -14,15 +21,16 @@ import pylab as P
 #from joblib import Parallel, delayed
 from scipy.ndimage.filters import gaussian_filter
 
-from sph_plotter import sph_plotter as sph_plotter_noisy
-import output_suppressor
+from .sph_plotter import sph_plotter as sph_plotter_noisy
+from . import output_suppressor
 sph_plotter=output_suppressor.suppressed(sph_plotter_noisy)
 # from sph_plotter import sph_plotter
 
 from sys import path, version, exit
-path.append("../src/")
-path.append("../")
-import tab_interp
+# path.append("../../src/")
+# path.append("../../")
+from ...src import tab_interp
+# import tab_interp
 
 import sys
 import traceback
@@ -33,7 +41,8 @@ from difflib import SequenceMatcher
 
 import itertools
 
-import gizmo_tools
+from ... import gizmo_tools
+# import gizmo_tools
 import pandas as pd
 import pynbody
 
@@ -41,7 +50,7 @@ from scipy import interpolate
 
 import json
 
-import preqs_config
+from . import preqs_config
 
 import copy
 
@@ -59,8 +68,10 @@ def similar(a, b):
 
 dust_opacity_function = None
 def load_interpolate_opacity(opac_mu,
-                        opac_file="../prams/simple_dust_opacity.txt"):
+                        opac_file=None):
     global dust_opacity_function
+    if opac_file is None:
+        opac_file = os.path.join(this_dir,"../../prams/simple_dust_opacity.txt")
     if dust_opacity_function is None:
         dust_opacity_table = np.loadtxt(opac_file)
         dust_opacity_function = interpolate.interp1d(dust_opacity_table[:,0],dust_opacity_table[:,1])
@@ -492,7 +503,7 @@ def load_gadget(infile, plot_thing
         run_name = infile_split[-2]
         run_snapfile = infile_split[-1]
         run_isnap = int(run_snapfile[-8:-5])
-        age_file = "../data/age_{}_{}_{}.dat".format(run_id,run_name,run_isnap)
+        age_file = "../../data/age_{}_{}_{}.dat".format(run_id,run_name,run_isnap)
         data["age"] = time-np.loadtxt(age_file)
 
     if ( "pres" in need_to_load ):
@@ -572,9 +583,10 @@ def load_gadget(infile, plot_thing
         verboseprint("Load dust tables")
 
 #         tableDate="060319" # used in paper - not all intensities are there
-        tableDate="180620" 
+        tableDate="130720" 
         tableRes="0.1"
-        cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"../coolheat_tab_marta/")
+        coolheat_dir = os.path.join(this_dir,"../../coolheat_tab_marta")
+        cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,coolheat_dir)
         data["flux_p"] = np.array(f["/PartType0/AGNIntensity"]) # energy per surface area per time
         data["flux_p"]*=1.989e+53/(3.086e21)**2/(3.08568e+16)
         
@@ -665,7 +677,7 @@ def load_gadget(infile, plot_thing
     return time,data
 
 def pack_dicts():
-    with open('plot_defaults.json', 'r') as f:
+    with open(os.path.join(this_dir,"plot_defaults.json"), 'r') as f:
         plot_config = json.load(f)
 
     # assign defaults

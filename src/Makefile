@@ -29,8 +29,8 @@ INTERP_OBJS=dust_temp_interp.o
 test: ${INTERP_OBJS}
 	${CXX} ${OPTIONS} ${INCL} ${INTERP_OBJS} ${LIBS} -o ../tab_interp_test
 
-calc_neighbours:
-	f2py --opt=-O3 -c fort_calc_neighbours.f90 -m fort_calc_neighbours    
+#calc_neighbours:
+#	f2py --opt=-O3 -c fort_calc_neighbours.f90 -m fort_calc_neighbours    
 
 clean :
 	rm *.o

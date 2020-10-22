@@ -9,7 +9,7 @@ preqs_list = [
     ,["emit"  , ["tdust","dg"]]
     ,["tdust"  , "table"]
     ,["dust"  , "dg"]
-    ,[["IRdust","IRdustm"], "dg"]
+    ,[["IRdust","IRdustm","viewIRdust"], ["dg","tdust"]]
     ,["dg"  , "table"]
     ,["table"  ,  ["temp","nH","tau"]]
     ,[["vel0" ,"age"],"id"]

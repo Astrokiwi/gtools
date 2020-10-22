@@ -11,11 +11,14 @@ import matplotlib.ticker as ticker
 
 import matplotlib.pyplot as P
 
-from sys import path
-path.append("src/")
-import tab_interp
+import os
+this_dir, this_filename = os.path.split(__file__)
 
-import gizmo_tools
+# from sys import path
+# path.append("src/")
+from .src import tab_interp
+
+from . import gizmo_tools
 
 import time as timer
 import pandas as pd
@@ -48,7 +51,7 @@ labels['nH_p'] = r"$\log n_H$ (cm$^{-3}$)"
 dolog['nH_p'] = True
 # ranges['nH_p'] = [-4,8]
 # ranges['nH_p'] = [-4,12]
-ranges['nH_p'] = [-1,7]
+ranges['nH_p'] = [2,12]
 # ranges['nH_p'] = [6,9]
 
 labels['rho_p'] = r"$\log \rho$ (g cm$^{-3}$)"
@@ -742,7 +745,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None,m_bh=1.e6,g
                     weight_str = ""
         #for iv in range(7):
         #    for jv in [7]:
-                fname = "pics/"+run_id+output_dir+iv+jv+weight_str+snap_str+".png"
+                fname = os.path.join(this_dir,"pics",run_id+output_dir+iv+jv+weight_str+snap_str+".png")
                 outfiles.append(fname)
                 fig,sp = P.subplots(1,1)
             

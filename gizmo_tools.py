@@ -18,9 +18,9 @@ import matplotlib.patches as patches
 # for interpolating GIZMO tables
 import ctypes
 from sys import path
-path.append("src/")
-path.append("../src/")
-import tab_interp
+# path.append("src/")
+# path.append("../src/")
+from .src import tab_interp
 
 import matplotlib.pyplot as plt
 

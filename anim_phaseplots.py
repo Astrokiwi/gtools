@@ -4,15 +4,17 @@ print("Importing")
 import numpy as np
 import sys
 import os
+# this_dir, this_filename = os.path.split(__file__)
+
 #from joblib import Parallel, delayed
 from multiprocessing import Pool
 from functools import partial
 
-import phaseplots
+from . import phaseplots
 import re
 import itertools as it
 
-import gizmo_tools
+from . import gizmo_tools
 
 import glob
 
@@ -55,7 +57,7 @@ if __name__ == '__main__':
 #     includedVals = ["hcn2","nH_p","TK_p","tau","flux_p"]
 #     includedVals = ["nH_p","TK_p","tau","flux_p"]
 #     includedVals = ["nH_p","tau"]
-#     includedVals = ["nH_p","TK_p","tau"]
+    includedVals = ["nH_p","TK_p"]
 #     includedVals = ["vrad","TK_p"]
 #     includedVals = ["nH_p","arad_p"]
 #     includedVals = ["arad_p","nH_p","TK_p","flux_p","rad_p","prad","pratio"]
@@ -83,7 +85,7 @@ if __name__ == '__main__':
 #     includedVals = ["vrad","z_p"]
     #includedVals = ["flux_p","radrad_p"]
 #     includedVals = ["nH_p","TK_p"]
-    includedVals = ["rad_p","vrad"]
+#     includedVals = ["cs_p","vrad"]
 #     includedVals = ["rad2d_p","agn_heat_p","radrad_p"]
 #     includedVals = ["TK_p","opac"]
     #includedVals = ["p_p","nH_p"]
@@ -92,7 +94,7 @@ if __name__ == '__main__':
     #includedVals = ["depth_p","radrad_p"]
 #     includedVals = ["dt_p","TK_p"]
 #     includedVals = ["TK_p","agn_heat_p"]
-#     includedVals = ["rad_p","vel"]
+#     includedVals = ["vel","TK_p"]
 #     includedVals = ["rad_p","nH_p","TK_p","opac","arad_p","radrad_p"]
 #     includedVals = ["rad_p","arad_p"]
     #includedVals = ["prat"]
@@ -113,7 +115,8 @@ if __name__ == '__main__':
 
     snapi = 0
     snapf = gizmo_tools.lastConsecutiveSnapshot(run_id,output_dir,False)
-#     snapf = 100
+#     snapf = 22
+#     print("HACKING SNAPF to 22")
     
     movieDir = gizmo_tools.getMovieDir()
 
