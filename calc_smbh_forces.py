@@ -120,6 +120,7 @@ def calc_smbh_forces(runs):
 if __name__ == '__main__':
 #      snap_forces=calc_smbh_forces(runs)
 #     calc_smbh_force("devel_norad","open_binary_test",gizmoDir="/srv/djw1g16/gizmos/",nprocs=128)
-    calc_smbh_force("devel_norad","open_binary_inslice_cont",gizmoDir="/srv/djw1g16/gizmos/",nprocs=128)
-    calc_smbh_force("rad_cont","open_binary_rad_cont_inslice_evolved",gizmoDir="/srv/djw1g16/gizmos/",nprocs=128)
+#     calc_smbh_force("devel_norad","open_binary_inslice_cont",gizmoDir="/srv/djw1g16/gizmos/",nprocs=128)
+#     calc_smbh_force("rad_cont","open_binary_rad_cont_inslice_evolved",gizmoDir="/srv/djw1g16/gizmos/",nprocs=128)
+    calc_smbh_force("rad_cont","open_binary_rad_cont_inslice_full",gizmoDir="/srv/djw1g16/gizmos/",nprocs=128)
 #     calc_smbh_force("devel_independent","test_0m0001",gizmoDir="/srv/djw1g16/gizmos/",nprocs=128)

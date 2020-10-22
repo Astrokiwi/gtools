@@ -10,6 +10,7 @@ module IC_parameters
     real(kind=8) :: vloop0,vlooprad
     real(kind=8) :: hotcore,corescale
     integer :: nhotcore,ndisc
+    logical :: core_rot
     
     real(kind=8) :: dense_index
     
@@ -112,6 +113,7 @@ program disc_ICs
     hotcore = -1.
     nhotcore = 0
     corescale = -1 ! set to inner_disc_rad if <0, else in pc
+    core_rot = .false. ! 2d rotation curve if .true.
 
     !mtot = 2.d6/1.d10 ! units of 1.d10 msun
     mtot = 8.426453d6 ! units of Msun
@@ -256,6 +258,9 @@ program disc_ICs
                     read(invalue,*) T0
                 case("hotcore")
                     read(intext,*,iostat=ios) invariable,hotcore,nhotcore,corescale
+                case("core_rot")
+                    core_rot = .true.
+                    print *,"Rotating core/halo"
 
                 case("pfile")
                     read(intext,"(A6,A)",iostat=ios) invariable,position_file
@@ -903,6 +908,8 @@ subroutine hotcore_locs
     
     real(kind=8), dimension(:,:), allocatable :: rans
     real(kind=8), dimension(:), allocatable :: rad,phi,theta
+
+    real(kind=8), dimension(:), allocatable :: mrads,vcircs,rad_2d
     
     allocate(rans(nhotcore,3))
     allocate(rad(nhotcore))
@@ -931,12 +938,43 @@ subroutine hotcore_locs
     endif
 
     deallocate(rans)
-    deallocate(rad)
     deallocate(phi)
     deallocate(theta)
     
-    p_data%v_p(:,ndisc+1:ndisc+nhotcore)=0.d0
+    if ( core_rot ) then
+        allocate(mrads(nhotcore))
+        allocate(vcircs(nhotcore))
+        allocate(rad_2d(nhotcore))
 
+        rad_2d = sqrt(p_data%r_p(1,ndisc+1:ndisc+nhotcore)**2+p_data%r_p(2,ndisc+1:ndisc+nhotcore)**2)
+    
+                ! smbh potential
+        mrads = SUM(bh_mass(:))*rad**2/(rad**2+c_scale**2)
+        
+        print *,"total BH mass", SUM(bh_mass(:)), bh_mass(1), bh_mass(2)
+        select case(pot_type)
+            case(FLAT_POT)
+                mrads = mrads + v_large**2*rad**2/G/dsqrt(rad**2+a_scale**2)
+            case(HERNQUIST_POT)
+                mrads = mrads + hernquist_mass*(rad/(hernquist_scale+rad))**2
+            case default
+                print*,"POT NOT FOUND"
+        end select
+        vcircs = dsqrt(G*mrads/rad)
+
+        ! convert to cartesian
+        p_data%v_p(1,ndisc+1:ndisc+nhotcore) =  real(vcircs * p_data%r_p(2,ndisc+1:ndisc+nhotcore) / rad_2d)
+        p_data%v_p(2,ndisc+1:ndisc+nhotcore) = real(-vcircs * p_data%r_p(1,ndisc+1:ndisc+nhotcore) / rad_2d)
+        p_data%v_p(3,ndisc+1:ndisc+nhotcore) = 0.
+        
+        deallocate(mrads)
+        deallocate(vcircs)
+        deallocate(rad_2d)
+    else
+        p_data%v_p(:,ndisc+1:ndisc+nhotcore)=0.d0
+    endif
+
+    deallocate(rad)
 
 end subroutine hotcore_locs
 

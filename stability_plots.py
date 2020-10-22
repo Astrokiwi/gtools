@@ -17,7 +17,7 @@ if __name__ == '__main__':
     cloudy_table = gizmo_tools.cloudy_table(tableDate,tableRes,"coolheat_tab_marta/")
     
     print("Setting up input grid")
-    L_P = 128
+    L_P = 256
     P_edges = 10**np.linspace(-16,2.,L_P+1)
     P_range = (P_edges[:-1]+P_edges[1:])/2
 
@@ -42,16 +42,15 @@ if __name__ == '__main__':
     print("Calculating dust/cooling/heating properties from table")
     cloudy_table.interp(table_particles)
 
-    table_particles["net_heat"] = (10**table_particles["dHeat"]-10**table_particles["dCool"])/table_particles["nH"]
-    
-    heating_map = np.reshape(table_particles["net_heat"].data,(L_nH,L_P))
-    
-    symmetric_max = np.max(np.abs(heating_map))
+    table_particles["log_net_heat"] = table_particles["dHeat"]-table_particles["dCool"]
+ 
+    heating_map = np.reshape(table_particles["log_net_heat"].data,(L_nH,L_P))
     
     print("Dumping plot")
-    plt.pcolormesh(np.log10(nH_edges),np.log10(P_edges),heating_map.T,cmap='seismic',vmin=-symmetric_max,vmax=symmetric_max,norm=matplotlib.colors.SymLogNorm(1.e-19))
-    plt.xlabel('log nH')
-    plt.ylabel('log P')
-    plt.colorbar()
+    plt.pcolormesh(np.log10(nH_edges),np.log10(P_edges),heating_map.T,cmap='seismic',vmin=-2,vmax=2)
+    plt.xlabel('log nH (cm^3)')
+    plt.ylabel('log P (dyne/cm^2)')
+    cb.plt.colorbar()
+    cb.set_label('log Heating/Cooling')
     plt.savefig("pics/stability.png",dpi=200)
     plt.close('all')

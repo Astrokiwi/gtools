@@ -134,28 +134,36 @@ vranges = { "viewIRdust":[-5.,5.],
 #             "viewh2_2":[-20.,0.],
 #             "viewh2_3":[-20.,0.]
             "viewh2_1":[-10.,0.],
-            "viewh2_3":[-10.,0.]
+            "viewh2_3":[-10.,0.],
+            "view12mic":[-20,0.],
+            "view8mic":[-20,0.],
+            "view850mic":[-20,0.]
             }
 # line_codes_all = ["viewco1_000","viewco2_000","viewhcn1_000","viewhcn2_000","viewh2_1_000","viewh2_2_000","viewh2_3_000","viewIRdust_000","viewco1_001","viewco2_001","viewhcn1_001","viewhcn2_001","viewh2_1_001","viewh2_2_001","viewh2_3_001","viewIRdust_001"]
 
 # all lines
-line_codes_all = ["viewco1_000","viewco2_000","viewhcn1_000","viewhcn2_000","viewh2_1_000","viewh2_3_000","viewh2_2_000","viewIRdust_000","viewco1_001","viewco2_001","viewhcn1_001","viewhcn2_001","viewh2_1_001","viewh2_3_001","viewh2_2_001","viewIRdust_001"]
+base_codes = ["co1","co2","hcn1","hcn2","h2_1","h2_2","h2_3","IRdust","12mic","8mic","850mic"]
+viz_codes = ["view"+base_code for base_code in base_codes]
+line_codes_all = [viz_code+"_000" for viz_code in viz_codes]+[viz_code+"_001" for viz_code in viz_codes]
+# line_codes_all = ["viewco1_000","viewco2_000","viewhcn1_000","viewhcn2_000","viewh2_1_000","viewh2_3_000","viewh2_2_000","viewIRdust_000","viewco1_001","viewco2_001","viewhcn1_001","viewhcn2_001","viewh2_1_001","viewh2_3_001","viewh2_2_001","viewIRdust_001"]
 
 # POSTER lines
 # line_codes = [line_codes_all[0],line_codes_all[6],line_codes_all[7],line_codes_all[8],line_codes_all[14],line_codes_all[15]]
 # paper lines
 # line_codes = line_codes_all
+# rads = [10.]*(len(line_codes)//2)+[100.]*(len(line_codes)//2)
 # proposal lines
-line_codes = ["viewh2_1_001","viewh2_3_001"]
-
+# line_codes = ["viewh2_1_001","viewh2_3_001"]
+line_codes = ["view12mic_001","view850mic_001","viewco1_001"]
+rads = [100.]*3
 
 line_ids = [x[4:-4] for x in line_codes]
 extinction_suffix = "extinction"
-
+print(line_ids)
 
 
 # rads = [20.]*7+[10.,100.]
-rads = [10.]*(len(line_codes)//2)+[100.]*(len(line_codes)//2)
+# rads = [10.]*(len(line_codes)//2)+[100.]*(len(line_codes)//2)
 
 
 
@@ -191,7 +199,14 @@ def render_all(idump):
 # no extinction, include IR
 #         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot IRdustm,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m,IRdustm,co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m &")
 #extinction, include IR
-        commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot viewIRdust,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3,viewIRdust,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3 &")
+#         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot viewIRdust,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3,viewIRdust,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3 &")
+#extinction, include IR, and continuum NIR/FIR
+#         commands.append("python sph_anim.py 3032 {run_name} --rad 10.,10.,10.,10.,10.,10.,10.,10.,100.,100.,100.,100.,100.,100.,100.,100. --savemap --view side --noring --snap0 {snap} --maxsnapf {snap} --plot viewIRdust,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3,viewIRdust,viewco1,viewco2,viewhcn1,viewhcn2,viewh2_1,viewh2_2,viewh2_3 &")
+        commands.append("python sph_anim.py 3032 {run_name}"
+                        +" --rad "+",".join(["10."]*len(viz_codes)+["100."]*len(viz_codes))
+                        +" --savemap --view side --noring --snap0 {snap} --maxsnapf {snap}"
+                        +" --plot "+",".join(viz_codes*2)
+                        +" &")
 
         for command in commands:
             formatted_command = command.format(run_name=output_dir,snap=snap_str)
@@ -240,7 +255,7 @@ def plot_lines_separately():
     #         basefile = "../data/smoothsum_co1mco2mhcn1mhcn2mh2_1mh2_2mh2_3mgiz_{}_{}_000_%03d.dat".format(run_id,output_dir)
     #         basefile = "../data/smoothsum_co1mco2mhcn1mhcn2mh2_1mh2_2mh2_3mgiz_{}_{}_000_%03d.dat".format(run_id,output_dir)
 
-            basefile = "../data/smoothsum_co1mco2mhcn1mhcn2mh2_1mh2_2mh2_3mviewgiz_{}_{}_000_%03d.dat".format(run_id,output_dir)
+#             basefile = "../data/smoothsum_co1mco2mhcn1mhcn2mh2_1mh2_2mh2_3mviewgiz_{}_{}_000_%03d.dat".format(run_id,output_dir)
             infile = "../data/smoothsum_giz_{}_{}_{:03d}_{}.dat".format(run_id,output_dir,idump,plot_str)
             infile = [infile]
 
@@ -424,7 +439,7 @@ if __name__=='__main__':
             render_all(idump)
     else:
         for idump in idumps:
-            plot_lines_together(run_id,which_files_exist(run_id,output_dirs,idump),idump,split=True)
+            plot_lines_together(run_id,which_files_exist(run_id,output_dirs,idump),idump,split=False)
 #         print(which_files_exist(run_id,output_dirs,100))
 #         plot_lines_separately()
 #         plot_lines_together(idump)

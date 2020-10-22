@@ -35,7 +35,8 @@ import sys
 # runs = [ ["devel_norad","open_binary_inslice_cont"]]
 # runs = [ ["rad_cont","open_binary_rad_cont_inslice_evolved"]]
 # runs = [ ["devel_independent","test_0m0001"]]
-runs = [ ["devel_norad","open_binary_test"], ["devel_norad","open_binary_inslice_cont"], ["rad_cont","open_binary_rad_cont_inslice_evolved"]]
+# runs = [ ["devel_norad","open_binary_test"], ["devel_norad","open_binary_inslice_cont"], ["rad_cont","open_binary_rad_cont_inslice_full"]]
+runs = [ ["rad_cont","open_binary_rad_cont_inslice_full"]]
 
 gizmoDir = "/srv/djw1g16/gizmos/"
 
@@ -114,20 +115,24 @@ def calc_torque_etc(d):
     d['angmom'] = d['BH_mass_1'][:,np.newaxis]*np.cross(d['BH_pos_1'],d['BH_vel_1'])  \
              + d['BH_mass_2'][:,np.newaxis]*np.cross(d['BH_pos_2'],d['BH_vel_2'])
     d['torque'] = np.cross(d['BH_pos_1'],d['BH_force_1']) + np.cross(d['BH_pos_2'],d['BH_force_2'])
-    d['cum_torque'] = np.cumsum(d['torque']*dt,axis=0)
-    
+    d['cum_torque'] = np.cumsum(d['torque']*dt,axis=0)    
+
 #     d['radial_force_1'] = (d['BH_pos_1']-d['BH_pos_2'])*d['BH_force_1']/linalg.norm(d['BH_pos_1']-d['BH_pos_2'],axis=1)[:,np.newaxis]
 #     d['radial_force_2'] = (d['BH_pos_2']-d['BH_pos_1'])*d['BH_force_2']/linalg.norm(d['BH_pos_2']-d['BH_pos_1'],axis=1)[:,np.newaxis]
     d['radial_force_1'] = d['BH_pos_1']*d['BH_force_1']/linalg.norm(d['BH_pos_1'],axis=1)[:,np.newaxis]
-    d['radial_force_2'] = d['BH_pos_1']*d['BH_force_2']/linalg.norm(d['BH_pos_2'],axis=1)[:,np.newaxis]
+    d['radial_force_2'] = d['BH_pos_2']*d['BH_force_2']/linalg.norm(d['BH_pos_2'],axis=1)[:,np.newaxis]
 
 #     d['radial_acc_mom_1'] = d['BH_pos_1']*d['BH_acc_mom_1']/linalg.norm(d['BH_pos_1'],axis=1)[:,np.newaxis]
 #     d['radial_acc_mom_2'] = d['BH_pos_2']*d['BH_acc_mom_2']/linalg.norm(d['BH_pos_2'],axis=1)[:,np.newaxis]
     
 #     d['acc_cum_torque'] = np.cross(d['BH_pos_1'],d['BH_acc_mom_1']) + np.cross(d['BH_pos_2'],d['BH_acc_mom_2'])
-    d['acc_cum_torque'] = np.cross(d['BH_pos_2']-d['BH_pos_1'],d['BH_acc_mom_2']-d['BH_acc_mom_1'])
+    d['acc_force_1'] = np.gradient(d['BH_acc_mom_1'],axis=0)/dt
+    d['acc_force_2'] = np.gradient(d['BH_acc_mom_2'],axis=0)/dt
+    d['acc_torque'] = np.cross(d['BH_pos_1'],d['acc_force_1']) + np.cross(d['BH_pos_2'],d['acc_force_2'])
+    d['acc_cum_torque'] = np.cumsum(d['acc_torque']*dt,axis=0)  
     
     d['net_force'] = d['BH_force_1']+d['BH_force_2']
+    d['acc_net_force'] = d['acc_force_1']+d['acc_force_2']
         
 #     d['BH_BH_accel_1'] = G_pc3_yr_2_msun_1*d['BH_mass_1'][:,np.newaxis]*d['BH_mass_2'][:,np.newaxis]*(d['BH_pos_2']-d['BH_pos_1'])/d['dist'][:,np.newaxis]**3
 #     d['BH_BH_accel_2'] =-d['BH_BH_accel_1']
@@ -148,13 +153,20 @@ def next_axis(sp):
             icol=0
             irow+=1
 
-def plot_torque(run_id,output_dir,d):
+def plot_torque(run_id,output_dir,d,tmax=0.05):
     time = d['time']
     dist = d['dist']
     angmom = d['angmom']
     torque = d['torque']
 
-    plots = [    'gcumtorque'
+    plots = [
+#                'acc_force_1'
+#                 ,'grav_force_1'
+#                 ,'acc_force_2'
+#                 ,'grav_force_2'
+                'gtorque'
+                ,'acc_torque'
+                ,'gcumtorque'
                 ,'acc_cumtorque'
     
     ]
@@ -218,14 +230,24 @@ def plot_torque(run_id,output_dir,d):
             ax.plot(time,d['BH_vel_2'][:,iaxis],label=r"$v_{{{},2}}$".format(axis))
             ax.set_ylabel('Vel 2')
 
-        if 'bh_force_1' in plots:
+        if 'grav_force_1' in plots:
             ax = next(na)
             ax.plot(time,d['BH_force_1'][:,iaxis],label=r"$F_{{{},1}}$".format(axis))
-            ax.set_ylabel('Force 1')
-        if 'bh_force_2' in plots:
+            ax.set_ylabel('Grav Force 1')
+        if 'grav_force_2' in plots:
             ax = next(na)
             ax.plot(time,d['BH_force_2'][:,iaxis],label=r"$F_{{{},2}}$".format(axis))
-            ax.set_ylabel('Force 2')
+            ax.set_ylabel('Grav Force 2')
+
+        if 'acc_force_1' in plots:
+            ax = next(na)
+            ax.plot(time,d['acc_force_1'][:,iaxis],label=r"$F_{{{},1}}$".format(axis))
+            ax.set_ylabel('Acc Force 1')
+        if 'acc_force_2' in plots:
+            ax = next(na)
+            ax.plot(time,d['acc_force_2'][:,iaxis],label=r"$F_{{{},2}}$".format(axis))
+            ax.set_ylabel('Acc Force 2')
+
 
         if 'bh_circradforce_1' in plots:
             ax = next(na)
@@ -246,8 +268,13 @@ def plot_torque(run_id,output_dir,d):
 
         if 'acc_cumtorque' in plots:
             ax = next(na)
-            ax.plot(time,d['acc_cum_torque'][:,iaxis],label=r"$\int\tau_{{{}}}dt$".format(axis))
+            ax.plot(time,d['acc_torque'][:,iaxis],label=r"$\tau_{{{}}}$".format(axis))
             ax.set_ylabel('Accreted torque')
+
+        if 'acc_cumtorque' in plots:
+            ax = next(na)
+            ax.plot(time,d['acc_cum_torque'][:,iaxis],label=r"$\int\tau_{{{}}}dt$".format(axis))
+            ax.set_ylabel('Integrated Accretion Torque')
 
                 
 #     sp[6,0].plot(time,(1.-d['BH_50_1']),label='1')
@@ -270,6 +297,7 @@ def plot_torque(run_id,output_dir,d):
 #             sp[iy,ix].set_ylim(-0.06,0.06)
         for iy in range(nrows):
             sp[iy,ix].legend()
+            sp[iy,ix].set_xlim([0,tmax])
 
 
     fig.savefig(f"../figures/torque_{run_id}_{output_dir}.pdf")
