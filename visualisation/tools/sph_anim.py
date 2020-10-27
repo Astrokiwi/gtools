@@ -86,9 +86,10 @@ def parse_input():
     default_values["gaussian"]=None
     default_values["gizmoDir"]=None
     default_values["snapstep"]=1
+    default_values["verbose"]=False
 #    default_values["opac_mu"]=None
     
-    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep"]
+    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep","verbose"]
     #,"opac_mu"]
 
     parser = argparse.ArgumentParser()
@@ -119,6 +120,7 @@ def parse_input():
     parser.add_argument('--savemap',help="Save maps as data file",action='store_true')
     parser.add_argument('--gaussian',type=str,help="Gaussian filter size - same value for all plots, or separated by commas")
     parser.add_argument('--gizmoDir',type=str,help="Custom directory for gizmo runs")
+    parser.add_argument('--verbose',help="Print more text",action='store_true')
 #    parser.add_argument('--opac_mu',type=float,help="Wavelength in microns of dust opacity to use")
     args = parser.parse_args()
     
@@ -128,11 +130,13 @@ def parse_input():
     for parseval in parsevals:
         if ( vars(args)[parseval] ):
             anim_prams[parseval] = vars(args)[parseval]
-            print("setting {} to {}, current value:{}".format(parseval,vars(args)[parseval],anim_prams[parseval]))
+            if args.verbose:
+                print("setting {} to {}, current value:{}".format(parseval,vars(args)[parseval],anim_prams[parseval]))
         else:
             if ( parseval in default_values ):
                 anim_prams[parseval] = default_values[parseval]
-                print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],anim_prams[parseval]))
+                if args.verbose:
+                    print("setting {} to default {}, current value:{}".format(parseval,default_values[parseval],anim_prams[parseval]))
             else:
                 raise Exception("No default value for {} - it must be specified!".format(parseval))
     return anim_prams
@@ -228,7 +232,7 @@ def animate(anim_prams):
     data_dir = os.path.join(this_dir,"../../data/")
     os.system("rm "+pic_dir+"/sphplot"+run_id+output_dir+"???.png")
 
-    print("nfiles:",snapf-snapi+1)
+#     print("nfiles:",snapf-snapi+1)
     
     isnaps = range(snapi,snapf+1,snapstep)
     
@@ -288,7 +292,7 @@ def animate(anim_prams):
 
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -i "+pic_dir+"sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
+    cmd = "ffmpeg -y -r 24 -hide_banner -loglevel quiet -stats -i "+pic_dir+"sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
 
     print(cmd)
     os.system(cmd)
