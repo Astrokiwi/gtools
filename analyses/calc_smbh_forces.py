@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from tools import gizmo_tools
+from ..tools import gizmo_tools
 from multiprocessing import Pool
 
 from scipy import linalg
@@ -14,12 +14,6 @@ import os
 this_dir, this_filename = os.path.split(__file__)
 
 G_pc3_yr_2_msun_1 = 4.5e-15
-
-runs = [ ["binary_ecc0_norm_fast","binary_ecc0"]
-        ,["binary_ecc0_HPM_MM_radoff","binary_ecc0"]
-        ,["binary_ecc0_HPM_radoff_long","binary_ecc0"] ]
-
-
 
 def load_gadget(run_id,output_dir,snap_str,gizmoDir=None):
     print(snap_str)
@@ -79,11 +73,11 @@ def calc_smbh_force(run_id,output_dir,gizmoDir="/export/2/lb1g19/data/",snap0=0,
                                                             ,itertools.repeat(gizmoDir)
                                                             ))
     just_forces = [[x[0] for x in y] for y in snap_forces]
-    np.savetxt(os.path.join(this_dir, f"data/bh_forces_{run_id}_{output_dir}.dat")
+    np.savetxt(os.path.join(this_dir, f"../data/bh_forces_{run_id}_{output_dir}.dat")
                ,np.array(just_forces).reshape(len(just_forces),6))
 
     force_50centiles = [[x[1] for x in y] for y in snap_forces]
-    np.savetxt(os.path.join(this_dir, f"data/bh_50cent_{run_id}_{output_dir}.dat")
+    np.savetxt(os.path.join(this_dir, f"../data/bh_50cent_{run_id}_{output_dir}.dat")
                ,np.array(force_50centiles).reshape(len(force_50centiles),2))
 
     return snap_forces
