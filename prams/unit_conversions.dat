@@ -5,3 +5,4 @@ AGNIntensity 6.76849409e-7 erg/s/cm^2
 Density 6.7702543e-22 g/cm^3
 SmoothingLength 1.e3 pc
 InternalEnergy 1.e10 erg/g
+RadiativeAcceleration 1.02269032e-6 km/s/kyr

@@ -411,21 +411,26 @@ struct coolHeatDust CoolHeatTab::interpTab(double density, double temperature, d
     
     }
     
+
+    // disable extrapolation, for test
     // do extrapolation for density above max
     if ( values[0]>thisTable->agn_dense_vals[thisTable->agn_ndense-1] && !interpBetweenTables) {
 //         if ( ThisTask==0 ) std::cout << "extrapolation" << std::endl;
         heat_interp += values[0]-thisTable->agn_dense_vals[thisTable->agn_ndense-1]; // heating per unit volume is proportional to density - i.e. heating per unit mass is constant
         cool_interp += 2.*(values[0]-thisTable->agn_dense_vals[thisTable->agn_ndense-1]); // cooling per volume is proportional to n^2
+//         std::cout << "extrapolating for density above max " << values[0]-thisTable->agn_dense_vals[thisTable->agn_ndense-1] << " " << values[0] << " " << thisTable->agn_dense_vals[thisTable->agn_ndense-1] << std::endl;
     }
     
     // do extrapolation for intensity above max - assume heating is proportional to intensity outside of the table
     // do extrapolation for intensity below minimum
     if ( values[2]<thisTable->agn_intensity_vals[0] ) {
         heat_interp += values[2] - thisTable->agn_intensity_vals[0];
+//         std::cout << "extrapolating for intensity below min " << values[2] - thisTable->agn_intensity_vals[0] << " " << values[2] << " " << thisTable->agn_intensity_vals[0] << std::endl;
     }
     // do extrapolation for intensity above maximum
     if ( values[2]>thisTable->agn_intensity_vals[thisTable->agn_nintensity-1] ) {
         heat_interp += values[2] - thisTable->agn_intensity_vals[thisTable->agn_nintensity-1];
+//         std::cout << "extrapolating for intensity above max " << values[2] - thisTable->agn_intensity_vals[thisTable->agn_nintensity-1] << " " << values[2] << " " << thisTable->agn_intensity_vals[thisTable->agn_nintensity-1] << std::endl;
     }
 
 

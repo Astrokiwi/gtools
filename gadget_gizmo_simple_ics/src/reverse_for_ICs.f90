@@ -144,12 +144,12 @@ subroutine integrate_and_save
         end do
         if ( mod(tick,frameperiod)==0 ) then
             print *,tick,t,n_active
-            write(fname,"('blob_reverse_frames/frame',I6.6,'.dat')") frame
-            open(unit=17,file=fname)
-            do i=1,N
-                write(17,"(6E13.5)") xyz(i,:),vel(i,:)
-            end do
-            close(17)
+!             write(fname,"('blob_reverse_frames/frame',I6.6,'.dat')") frame
+!             open(unit=17,file=fname)
+!             do i=1,N
+!                 write(17,"(6E13.5)") xyz(i,:),vel(i,:)
+!             end do
+!             close(17)
             frame=frame+1
         endif
         tick=tick+1
