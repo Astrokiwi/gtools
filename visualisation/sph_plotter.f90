@@ -25,6 +25,8 @@ module sph_plotter
 
     logical, save :: verbose = .false.
 
+    real(kind=8), parameter :: M_PI = 2.d0*acos(0.d0)
+
     contains
     
     subroutine set_parallel
@@ -97,7 +99,8 @@ module sph_plotter
         prof = 0.d0
         cum_depth = 0.d0
         i = 1
-       do ip=1,n
+        
+        do ip=1,n
 !         do while (i<=n .and. cum_depth<10.d0)
 !             ip = zarg(i)
         
@@ -140,26 +143,27 @@ module sph_plotter
         
     end function sph_vel_absorb
 
-    function sph_dense_spherical(x,y,z,m,h,L,c,w,n) result(g)
+    function sph_dense_spherical(x,y,z,m,h,L1,L2,c,w,n) result(g)
         use omp_lib
         implicit none
         integer :: n
         real(kind=8), dimension(n) :: m,h ! mass, smoothing
         real(kind=8), dimension(n) :: x,y,z ! particle positions
-        integer :: L ! ncells
+        integer :: L1,L2 ! ncells in each direction, as parameters for implicit array declaration
+        integer, dimension(2) :: L ! ncells in each direction, in array for tidiness
         real(kind=8), dimension(2) :: c ! top-left corner in radians
-        real(kind=8) :: w ! size in radians
+        real(kind=8), dimension(2) :: w ! size in radians in each direction
         
-        real(kind=8), dimension(L,L) :: g ! mass/density grid, to return
+        real(kind=8), dimension(L1,L2) :: g ! mass/density grid, to return
         
         integer :: ip ! this particle
         integer :: ix,iy ! grid position of particle
         integer :: hix,hiy ! position in h circle
         integer :: ix0,iy0,ix1,iy1 ! bounds of h circle
         
-        integer :: ih ! integer h
+        integer, dimension(2) :: ih ! integer h, 2D because cells may not be square
         
-        real(kind=8) :: r_cell, l_cell
+        real(kind=8), dimension(2) :: r_cell, l_cell
         
         real(kind=8) :: rdist, weight
 
@@ -171,30 +175,34 @@ module sph_plotter
         
         g = 0.d0
         
+        L(1)=L1
+        L(2)=L2
+        
         l_cell = w/L ! cell size in radians
+
         
         do ip=1,n
             rad = sqrt(x(ip)**2+y(ip)**2+z(ip)**2)
             theta = atan2(y(ip),x(ip))
-            phi = acos(z(ip)/rad)
+            phi = acos(z(ip)/rad) - M_PI/2.
             
-            r_cell = rad*l_cell ! cell size in cartesian
+            r_cell = rad*l_cell ! cell size in cartesian (2D)
 
-            ix = int((phi-c(1))/l_cell)+1
-            iy = int((theta-c(2))/l_cell)+1
+            ix = int((phi-c(1))/l_cell(1))+1
+            iy = int((theta-c(2))/l_cell(2))+1
 
             ih = ceiling(h(ip)/r_cell)
     
-            ix0 = max(1,ix-ih)
-            iy0 = max(1,iy-ih)
+            ix0 = max(1,ix-ih(1))
+            iy0 = max(1,iy-ih(2))
 
-            ix1 = min(L,ix+ih)
-            iy1 = min(L,iy+ih)
+            ix1 = min(L(1),ix+ih(1))
+            iy1 = min(L(2),iy+ih(2))
     
-            if ( ix0<=L .and. iy0<=L .and. ix1>=1 .and. iy1>=1 ) then
+            if ( ix0<=L(1) .and. iy0<=L(2) .and. ix1>=1 .and. iy1>=1 ) then
                 do hix=ix0,ix1
                     do hiy=iy0,iy1
-                        rdist = sqrt(((hix-ix)**2+(hiy-iy)**2)*r_cell*r_cell)
+                        rdist = sqrt(( (hix-ix)*r_cell(1))**2 + ((hiy-iy)*r_cell(2))**2 )
                         weight = fkern(rdist/h(ip))/h(ip)**2
                     
                         g(hix,hiy) = g(hix,hiy) + weight * m(ip)
