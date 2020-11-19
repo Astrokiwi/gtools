@@ -108,7 +108,7 @@ class CoolHeatTab {
         CoolHeatTab(const char* flabels,const char* ftab,const char* dustlessflabels,const char* dustlessftab,const char* denseflabels,const char* denseftab,bool convertLines);
         
     private:
-        static const double sputtering_temperature = 1.e5;
+        static constexpr double sputtering_temperature = 1.e5;
 
         int agn_tab_index(int id, int it, int ii, int is);
         int value_to_index(double edges[], int nedges, double value);
