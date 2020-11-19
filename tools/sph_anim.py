@@ -14,8 +14,7 @@ from multiprocessing import Pool
 
 from . import sph_frame
 
-# path.append("../../")
-from ... import gizmo_tools
+from . import gizmo_tools
 
 import argparse
 

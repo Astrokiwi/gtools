@@ -1,7 +1,3 @@
-# import pkg_resources - with setup.py to set locations of things
-
-# This is obsolete, but do it anyway because we're not in a package:
-
 import os
 
 
@@ -32,7 +28,7 @@ from .sph_plotter import sph_plotter as sph_plotter_noisy
 # from sph_plotter import sph_plotter
 from . import output_suppressor
 from . import preqs_config
-from ... import gizmo_tools
+from . import gizmo_tools
 
 
 
