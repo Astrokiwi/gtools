@@ -39,7 +39,8 @@ import matplotlib.pyplot as plt
 # runs = [ ["devel_independent","test_0m0001"]]
 # runs = [ ["devel_norad","open_binary_test"], ["devel_norad","open_binary_inslice_cont"],
 #           ["rad_cont","open_binary_rad_cont_inslice_full"]]
-runs = [["devel_norad", "scaled_binary_stable"]]
+#runs = [["devel_norad", "scaled_binary_stable"]]
+runs = [["norad_tracktorque", "scaled_binary_stable_test"]]
 
 gizmoDir = "/srv/djw1g16/gizmos/"
 
@@ -74,7 +75,7 @@ def extract_bh_data(run_id, output_dir, gizmodir=gizmoDir, snap0=0, maxsnapf=-1,
     d = {k: np.array([dic[k] for dic in bh_binary_alltimes]) for k in bh_binary_alltimes[0]}
 
     # load force manually
-    bh_force = np.loadtxt(os.path.join(this_dir, f"../data/bh_forces_{run_id}_{output_dir}.dat"))
+    bh_force = np.loadtxt(os.path.join(this_dir, f"data/bh_forces_{run_id}_{output_dir}.dat"))
     # Units: km**2 kpc**-1 s**-2, i.e. actually acceleration
     # Target unit: pc yr**-2, then multiply by mass in Msun to get Msun pc yr**-2
     bh_force *= pynbody.units.Unit("km**2 kpc**-1 s**-2").in_units("pc yr**-2")
@@ -279,14 +280,14 @@ def plot_torque(run_id, output_dir, d, tmax=0.05):
             sp[iy, ix].legend()
             sp[iy, ix].set_xlim([0, tmax])
 
-    fig.savefig(os.path.join(this_dir,f"../../figures/torque_{run_id}_{output_dir}.pdf"))
+    fig.savefig(os.path.join(this_dir,f"../figures/torque_{run_id}_{output_dir}.pdf"))
     plt.close('all')
 
 
 def extract_plot_torque(run_id, output_dir, **kwargs):
     d = extract_bh_data(run_id, output_dir, **kwargs)
     calc_torque_etc(d)
-    plot_torque(run_id, output_dir, d,tmax=None)
+    plot_torque(run_id, output_dir, d)
 
 
 def plot_all_torques():

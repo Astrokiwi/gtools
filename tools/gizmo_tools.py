@@ -56,6 +56,12 @@ binary_headers_unit_name_conversions = {
     , "Binary_mass_2"              : ("BH_mass_2", 1.e10, "Msol")  # msun
     , "Binary_accreted_momentum_1" : ("BH_acc_mom_1", 1.e10 * 1000. / 0.9778e9, "Msol pc yr**-1")  # msun * pc / yr
     , "Binary_accreted_momentum_2" : ("BH_acc_mom_2", 1.e10 * 1000. / 0.9778e9, "Msol pc yr**-1")  # msun * pc / yr
+    , "Binary_grav_momentum_1" : ("BH_grav_mom_1", 1.e10 * 1000. / 0.9778e9, "Msol pc yr**-1")  # msun * pc / yr
+    , "Binary_grav_momentum_2" : ("BH_grav_mom_2", 1.e10 * 1000. / 0.9778e9, "Msol pc yr**-1")  # msun * pc / yr
+    , "Binary_accreted_J_1" : ("BH_acc_J_1", 1.e10 * 1000. * 100. / 0.9778e9, "Msol pc**2 yr**-1")  # msun * pc**2 / yr
+    , "Binary_accreted_J_2" : ("BH_acc_J_2", 1.e10 * 1000. * 100. / 0.9778e9, "Msol pc**2 yr**-1")  # msun * pc**2 / yr
+    , "Binary_grav_J_1" : ("BH_grav_J_1", 1.e10 * 1000. * 100. / 0.9778e9, "Msol pc**2 yr**-1")  # msun * pc**2 / yr
+    , "Binary_grav_J_2" : ("BH_grav_J_2", 1.e10 * 1000. * 100. / 0.9778e9, "Msol pc**2 yr**-1")  # msun * pc**2 / yr
     }
 
 
@@ -727,7 +733,7 @@ class cloudy_table :
     def __init__(self, tableDate="281118", tableRes="0.0001", prefix="") :
         self.load_table(tableDate, tableRes, prefix)
 
-    def load_table(self, tableDate="281118", tableRes="0.0001", prefix="../coolheat_tab_marta/") :
+    def load_table(self, tableDate="281118", tableRes="0.0001", prefix="../coolheat_tab_marta") :
         #         self.chTab = tab_interp.CoolHeatTab( (prefix+"shrunk_table_labels_"+tableDate+"tau.dat"),
         #                                         (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
         #                                         (prefix+"shrunk_table_labels_"+tableDate+"taunodust.dat"),

@@ -8,11 +8,8 @@ from multiprocessing import Pool
 
 #from sys import path
 #path.append("../src/")
-import sph_frame
+from ..tools import sph_frame,gizmo_tools
 
-from sys import path
-path.append("../visualisation/")
-import gizmo_tools
 
 import matplotlib.pyplot as plt
 
