@@ -282,7 +282,7 @@ def animate(anim_prams):
 
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -hide_banner -loglevel quiet -stats -i "+pic_dir+"sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"sum_"+outp_plot+"giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
+    cmd = "ffmpeg -y -r 24 -hide_banner -loglevel quiet -stats -i "+pic_dir+"sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"_"+outp_plot+"_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
 
     print(cmd)
     os.system(cmd)
