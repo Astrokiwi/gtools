@@ -18,7 +18,7 @@ import matplotlib.patches as patches
 
 # for interpolating GIZMO tables
 import ctypes
-from ..src import tab_interp
+from . import tab_interp
 
 import matplotlib.pyplot as plt
 

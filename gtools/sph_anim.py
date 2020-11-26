@@ -1,6 +1,3 @@
-
-print("Importing")
-
 import tblib.pickling_support
 tblib.pickling_support.install()
 
@@ -192,8 +189,6 @@ def animate(anim_prams):
     prams_to_copy = ["cmap","L","centredens","centrecom","dotmode","pixsize"]
     for key in prams_to_copy:
         frame_prams[key] = anim_prams[key]
-    
-    print("Running")
     
     gizmoDir = anim_prams["gizmoDir"]
     run_id = anim_prams["run_id"]
