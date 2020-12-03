@@ -9,7 +9,7 @@ this_dir, this_filename = os.path.split(__file__)
 # from joblib import Parallel, delayed
 from multiprocessing import Pool
 
-from . import sph_frame
+from . import frame
 
 from . import gizmo_tools
 
@@ -46,7 +46,7 @@ def string_to_list_or_float(s):
 # joblib doesn't dump exceptions well, just print them
 def plotter_parallel_exception_wrapper(*args,**kwargs):
     try:
-        return sph_frame.makesph_trhoz_frame(*args, **kwargs)
+        return frame.makesph_trhoz_frame(*args, **kwargs)
     except Exception as e:
         print(e) # should give some output at least
         raise(e) # might not work
@@ -141,7 +141,7 @@ def frame_i(i):
 #         return sph_frame.makesph_trhoz_frame(infiles[i],outfiles[i],cmap=cmap,flat=flatPlot,ring=ringPlot,plot=toplot,L=L,scale=rads[i],views=toview
     #,rot=[thetas[i],phis[i]],visibleAxes=visibleAxes,centredens=centredens,centrecom=centrecom,dotmode=dotmode,pixsize=pixsize
     #,data_ranges=data_ranges,return_maps=savemap,gaussian=gaussian)
-    return sph_frame.makesph_trhoz_frame(infiles[i], outfiles[i], **frame_prams, scale=rads[i], rot=[thetas[i], phis[i]])
+    return frame.makesph_trhoz_frame(infiles[i], outfiles[i], **frame_prams, scale=rads[i], rot=[thetas[i], phis[i]])
     #,opac_mu=opac_mu)
 
 
@@ -257,7 +257,7 @@ def animate(anim_prams):
             maps.append(_)
 
     for result in maps:
-        if isinstance(result, sph_frame.ExceptionWrapper):
+        if isinstance(result, frame.ExceptionWrapper):
             result.re_raise()
     if anim_prams["savemap"]:
         plot_strs = list(np.repeat(frame_prams["plot"],len(frame_prams["views"])))
