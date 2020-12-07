@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import json
 import socket
 import getpass
 import os
@@ -18,9 +18,12 @@ import matplotlib.patches as patches
 
 # for interpolating GIZMO tables
 import ctypes
-from . import tab_interp
+from . import tab_interp, config
 
 import matplotlib.pyplot as plt
+
+this_dir, this_filename = os.path.split(__file__)
+
 
 molecular_mass = 4. / (1. + 3. * .76)
 proton_mass_cgs = 1.6726e-24
@@ -140,64 +143,33 @@ def box_connected_two_axes(small_ax, big_ax, box_corner, box_dims, color='blue')
             a.set_in_layout(
                 False)  # otherwise matplotlib tries to stretch the plot to "fit" the lines in, and the imshow maps become tiny
 
+def load_dir_dict():
+    config_path = os.path.join(this_dir, '../prams/directories.json')
+    try:
+        with open(config_path) as f:
+            dir_dict = json.load(f)
+    except:
+        config.setup_dirs()
+        with open(config_path) as f :
+            dir_dict = json.load(f)
+    return dir_dict
 
 def getGizmoDir(irun) :
-    sname = socket.gethostname()
-    uname = getpass.getuser()
-
-    if uname == 'djw1g16' or uname == 'djw' :
-        if sname == "trillian" :
-            paths = ["/export/1/djw/gizmos", "/export/2/djw/gizmos"]
-            for path in paths :
-                if os.path.isdir("{}/{}".format(path, irun)) :
-                    return path
-            #         return "/export/1/djw/gizmos"
-            raise Exception("Directory not found on {}".format(sname))
-        elif sname == "srv01921" :
-            return "/srv/djw1g16/gizmos"
-        elif "cluster.local" in sname :
-            return "/mainfs/VEILS/djw1g16/gizmos"
-
-    if uname == 'lb1g19' :
-        if sname == "trillian" :
-            return "/export/2/lb1g19"
-
-    if uname == 'supas356' :
-        if sname in ("nesh-fe1", "nesh-fe2", "nesh-fe3", "nesh-fe4") :
-            return "/sfs/fs2/work-sh1/supas356"
-
-        if sname in ("neshcl226", "neshcl227") :
-            return "/sfs/fs2/work-sh1/supas356"
-
-    raise Exception(
-        f"Unknown server/username; add server ({sname}), username ({uname}) and directory (?) to getGizmoDir gizmo_tools.py")
-
+    paths = load_dir_dict()["gizmo"]
+    if isinstance(paths,list):
+        for path in paths :
+            if os.path.isdir("{}/{}".format(path, irun)) :
+                return path
+    else:
+        return paths
 
 def getMovieDir() :
-    sname = socket.gethostname()
-    uname = getpass.getuser()
+    path = load_dir_dict()["movie"]
+    return path
 
-    if uname == 'djw1g16' or uname == 'djw' :
-        if (sname == "trillian") :
-            return "/export/1/djw/movies"
-        elif (sname == "srv01921") :
-            return "/srv/djw1g16/movies"
-        elif "cluster.local" in sname :
-            return "/mainfs/VEILS/djw1g16/movies"
-
-    if uname == 'lb1g19' :
-        if sname == "trillian" :
-            return "/export/2/lb1g19"
-
-    if uname == "supas356" :
-        if sname in ("nesh-fe1", "nesh-fe2", "nesh-fe3", "nesh-fe4") :
-            return "/sfs/fs2/work-sh1/supas356/movies"
-        if sname in ("neshcl226", "neshcl227") :
-            return "/sfs/fs2/work-sh1/supas356/movies"
-
-    raise Exception(
-        f"Unknown server/username; add server ({sname}), username ({uname}) and directory (?) to getMovieDir gizmo_tools.py")
-
+def getTableDir() :
+    path = load_dir_dict()["table"]
+    return path
 
 def lastConsecutiveSnapshot(run_id, output_dir, dumpsOrdered=True, gizmoDir=None) :
     """When models are rerun, the snapshot file with the largest number (e.g. snapshot_100.dat)
