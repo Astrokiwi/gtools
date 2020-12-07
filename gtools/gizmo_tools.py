@@ -705,7 +705,9 @@ class cloudy_table :
     def __init__(self, tableDate="130720", tableRes="0.0001", prefix="") :
         self.load_table(tableDate, tableRes, prefix)
 
-    def load_table(self, tableDate="130720", tableRes="0.0001", prefix="../coolheat_tab") :
+    def load_table(self, tableDate="130720", tableRes="0.0001", prefix=None) :
+        if prefix is None:
+            prefix = getTableDir()+"/"
         #         self.chTab = tab_interp.CoolHeatTab( (prefix+"shrunk_table_labels_"+tableDate+"tau.dat"),
         #                                         (prefix+"shrunk_table_"+tableDate+"_m"+tableRes+"_hsmooth_tau.dat"),
         #                                         (prefix+"shrunk_table_labels_"+tableDate+"taunodust.dat"),

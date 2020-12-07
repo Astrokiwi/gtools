@@ -554,8 +554,7 @@ def load_gadget(infile, plot_thing
         # table_res = "0.1"
         table_res = "0.0001"
 
-
-        coolheat_dir = os.path.join(this_dir, "../coolheat_tab/")
+        coolheat_dir = gizmo_tools.getTableDir()+"/"
         cloudy_table = gizmo_tools.cloudy_table(table_date, table_res, coolheat_dir)
         data["flux_p"] = np.array(f["/PartType0/AGNIntensity"])  # energy per surface area per time
         data["flux_p"] *= 1.989e+53 / 3.086e21 ** 2 / 3.08568e+16
