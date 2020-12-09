@@ -18,6 +18,10 @@ def setup_dirs() :
         config_dict['gizmo'] = ','.split(x)
     else:
         config_dict['gizmo'] = x
+    print("4. Please enter the directory for quick image dumps")
+    config_dict["pic"] = input()
+    print("5. Please enter the directory for data output")
+    config_dict["data"] = input()
 
     with open(config_path, 'w') as f :
         json.dump(config_dict, f)

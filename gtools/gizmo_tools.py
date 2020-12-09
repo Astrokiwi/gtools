@@ -171,6 +171,14 @@ def getTableDir() :
     path = load_dir_dict()["table"]
     return path
 
+def getPicDir() :
+    path = load_dir_dict()["pic"]
+    return path
+
+def getDataDir() :
+    path = load_dir_dict()["data"]
+    return path
+
 def lastConsecutiveSnapshot(run_id, output_dir, dumpsOrdered=True, gizmoDir=None) :
     """When models are rerun, the snapshot file with the largest number (e.g. snapshot_100.dat)
     may be from a previous model. So we want the last snapshot that was made *after* the previous

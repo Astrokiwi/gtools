@@ -79,9 +79,10 @@ def parse_input():
     default_values["gizmoDir"]=None
     default_values["snapstep"]=1
     default_values["verbose"]=False
+    default_values["dataDir"] = None
 #    default_values["opac_mu"]=None
     
-    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep","verbose"]
+    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep","verbose","dataDir"]
     #,"opac_mu"]
 
     parser = argparse.ArgumentParser()
@@ -113,6 +114,7 @@ def parse_input():
     parser.add_argument('--gaussian',type=str,help="Gaussian filter size - same value for all plots, or separated by commas")
     parser.add_argument('--gizmoDir',type=str,help="Custom directory for gizmo runs")
     parser.add_argument('--verbose',help="Print more text",action='store_true')
+    parser.add_argument('--dataDir', type=str, help="Custom directory for output data")
 #    parser.add_argument('--opac_mu',type=float,help="Wavelength in microns of dust opacity to use")
     args = parser.parse_args()
     
@@ -218,8 +220,11 @@ def animate(anim_prams):
         print("Forcing snapf from {} to {}".format(snapf,maxsnapf))
         snapf = maxsnapf
 
-    pic_dir = os.path.join(this_dir, "../pics/")
-    data_dir = os.path.join(this_dir,"../../data/")
+    if anim_prams["dataDir"] is None:
+        data_dir = gizmo_tools.getDataDir()
+    else:
+        data_dir = anim_prams["dataDir"]
+    pic_dir = gizmo_tools.getPicDir()
     os.system("rm "+pic_dir+"/sphplot"+run_id+output_dir+"???.png")
 
 #     print("nfiles:",snapf-snapi+1)
@@ -265,24 +270,24 @@ def animate(anim_prams):
     
         for itime,maps_timeslice in enumerate(maps):
             idump = isnaps[itime]
-            print(len(maps_timeslice))
+            #print(len(maps_timeslice))
             for iplot,map in enumerate(maps_timeslice):
-                print(iplot,idump,frame_prams["plot"],plot_strs)
+                #print(iplot,idump,frame_prams["plot"],plot_strs)
                 plot_str = plot_strs[iplot]
                 if frame_prams["plot"].count(plot_str)>0:
                     plot_str+="_%03d"%plot_strs[:iplot].count(plot_strs[iplot])
-                print("type=",type(map))
+                #print("type=",type(map))
                 if type(map) is list:
                     for imap,submap in enumerate(map):
-                        outfile = data_dir+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+"_%03d.dat"%imap
+                        outfile = data_dir+"/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+"_%03d.dat"%imap
                         np.savetxt(outfile,submap)
                 else:
-                    outfile = data_dir+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+".dat"
+                    outfile = data_dir+"/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+".dat"
                     np.savetxt(outfile,map)
 
     
     print("to mp4!")
-    cmd = "ffmpeg -y -r 24 -hide_banner -loglevel quiet -stats -i "+pic_dir+"sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"_"+outp_plot+"_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
+    cmd = "ffmpeg -y -r 24 -hide_banner -loglevel quiet -stats -i "+pic_dir+"/sphplot"+run_id+output_dir+"%03d.png -c:v mpeg4 -q:v 1 "+movieDir+"/"+smooth_str+"_"+outp_plot+"_"+run_id+"_"+output_dir+anim_prams["suffix"]+".mp4"
 
     print(cmd)
     os.system(cmd)
