@@ -379,7 +379,7 @@ def makesph_plot(data, plane_keys,
 
             if sp is not None:
                 if symLog is not None:
-                    mesh = safe_pcolormesh(sp, xedges, yedges, sph_map.T, cmap=this_cmap, vmin=vmin, vmax=vmax,
+                    mesh = safe_pcolormesh(sp, xedges, yedges, sph_map.T, cmap=this_cmap,
                                            norm=colors.SymLogNorm(linthresh=symLog, linscale=symLog, vmin=vmin,
                                                                   vmax=vmax))
                 else:
@@ -405,27 +405,26 @@ def makesph_plot(data, plane_keys,
 
         if data.binary_positions:
 
-            verboseprint("binary at ", data.binary_positions)
+            verboseprint("binary at ", data.binary_positions, data.binary_positions_rot)
             for ibinary, marker in enumerate(['x', '+']):
                 bin_coords = [0, 0]
                 for coord_id, plane_axis in enumerate(plane_keys):
                     if plane_axis == 'x':
-                        bin_coords[coord_id] = data.binary_positions[ibinary][0]
+                        bin_coords[coord_id] = data.binary_positions_rot[ibinary][0]
                     elif plane_axis == 'y':
-                        bin_coords[coord_id] = data.binary_positions[ibinary][1]
+                        bin_coords[coord_id] = data.binary_positions_rot[ibinary][1]
                     elif plane_axis == 'z':
-                        bin_coords[coord_id] = data.binary_positions[ibinary][2]
+                        bin_coords[coord_id] = data.binary_positions_rot[ibinary][2]
                     elif plane_axis == 'r':
                         bin_coords[coord_id] = np.sqrt(
-                            data.binary_positions[ibinary][1] ** 2 + data.binary_positions[ibinary][0] ** 2)
+                            data.binary_positions_rot[ibinary][1] ** 2 + data.binary_positions_rot[ibinary][0] ** 2)
                 sp.scatter(bin_coords[0], bin_coords[1], marker=marker)
         else:
             sp.plot([0], [0], '+g', markersize=10., markeredgewidth=1.)
     return outmap
 
 
-def load_gadget(infile, plot_thing
-                , centredens=False):
+def load_gadget(infile, plot_thing):
     f = h5py.File(infile, "r")
 
     header = f["/Header"]
@@ -444,6 +443,9 @@ def load_gadget(infile, plot_thing
         Binary_pos_2 = BH_data.attrs.get("Binary_pos_2")
         if isinstance(Binary_pos_1, np.ndarray) & isinstance(Binary_pos_2, np.ndarray):
             data.binary_positions = [Binary_pos_1 * 1.e3, Binary_pos_2 * 1.e3]
+
+            data.bh_masses = [BH_data.attrs.get("Binary_mass_1")*1.e10,
+                              BH_data.attrs.get("Binary_mass_2")*1.e10]
         else:
             data.binary_positions = None
     #         verboseprint("Binary BH data loaded")
@@ -456,9 +458,48 @@ def load_gadget(infile, plot_thing
     data["h_p"] = np.array(f["/PartType0/SmoothingLength"])  # kpc
 
     need_to_load = set(plot_thing)
-    if centredens:
-        need_to_load.add("nH")
     need_to_load = preqs_config.process_preqs(need_to_load)
+
+    if "f_bh_1" in need_to_load:
+        data["f_bh_1"] = gizmo_tools.bh_grav(data.binary_positions[0],
+                                             data.bh_masses[0],
+                                             data["xyz"]*1.e3,
+                                             data["m_p"]
+                                             )
+
+    if "f_bh_2" in need_to_load:
+        data["f_bh_2"] = gizmo_tools.bh_grav(data.binary_positions[1],
+                                             data.bh_masses[1],
+                                             data["xyz"]*1.e3,
+                                             data["m_p"]
+                                             )
+
+    if "torque_bh_1" in need_to_load:
+        data["torque_bh_1"] = gizmo_tools.bh_torque(data.binary_positions[0],
+                                                    data["f_bh_1"])
+
+    if "torque_bh_2" in need_to_load:
+        data["torque_bh_2"] = gizmo_tools.bh_torque(data.binary_positions[1],
+                                                    data["f_bh_2"])
+
+
+    for prefix in ["f","torque"]:
+        for ix,x in enumerate("xyz"):
+            if f"{prefix}{x}_bh_1" in need_to_load:
+                data[f"{prefix}{x}_bh_1"] = data[f"{prefix}_bh_1"][:,ix]
+            if f"{prefix}{x}_bh_2" in need_to_load:
+                data[f"{prefix}{x}_bh_2"] = data[f"{prefix}_bh_2"][:,ix]
+            if f"{prefix}{x}_bh" in need_to_load:
+                data[f"{prefix}{x}_bh"] = data[f"{prefix}_bh_1"][:,ix] + data[f"{prefix}_bh_2"][:,ix]
+
+    for prefix in ["f","torque"]:
+        if f"{prefix}norm_bh_1" in need_to_load:
+            data[f"{prefix}norm_bh_1"] = np.sqrt(np.sum(data[f"{prefix}_bh_1"]**2,axis=1))
+        if f"{prefix}norm_bh_2" in need_to_load:
+            data[f"{prefix}norm_bh_2"] = np.sqrt(np.sum(data[f"{prefix}_bh_2"]**2,axis=1))
+        if f"{prefix}norm_bh" in need_to_load:
+            data[f"{prefix}norm_bh"] = np.sqrt(np.sum((data[f"{prefix}_bh_1"] + data[f"{prefix}_bh_2"])**2,axis=1))
+
 
     if "id" in need_to_load:
         data["id_p"] = np.array(f["/PartType0/ParticleIDs"]).astype(int)
@@ -610,10 +651,11 @@ def load_gadget(infile, plot_thing
             x in need_to_load for x in ["view" + line for line in lines])
             or "dusttau" in need_to_load):
         if "view" in need_to_load:
-            data["brightness"] = 5.67e-5 * data["dustTemp"] ** 4. * data["dg"] / np.nanmax(data["dg"])  # erg/s/cm^2
+            data["brightness"] = 5.67e-5 * data["dustTemp"] ** 4.# * data["dg"] / np.nanmax(data["dg"])  # erg/s/cm^2 [removed dg - already counted in opac?]
 
-        verboseprint("faking opacity")
-        opacity = 65.2  # cm^2/g, somewhat arbitrary
+        verboseprint("setting fixed opacity")
+        # opacity = 65.2  # cm^2/g, somewhat arbitrary
+        opacity = 25  # cm^2/g, roughly ISM dust opacity at 2 µm i.e. K-band-ish
         verboseprint("Broad IR opacity is now ", opacity, " cm^2/g")
 
         opacity *= 0.000208908219  # convert to pc**2/solar mass for consistency
@@ -667,7 +709,10 @@ def load_process_gadget_data(infile, rot, plot_thing, plot_config, centredens=Fa
     if maskbounds:
         need_to_load.append(maskbounds[0])
 
-    time, data = load_gadget(infile, need_to_load, centredens=centredens)  # ,opac_mu=opac_mu)
+    if centredens:
+        need_to_load.append("nH")
+
+    time, data = load_gadget(infile, need_to_load)  # ,opac_mu=opac_mu)
 
     n = len(data)
 
@@ -680,6 +725,7 @@ def load_process_gadget_data(infile, rot, plot_thing, plot_config, centredens=Fa
     # convert to pc
     data["pos"] = data["xyz"] * 1.e3
     data["h_p"] *= 1.e3
+
 
     x = data["x"]
     y = data["y"]
@@ -708,10 +754,10 @@ def load_process_gadget_data(infile, rot, plot_thing, plot_config, centredens=Fa
                 yb = yrb * np.cos(rot[1]) - bpos[2] * np.sin(rot[1])
                 zb = yrb * np.sin(rot[1]) + bpos[2] * np.cos(rot[1])
 
-                data.binary_positions_rot[ibin] = np.array([xb, yb, zb]) * 1.e3
+                data.binary_positions_rot[ibin] = np.array([xb, yb, zb])
     else:
         if data.binary_positions:
-            data.binary_positions_rot = [data.binary_positions[0] * 1.e3, data.binary_positions[1] * 1.e3]
+            data.binary_positions_rot = [data.binary_positions[0], data.binary_positions[1]]
 
     if (any(x in plot_thing for x in
             ["vels", "vmag", "vel_2d", "vel_x", "vel_y", "vel_z", "vel_r", "vel_a", "vthin", "vlos"] + ["v" + line for
@@ -824,7 +870,8 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
                                 maskbounds=None,
                                 data_ranges=None,
                                 gaussian=None,
-                                return_maps=False
+                                return_maps=False,
+                                centrebh=None
                                 # ,opac_mu=None
                                 ):
     if sys.version[0] == '2':
@@ -957,7 +1004,7 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
         else:
             width = scale * 2.
 
-        if centredens or centrecom:
+        if centredens or centrecom or centrebh:
             if centredens and centrecom:
                 raise Exception("Can't set both centredens and centrecom")
             if centredens:
@@ -971,6 +1018,11 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
                 r2d_com = np.mean(data["r"])
                 z_com = np.mean(z)
                 corners_side = [r2d_com - width / 2., z_com - width / 2.]
+            if centrebh is not None:
+                cent = data.binary_positions[centrebh]
+                corners = [cent[0]-width/2., cent[1] - width/2.]
+                r2d_bh = np.sqrt(data.binary_positions[centrebh][0]**2 + data.binary_positions[centrebh][1]**2)
+                corners_side = [r2d_bh - width / 2., cent[2] - width / 2.]
         else:
             # centre on 0,0
             corners = [-width / 2., -width / 2.]
@@ -994,7 +1046,10 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
         if not thisSymLog:
             thisSymLog = None
 
-        thisMass = data["m_p"]
+        if "mass" in plot_config[plot_thing[irow]]:
+            thisMass = data[plot_config[plot_thing[irow]]["mass"]]
+        else:
+            thisMass = data["m_p"]
 
         plusminus = False  # NEVER USED
 

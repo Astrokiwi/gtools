@@ -450,7 +450,7 @@ def load_gizmo_nbody(run_id, output_dir, snap_str, load_vals=None, gizmoDir=None
     snap.set_units_system(velocity="km s**-1", mass="1e10 Msol", distance="kpc")
 
     if load_vals is not None :
-        nbody_calc_vals(snap, load_vals)
+        nbody_calc_vals(snap, header, load_vals)
 
     #     for key in ["AGNIntensity","AGNIntensity_2","AGNIntensity_Effective"]:
     # #         if key in snap:
@@ -464,17 +464,17 @@ def load_gizmo_nbody(run_id, output_dir, snap_str, load_vals=None, gizmoDir=None
     return header, snap
 
 
-def nbody_calc_vals(snap, vals, **kwargs) :
+def nbody_calc_vals(snap, header, vals, **kwargs) :
     """nbody_calc_vals
     
     wrapper for nbody_calc_val for when vals is an iterable
     """
     for val in vals :
-        nbody_calc_val(snap, val, **kwargs)
+        nbody_calc_val(snap, header, val, **kwargs)
 
 
-def nbody_quickhist2d(snap, val1, val2, weights=None, run_name="quickhist", cmap='viridis', log=False, logx=False,
-                      logy=False, **kwargs) :
+def nbody_quickhist2d(snap, val1, val2, dir="../pics/", weights=None, run_name="quickhist", cmap='viridis', log=False, logx=False,
+                      logy=False, plotf = None, **kwargs) :
     fig, sp = plt.subplots()
     scale_x_func = np.log10 if logx else lambda x : x
     scale_y_func = np.log10 if logy else lambda x : x
@@ -510,12 +510,17 @@ def nbody_quickhist2d(snap, val1, val2, weights=None, run_name="quickhist", cmap
     if log :
         hist = np.log10(hist)
     mappable = sp.pcolormesh(xs, ys, hist.T, cmap=cmap)
+    sp.set_xlim(xs[0],xs[-1])
+    sp.set_ylim(ys[0],ys[-1])
+    if plotf is not None:
+        sp.plot(xs,plotf(xs))
     fig.colorbar(mappable)
-    fig.savefig(f"../figures/hist2d_{run_name}_{val1}_{val2}{suffix}.png")
+    fig.savefig(f"{dir}/hist2d_{run_name}_{val1}_{val2}{suffix}.png")
     plt.close()
 
 
 def nbody_calc_val(snap
+                   , header
                    , val
                    , m_smbh=1.e6
                    , smbh_soft=0.01e-3
@@ -576,7 +581,82 @@ def nbody_calc_val(snap
                     molecular_mass * pynbody.array.SimArray(proton_mass_cgs, 'g')) * snap["u"]).in_units('K')
     elif val == "RadiativeAcceleration_r" :
         snap["RadiativeAcceleration_r"] = np.sum(snap["RadiativeAcceleration"] * snap["pos"], axis=1) / snap["r"]
+    elif val == "bh_pos":
+        bh_kinematics(header,snap)
+    elif val == "bh_forces":
+        snap["f_bh_1"] = bh_grav(header["BH_pos_1"],
+                                             header["BH_mass_1"],
+                                             snap["pos"],
+                                             snap["mass"]
+                                             )
+        snap["f_bh_2"] = bh_grav(header["BH_pos_2"],
+                                             header["BH_mass_2"],
+                                             snap["pos"],
+                                             snap["mass"]
+                                             )
+        snap["torque_bh_1"] = bh_torque(header["BH_pos_1"],
+                                                    snap["f_bh_1"])
+        snap["torque_bh_2"] = bh_torque(header["BH_pos_2"],
+                                                    snap["f_bh_2"])
 
+def bh_grav(r_bh,m_bh,r_p,m_p,G=1):
+    dr = r_p-r_bh
+    dr_norm = np.sum(dr**2,axis=1)
+    f_grav = (G * m_bh * m_p/dr_norm**3)[:,np.newaxis] * dr
+    return f_grav
+
+def bh_torque(r_bh,m_bh,r_p,m_p,G=1):
+    dr = r_p-r_bh
+    dr_norm = np.sum(dr**2,axis=1)
+    f_grav = G * m_bh * m_p * dr/(dr_norm)**3
+    return bh_torque(r_bh,f_grav)
+
+def bh_torque(r_bh,f_grav):
+    return np.cross(r_bh,f_grav)
+
+def bh_kinematics(header,snap,major_axis=None,eccentricity=None):
+    if not "r_1" in snap:
+        snap["r_1"] = snap["pos"] - header["BH_pos_1"]
+        snap["r_2"] = snap["pos"] - header["BH_pos_2"]
+        for bh in ["1","2"]:
+            snap[f"r_{bh}_r"] = ((snap[f'r_{bh}'] ** 2).sum(axis=1)) ** (1, 2)
+            snap[f"r_{bh}_rxy"] = ((snap[f'r_{bh}'][:, 0:2] ** 2).sum(axis=1)) ** (1, 2)
+
+    # snap["v_1"] = snap["vel"] - header["BH_vel_1"]
+    # snap["v_2"] = snap["vel"] - header["BH_vel_2"]
+    #
+
+    if major_axis is not None and eccentricity is not None:
+        major_axis_pc = pynbody.array.SimArray(major_axis,'pc')
+        GM = (header["BH_mass_1"] + header["BH_mass_2"]) * pynbody.units.G
+
+        # r_sep = np.sum((header[f"BH_pos_1"][0:2]-header[f"BH_pos_2"][0:2]) ** 2) ** (1, 2)
+        for bh in ["1","2"]:
+            # r_xy = np.sum(header[f"BH_pos_{bh}"][0:2] ** 2) ** (1, 2)
+            ecc_fac = np.sqrt(1-eccentricity**2)
+
+            # vc = ((GM * (2 / r_xy - 1. / major_axis_pc)) ** (1, 2)).in_units("km s**-1")
+            # header[f"BH_vel_{bh}"] = vc * pynbody.array.SimArray([header[f"BH_pos_{bh}"][1],-header[f"BH_pos_{bh}"][0],0],"pc")/r_xy
+
+            bh_x = header[f"BH_pos_{bh}"].in_units("pc")[0]
+            bh_y = header[f"BH_pos_{bh}"].in_units("pc")[1]
+            r = 1-eccentricity*bh_y/major_axis_pc-eccentricity**2
+
+            header[f"BH_vel_{bh}"] = (GM/major_axis_pc)**(1,2)/r * np.array([
+                                                -(bh_y/major_axis_pc-eccentricity)/ecc_fac
+                                                ,bh_x/ecc_fac/major_axis_pc
+                                                ,0]
+                )
+            header[f"BH_vel_{bh}"]=header[f"BH_vel_{bh}"].in_units("km s**-1")
+            # header[f"BH_vel_{bh}"] = (GM/major_axis_pc)**(1,2)/r_xy * np.array([
+            #                                     -bh_y/ecc_fac/major_axis_pc
+            #                                     ,(bh_x/major_axis_pc-eccentricity)/ecc_fac
+            #                                     ,0]
+            #                             )
+
+            snap[f"v_{bh}"] = snap["vel"] - header[f"BH_vel_{bh}"]
+            snap[f"vc_{bh}"] = pynbody.array.SimArray(np.cross(snap[f"v_{bh}"].in_units("km s**-1"),snap[f"r_{bh}"].in_units("pc")),"pc km s**-1")/snap[f"r_{bh}_rxy"].in_units("pc")[:,np.newaxis]
+            snap[f"vc_{bh}"]=snap[f"vc_{bh}"].in_units("km s**-1")
 
 def gridsize_from_n(n, aspect=1.) :
     nx = 1

@@ -15,7 +15,16 @@ preqs_list = [
     ,[["vel0" ,"age"],"id"]
     ,["arad","arads"]
     ,[lines,"table"]
+    ,["f_bh",["f_bh_1","f_bh_2"]]
+    ,["torque_bh", ["torque_bh_1","torque_bh_2"]]
+    ,["torque_bh_1","f_bh_1"]
+    ,["torque_bh_2","f_bh_2"]
 ]
+
+for coord in ["x","y","z","norm"]:
+    for suffix in ["_1","_2",""]:
+        preqs_list+=[[f"f{coord}_bh{suffix}",f"f_bh{suffix}"]]
+        preqs_list+=[[f"torque{coord}_bh{suffix}",f"torque_bh{suffix}"]]
 
 for line in lines:
     preqs_list+=[["dv"+line,"v"+line]]

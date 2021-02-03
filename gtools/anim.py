@@ -80,9 +80,10 @@ def parse_input():
     default_values["snapstep"]=1
     default_values["verbose"]=False
     default_values["dataDir"] = None
+    default_values["centrebh"] = None
 #    default_values["opac_mu"]=None
     
-    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep","verbose","dataDir"]
+    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep","verbose","dataDir","centrebh"]
     #,"opac_mu"]
 
     parser = argparse.ArgumentParser()
@@ -115,6 +116,7 @@ def parse_input():
     parser.add_argument('--gizmoDir',type=str,help="Custom directory for gizmo runs")
     parser.add_argument('--verbose',help="Print more text",action='store_true')
     parser.add_argument('--dataDir', type=str, help="Custom directory for output data")
+    parser.add_argument('--centrebh', type=int, help="Which BH to centre on")
 #    parser.add_argument('--opac_mu',type=float,help="Wavelength in microns of dust opacity to use")
     args = parser.parse_args()
     
@@ -188,7 +190,7 @@ def animate(anim_prams):
     
     frame_prams["visibleAxes"]=not anim_prams["noaxes"]
     
-    prams_to_copy = ["cmap","L","centredens","centrecom","dotmode","pixsize"]
+    prams_to_copy = ["cmap","L","centredens","centrecom","dotmode","pixsize","centrebh"]
     for key in prams_to_copy:
         frame_prams[key] = anim_prams[key]
     

@@ -550,6 +550,373 @@
         "slice": "viewslice",
         "symlog": false
     },
+
+
+
+
+
+
+
+    "fnorm_bh": {
+        "data": "fnorm_bh",
+        "diverging": false,
+        "label": "fnorm_bh",
+        "log": true,
+        "range": [
+            -5,
+            12,
+            -5,
+            12
+        ],
+        "slice": "quantslice",
+        "symlog": false
+    },
+    "fnorm_bh_1": {
+        "data": "fnorm_bh_1",
+        "diverging": false,
+        "label": "fnorm_bh_1",
+        "log": true,
+        "range": [
+            -5,
+            12,
+            -5,
+            12
+        ],
+        "slice": "quantslice",
+        "symlog": false
+    },
+    "fnorm_bh_2": {
+        "data": "fnorm_bh_2",
+        "diverging": false,
+        "label": "fnorm_bh_2",
+        "log": true,
+        "range": [
+            -5,
+            12,
+            -5,
+            12
+        ],
+        "slice": "quantslice",
+        "symlog": false
+    },
+    "fx_bh": {
+        "data": "fx_bh",
+        "diverging": false,
+        "label": "fx_bh",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "fx_bh_1": {
+        "data": "fx_bh_1",
+        "diverging": false,
+        "label": "fx_bh_1",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "fx_bh_2": {
+        "data": "fx_bh_2",
+        "diverging": false,
+        "label": "fx_bh_2",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "fy_bh": {
+        "data": "fy_bh",
+        "diverging": false,
+        "label": "fy_bh",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "fy_bh_1": {
+        "data": "fy_bh_1",
+        "diverging": false,
+        "label": "fy_bh_1",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "fy_bh_2": {
+        "data": "fy_bh_2",
+        "diverging": false,
+        "label": "fy_bh_2",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "fz_bh": {
+        "data": "fz_bh",
+        "diverging": false,
+        "label": "fz_bh",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "fz_bh_1": {
+        "data": "fz_bh_1",
+        "diverging": false,
+        "label": "fz_bh_1",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "fz_bh_2": {
+        "data": "fz_bh_2",
+        "diverging": false,
+        "label": "fz_bh_2",
+        "log": false,
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "quantslice",
+        "symlog": 1.0
+    },
+    "torquenorm_bh": {
+        "data": "torquenorm_bh",
+        "diverging": false,
+        "label": "torquenorm_bh",
+        "log": true,
+        "mass": "torquenorm_bh",
+        "range": [
+            -5,
+            12,
+            -5,
+            12
+        ],
+        "slice": "dslice",
+        "symlog": false
+    },
+    "torquenorm_bh_1": {
+        "data": "torquenorm_bh_1",
+        "diverging": false,
+        "label": "torquenorm_bh_1",
+        "log": true,
+        "mass": "torquenorm_bh_1",
+        "range": [
+            -5,
+            12,
+            -5,
+            12
+        ],
+        "slice": "dslice",
+        "symlog": false
+    },
+    "torquenorm_bh_2": {
+        "data": "torquenorm_bh_2",
+        "diverging": false,
+        "label": "torquenorm_bh_2",
+        "log": true,
+        "mass": "torquenorm_bh_2",
+        "range": [
+            -5,
+            12,
+            -5,
+            12
+        ],
+        "slice": "dslice",
+        "symlog": false
+    },
+    "torquex_bh": {
+        "data": "torquex_bh",
+        "diverging": false,
+        "label": "torquex_bh",
+        "log": false,
+        "mass": "torquex_bh",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+    "torquex_bh_1": {
+        "data": "torquex_bh_1",
+        "diverging": false,
+        "label": "torquex_bh_1",
+        "log": false,
+        "mass": "torquex_bh_1",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+    "torquex_bh_2": {
+        "data": "torquex_bh_2",
+        "diverging": false,
+        "label": "torquex_bh_2",
+        "log": false,
+        "mass": "torquex_bh_2",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+    "torquey_bh": {
+        "data": "torquey_bh",
+        "diverging": false,
+        "label": "torquey_bh",
+        "log": false,
+        "mass": "torquey_bh",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+    "torquey_bh_1": {
+        "data": "torquey_bh_1",
+        "diverging": false,
+        "label": "torquey_bh_1",
+        "log": false,
+        "mass": "torquey_bh_1",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+    "torquey_bh_2": {
+        "data": "torquey_bh_2",
+        "diverging": false,
+        "label": "torquey_bh_2",
+        "log": false,
+        "mass": "torquey_bh_2",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+    "torquez_bh": {
+        "data": "torquez_bh",
+        "diverging": false,
+        "label": "torquez_bh",
+        "log": false,
+        "mass": "torquez_bh",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+    "torquez_bh_1": {
+        "data": "torquez_bh_1",
+        "diverging": false,
+        "label": "torquez_bh_1",
+        "log": false,
+        "mass": "torquez_bh_1",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+    "torquez_bh_2": {
+        "data": "torquez_bh_2",
+        "diverging": false,
+        "label": "torquez_bh_2",
+        "log": false,
+        "mass": "torquez_bh_2",
+        "range": [
+            -1e+18,
+            1e+18,
+            -1e+18,
+            1e+18
+        ],
+        "slice": "dslice",
+        "symlog": 1.0
+    },
+
+
+
+
+
+
+
+
+
+
+
+
     "h2_1": {
         "data": "h2_1",
         "diverging": false,
@@ -1289,7 +1656,7 @@
             "opac"
         ],
         "diverging": false,
-        "label": "$\\log_{10} F$ (arbitrary units)",
+        "label": "$\\log_{10} F$ (erg s**-1 cm**-2)",
         "log": true,
         "range": [
             1.0,

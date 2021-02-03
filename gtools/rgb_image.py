@@ -130,7 +130,7 @@ def plot_nice():
 
 if __name__ == '__main__':
     # Data produced with:
-    # python sph_anim.py 3001 a2_e01 --rad 1. --savemap --view face --phi 90. --snap0 100 --maxsnapf 100 --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m
+    # python anim.py 3001 a2_e01 --rad 1. --savemap --view face --phi 90. --snap0 100 --maxsnapf 100 --plot co1m,co2m,hcn1m,hcn2m,h2_1m,h2_2m,h2_3m
     
 #     plot_all()
 
