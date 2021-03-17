@@ -17,6 +17,8 @@ from . import gizmo_tools
 
 import glob
 
+from scipy import interpolate
+
 def sort_nicely( l ):
     """ Sort the given list in the way that humans expect.
     """

@@ -25,7 +25,7 @@ from matplotlib import colors
 import matplotlib.pyplot as plt
 
 from .sph_plotter import sph_plotter as sph_plotter_noisy
-# from sph_plotter import sph_plotter
+# from .sph_plotter import sph_plotter
 from . import output_suppressor
 from . import preqs_config
 from . import gizmo_tools
@@ -224,9 +224,10 @@ def makesph_plot(data, plane_keys,
         this_cmap.set_bad('black', 1.)
         this_cmap.set_under('black', 1.)
 
-    n = x_p.size
+    n = len(data)
     if mask is None:
         mask = np.ones(n)
+
     if corner == 'centered':
         corner = [-width / 2., -width / 2.]
     if m_p is None:
@@ -268,7 +269,8 @@ def makesph_plot(data, plane_keys,
     elif mode == weightviewslice:
         zarg = np.argsort(z_p)
         #         threshold_flux = 1.e-5
-        threshold_flux = 1.e-7
+        # threshold_flux = 1.e-7
+        threshold_flux = 0.
         print("HACKY: USING THRESHOLD FLUX OF ", threshold_flux)
         sph_map = sph_plotter.sph_optical_depth_los_weight_thresh(x_p, y_p, m_p, h_p, val_p[0], val_p[1], val_p[2], L,
                                                                   corner, width, z_p, zarg, mask, threshold_flux, n)
@@ -304,13 +306,13 @@ def makesph_plot(data, plane_keys,
         norm_map = norm_map.T
 
         step = width / L
-        xmids = np.arange(corner[0] + step, corner[0] + width + step, step)
-        ymids = np.arange(corner[1] + step, corner[1] + width + step, step)
+        xmids = np.linspace(corner[0] + step/2., corner[0] + width - step/2, L)
+        ymids = np.linspace(corner[1] + step/2., corner[1] + width - step/2, L)
         # sp.set_axis_bgcolor('black') # deprecated apparently?
         sp.set_facecolor('black')
         norm_map = np.log10(norm_map)
-        xedges = np.arange(corner[0], corner[0] + width, width / L)
-        yedges = np.arange(corner[1], corner[1] + width, width / L)
+        xedges = np.linspace(corner[0], corner[0] + width, L+1)
+        yedges = np.linspace(corner[1], corner[1] + width, L+1)
 
         if sp is not None:
             qv = safe_pcolormesh(sp, xedges, yedges, norm_map, cmap=this_cmap, vmin=vmin, vmax=vmax)
@@ -446,6 +448,12 @@ def load_gadget(infile, plot_thing):
 
             data.bh_masses = [BH_data.attrs.get("Binary_mass_1")*1.e10,
                               BH_data.attrs.get("Binary_mass_2")*1.e10]
+
+            Binary_vel_1 = BH_data.attrs.get("Binary_vel_1")
+            Binary_vel_2 = BH_data.attrs.get("Binary_vel_2")
+            data.binary_vels = [ BH_data.attrs.get("Binary_vel_1"), # km/s
+                                 BH_data.attrs.get("Binary_vel_2") # km/s
+                                 ]
         else:
             data.binary_positions = None
     #         verboseprint("Binary BH data loaded")
@@ -655,7 +663,8 @@ def load_gadget(infile, plot_thing):
 
         verboseprint("setting fixed opacity")
         # opacity = 65.2  # cm^2/g, somewhat arbitrary
-        opacity = 25  # cm^2/g, roughly ISM dust opacity at 2 µm i.e. K-band-ish
+        # opacity = 25  # cm^2/g, roughly ISM dust opacity at 2 µm i.e. K-band-ish
+        opacity = 500.  # cm^2/g, extremely high
         verboseprint("Broad IR opacity is now ", opacity, " cm^2/g")
 
         opacity *= 0.000208908219  # convert to pc**2/solar mass for consistency
@@ -703,7 +712,7 @@ def pack_dicts():
 
 
 def load_process_gadget_data(infile, rot, plot_thing, plot_config, centredens=False, ringPlot=False, flatPlot=False,
-                             maskbounds=None):
+                             maskbounds=None, centrebh=None, mask_id_file=None):
     # ,opac_mu=None):
     need_to_load = list(plot_thing)
     if maskbounds:
@@ -712,7 +721,21 @@ def load_process_gadget_data(infile, rot, plot_thing, plot_config, centredens=Fa
     if centredens:
         need_to_load.append("nH")
 
+    if mask_id_file is not None:
+        need_to_load.append("id")
+
     time, data = load_gadget(infile, need_to_load)  # ,opac_mu=opac_mu)
+
+    if mask_id_file is not None:
+        raise NotImplementedError()
+        ids_to_keep = np.loadtxt(mask_id_file).astype(np.int)
+        boolean_to_keep = np.isin(data["id_p"]-1,ids_to_keep)
+        verboseprint("slicing ",np.sum(boolean_to_keep)," out of ",len(data)," particles")
+        olddata = data
+        data = olddata[boolean_to_keep]
+        # copy other stuff
+        data.binary_positions = olddata.binary_positions
+        data.binary_vels = olddata.binary_vels
 
     n = len(data)
 
@@ -722,9 +745,21 @@ def load_process_gadget_data(infile, rot, plot_thing, plot_config, centredens=Fa
     #       y_bin = data.binary_positions[0][1]-data.binary_positions[1][1]
     #       rot[0] = rot[0] - math.atan2(y_bin,x_bin)
 
+
     # convert to pc
-    data["pos"] = data["xyz"] * 1.e3
+    data["pos"] = data["xyz"] * 1.e3 # pynbody then automatically sets xyz
     data["h_p"] *= 1.e3
+
+    if data.binary_positions is not None and centrebh is not None and ringPlot:
+        cent = copy.copy(data.binary_positions[centrebh])
+
+        data["x"] -= cent[0]
+        data["y"] -= cent[1]
+        data["z"] -= cent[2]
+
+        data.binary_positions[0]-=cent
+        data.binary_positions[1]-=cent
+
 
 
     x = data["x"]
@@ -765,6 +800,12 @@ def load_process_gadget_data(infile, rot, plot_thing, plot_config, centredens=Fa
                                                                                                         lines] + [
                 "dv" + line for line in lines] + ["vels" + line for line in
                                                   lines])):  # + ["view"+line for line in lines]
+
+        if centrebh is not None :
+            if data.binary_positions:
+                data["vels"][:, 0] -= data.binary_vels[centrebh][0]
+                data["vels"][:, 1] -= data.binary_vels[centrebh][1]
+                data["vels"][:, 2] -= data.binary_vels[centrebh][2]
         # vel_mag = np.sqrt(np.sum(data.vels[:,:]**2,1))
         data["vel_a"] = (-x * data["vels"][:, 1] + y * data["vels"][:, 0]) / np.sqrt(x ** 2 + y ** 2)
         data["velr"] = (x * data["vels"][:, 0] + y * data["vels"][:, 1] + z * data["vels"][:, 2]) / np.sqrt(
@@ -871,7 +912,8 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
                                 data_ranges=None,
                                 gaussian=None,
                                 return_maps=False,
-                                centrebh=None
+                                centrebh=None,
+                                mask_id_file=None
                                 # ,opac_mu=None
                                 ):
     if sys.version[0] == '2':
@@ -931,7 +973,9 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
         time, data, x, y, z, deep_face, deep_side, mask, n, n_ones = load_process_gadget_data(infile, rot, plot_thing,
                                                                                               plot_config, centredens,
                                                                                               ringPlot, flatPlot,
-                                                                                              maskbounds)  # ,opac_mu=opac_mu)
+                                                                                              maskbounds,
+                                                                                              centrebh,
+                                                                                              mask_id_file=mask_id_file)  # ,opac_mu=opac_mu)
         #         time,data = load_gadget(infile,need_to_load,centredens=centredens)
         verboseprint("Plotting", infile, ", t=%.4f Myr" % time)
 
@@ -962,7 +1006,9 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
                                                                                                   plot_config,
                                                                                                   centredens,
                                                                                                   ringPlot, flatPlot,
-                                                                                                  maskbounds)
+                                                                                                  maskbounds,
+                                                                                                  centrebh,
+                                                                                                  mask_id_file=mask_id_file)
 
             verboseprint("Plotting", thisfile, ", t=%.4f Myr" % time)
 
@@ -1004,7 +1050,7 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
         else:
             width = scale * 2.
 
-        if centredens or centrecom or centrebh:
+        if centredens or centrecom or centrebh is not None:
             if centredens and centrecom:
                 raise Exception("Can't set both centredens and centrecom")
             if centredens:
@@ -1019,10 +1065,19 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
                 z_com = np.mean(z)
                 corners_side = [r2d_com - width / 2., z_com - width / 2.]
             if centrebh is not None:
-                cent = data.binary_positions[centrebh]
-                corners = [cent[0]-width/2., cent[1] - width/2.]
-                r2d_bh = np.sqrt(data.binary_positions[centrebh][0]**2 + data.binary_positions[centrebh][1]**2)
-                corners_side = [r2d_bh - width / 2., cent[2] - width / 2.]
+                if ringPlot:
+                    corners = [-width / 2., -width / 2.]
+                    corners_side = [0., -width / 2.]
+                else:
+                    cent = data.binary_positions[centrebh]
+                    corners = [cent[0]-width/2., cent[1] - width/2.]
+                    corners_side = [cent[1] - width / 2., cent[2] - width / 2.]
+                # if ringPlot :
+                #     r2d_bh = np.sqrt(data.binary_positions[centrebh][0] ** 2 + data.binary_positions[centrebh][1] ** 2)
+                #     corners_side = [r2d_bh - width / 2., cent[2] - width / 2.]
+                # else:
+                #     corners_side = [cent[1] - width / 2., cent[2] - width / 2.]
+
         else:
             # centre on 0,0
             corners = [-width / 2., -width / 2.]

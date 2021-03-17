@@ -33,7 +33,7 @@ if __name__ == '__main__' :
 
     header,snap = gizmo_tools.load_gizmo_nbody(run_dir,run_id,snap_str)
 
-    gizmo_tools.nbody_calc_val(snap,'temp')
+    gizmo_tools.nbody_calc_val(snap,header,'temp')
 
     out_table = np.vstack([
                             snap.gas['x'].in_units('pc')

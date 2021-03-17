@@ -57,6 +57,8 @@ binary_headers_unit_name_conversions = {
     # msun * pc / yr**2
     , "Binary_mass_1"              : ("BH_mass_1", 1.e10, "Msol")  # msun
     , "Binary_mass_2"              : ("BH_mass_2", 1.e10, "Msol")  # msun
+    , "Binary_acccreted_mass_1" : ("Binary_accreted_mass_1", 1.e10, "Msol")  # msun
+    , "Binary_acccreted_mass_2" : ("Binary_accreted_mass_2", 1.e10, "Msol")  # msun
     , "Binary_accreted_momentum_1" : ("BH_acc_mom_1", 1.e10 * 1000. / 0.9778e9, "Msol pc yr**-1")  # msun * pc / yr
     , "Binary_accreted_momentum_2" : ("BH_acc_mom_2", 1.e10 * 1000. / 0.9778e9, "Msol pc yr**-1")  # msun * pc / yr
     , "Binary_grav_momentum_1" : ("BH_grav_mom_1", 1.e10 * 1000. / 0.9778e9, "Msol pc yr**-1")  # msun * pc / yr

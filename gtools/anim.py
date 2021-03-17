@@ -15,6 +15,8 @@ from . import gizmo_tools
 
 import argparse
 
+serial_debug = False
+
 import tqdm
 
 # def sort_nicely( l ):
@@ -81,9 +83,10 @@ def parse_input():
     default_values["verbose"]=False
     default_values["dataDir"] = None
     default_values["centrebh"] = None
+    default_values["select"] = None
 #    default_values["opac_mu"]=None
     
-    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep","verbose","dataDir","centrebh"]
+    parsevals = ["data_ranges","nprocs","maxsnapf","run_id","output_dir","plot","cmap","rad","L","slice","views","phi","theta","noaxes","centredens","centrecom","suffix","dotmode","absurd","pixsize","noring","snap0","savemap","gaussian","gizmoDir","snapstep","verbose","dataDir","centrebh","select"]
     #,"opac_mu"]
 
     parser = argparse.ArgumentParser()
@@ -117,6 +120,7 @@ def parse_input():
     parser.add_argument('--verbose',help="Print more text",action='store_true')
     parser.add_argument('--dataDir', type=str, help="Custom directory for output data")
     parser.add_argument('--centrebh', type=int, help="Which BH to centre on")
+    parser.add_argument('--select', type=str, help="File with list of IDs to select")
 #    parser.add_argument('--opac_mu',type=float,help="Wavelength in microns of dust opacity to use")
     args = parser.parse_args()
     
@@ -193,7 +197,12 @@ def animate(anim_prams):
     prams_to_copy = ["cmap","L","centredens","centrecom","dotmode","pixsize","centrebh"]
     for key in prams_to_copy:
         frame_prams[key] = anim_prams[key]
-    
+
+    frame_prams["mask_id_file"] = anim_prams["select"]
+
+    if frame_prams["centrebh"] is not None:
+        frame_prams["centrebh"]-=1
+
     gizmoDir = anim_prams["gizmoDir"]
     run_id = anim_prams["run_id"]
     output_dir = anim_prams["output_dir"]
@@ -258,10 +267,16 @@ def animate(anim_prams):
     if "rad0" in frame_prams["plot"]:
         dump_rad0(infiles[0])
 
-    with Pool(processes=anim_prams["nprocs"]) as pool:
+    if serial_debug:
         maps=[]
-        for _ in tqdm.tqdm(pool.imap_unordered(frame_i,range(snapf+1-snapi)),total=snapf+1-snapi):
+        for i in range(snapf+1-snapi):
+            _ = frame_i(i)
             maps.append(_)
+    else:
+        with Pool(processes=anim_prams["nprocs"]) as pool:
+            maps=[]
+            for _ in tqdm.tqdm(pool.imap_unordered(frame_i,range(snapf+1-snapi)),total=snapf+1-snapi):
+                maps.append(_)
 
     for result in maps:
         if isinstance(result, frame.ExceptionWrapper):
@@ -273,19 +288,19 @@ def animate(anim_prams):
         for itime,maps_timeslice in enumerate(maps):
             idump = isnaps[itime]
             #print(len(maps_timeslice))
-            for iplot,map in enumerate(maps_timeslice):
+            for iplot,outmap in enumerate(maps_timeslice):
                 #print(iplot,idump,frame_prams["plot"],plot_strs)
                 plot_str = plot_strs[iplot]
                 if frame_prams["plot"].count(plot_str)>0:
                     plot_str+="_%03d"%plot_strs[:iplot].count(plot_strs[iplot])
                 #print("type=",type(map))
-                if type(map) is list:
-                    for imap,submap in enumerate(map):
+                if type(outmap) is list:
+                    for imap,submap in enumerate(outmap):
                         outfile = data_dir+"/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+"_%03d.dat"%imap
                         np.savetxt(outfile,submap)
                 else:
                     outfile = data_dir+"/"+smooth_str+"sum_giz_"+run_id+"_"+output_dir+anim_prams["suffix"]+"_%03d"%idump+"_"+plot_str+".dat"
-                    np.savetxt(outfile,map)
+                    np.savetxt(outfile,outmap)
 
     
     print("to mp4!")

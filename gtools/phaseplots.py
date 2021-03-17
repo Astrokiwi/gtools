@@ -725,7 +725,10 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None,m_bh=1.e6,g
     
 #     if uniqueMode:
 #         varOneRange = includedVals[0::2]
-    
+
+    pic_dir = gizmo_tools.getPicDir()
+
+
     for i,iv in enumerate(varOneRange):
         if uniqueMode and i%2!=0:
             continue
@@ -739,7 +742,7 @@ def savephaseplots(run_id,output_dir,snap_str,includedVals,rcut=None,m_bh=1.e6,g
                     weight_str = ""
         #for iv in range(7):
         #    for jv in [7]:
-                fname = os.path.join(this_dir, "../pics", run_id + output_dir + iv + jv + weight_str + snap_str + ".png")
+                fname = os.path.join(pic_dir, run_id + output_dir + iv + jv + weight_str + snap_str + ".png")
                 outfiles.append(fname)
                 fig,sp = P.subplots(1,1)
             
