@@ -57,6 +57,28 @@
         "slice": "viewslice",
         "symlog": false
     },
+    "v12mic": {
+        "data": [
+            "vthin",
+            "12micbrightness",
+            "12micopac",
+            "vythin",
+            "12micbrightness",
+            "12micopac"
+        ],
+        "diverging": true,
+        "label": "v12mic",
+        "log": false,
+        "mass": "12micm",
+        "range": [
+            -200.0,
+            200.0,
+            -200.0,
+            200.0
+        ],
+        "slice": "weightviewslice",
+        "symlog": false
+    },
     "8mic": {
         "data": "8mic",
         "diverging": false,
@@ -90,6 +112,28 @@
         "slice": "viewslice",
         "symlog": false
     },
+    "v8mic": {
+        "data": [
+            "vthin",
+            "8micbrightness",
+            "8micopac",
+            "vythin",
+            "8micbrightness",
+            "8micopac"
+        ],
+        "diverging": true,
+        "label": "v8mic",
+        "log": false,
+        "mass": "8micm",
+        "range": [
+            -200.0,
+            200.0,
+            -200.0,
+            200.0
+        ],
+        "slice": "weightviewslice",
+        "symlog": false
+    },
     "850mic": {
         "data": "850mic",
         "diverging": false,
@@ -121,6 +165,28 @@
         "log": true,
         "range": "view_line_defaults",
         "slice": "viewslice",
+        "symlog": false
+    },
+    "v850mic": {
+        "data": [
+            "vthin",
+            "850micbrightness",
+            "850micopac",
+            "vythin",
+            "850micbrightness",
+            "850micopac"
+        ],
+        "diverging": true,
+        "label": "v850mic",
+        "log": false,
+        "mass": "850micm",
+        "range": [
+            -200.0,
+            200.0,
+            -200.0,
+            200.0
+        ],
+        "slice": "weightviewslice",
         "symlog": false
     },
     "AGNI": {
@@ -345,9 +411,9 @@
         "log": false,
         "range": [
             0.0,
-            0.000234,
+            0.01,
             0.0,
-            0.000234
+            0.01
         ],
         "slice": "quantslice",
         "symlog": false

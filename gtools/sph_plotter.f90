@@ -285,7 +285,11 @@ module sph_plotter
         endif
         r_cell = w/L
         area_cell = r_cell**2
-        
+
+        if ( r_cell<=0 ) then
+            return
+        end if
+
 !         if (any(isnan(v)) .and. btest(mode,DENSE_WEIGHT_POS)) then
 !             print *,"v",n,count(isnan(v))
 !         endif
