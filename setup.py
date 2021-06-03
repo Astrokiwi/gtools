@@ -3,16 +3,21 @@ import numpy
 
 from numpy.distutils.core import setup, Extension
 
+default_compile_args = ["-Wall","-mcmodel=medium","-fopenmp","-lgomp"]
+mac_compile_args = ["-Wall","-mcmodel=medium","-fopenmp","-fallow-invalid-boz","-lgomp"]
+
+
 extension_mod = Extension("gtools._tab_interp",
                         ["gtools/_tab_interp_module.cc", "gtools/dust_temp_interp.cpp"])
 
 extension_f = Extension(name='gtools.sph_plotter',
                  sources=['gtools/sph_plotter.f90'],
                  f2py_options=['--quiet'],
-                 extra_f77_compile_args=["-Wall","-mcmodel=medium","-fopenmp","-fallow-invalid-boz","-lgomp"],
-                 extra_f90_compile_args=["-Wall","-mcmodel=medium","-fopenmp","-fallow-invalid-boz","-lgomp"]
+                 extra_f77_compile_args=default_compile_args,
+                 extra_f90_compile_args=default_compile_args
                 )
-# 
+#
+
 # 	python -m numpy.f2py --opt=-O3 --f90flags="-Wall -mcmodel=medium -fopenmp -fallow-invalid-boz"  --f77flags="-Wall -mcmodel=medium -fopenmp -fallow-invalid-boz" -lgomp -c sph_plotter.f90 -m sph_plotter
 # OPTIONS = -O3 -ldl -Wall -mcmodel=medium
 
