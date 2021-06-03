@@ -24,13 +24,13 @@ mpl.use('Agg')
 from matplotlib import colors
 import matplotlib.pyplot as plt
 
-from .sph_plotter import sph_plotter as sph_plotter_noisy
+from . import sph_plotter as sph_plotter_noisy
 # from .sph_plotter import sph_plotter
 from . import output_suppressor
 from . import preqs_config
 from . import gizmo_tools
 
-
+# sph_plotter_noisy
 
 
 tblib.pickling_support.install()

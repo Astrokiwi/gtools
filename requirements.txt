@@ -1,0 +1,7 @@
+pynbody
+pandas
+numpy
+matplotlib
+h5py
+scipy
+tqdm
