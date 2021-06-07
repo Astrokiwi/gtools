@@ -13,6 +13,7 @@ import pynbody
 import matplotlib.cm
 
 from scipy import interpolate
+from scipy.io import FortranFile
 
 import matplotlib.patches as patches
 
@@ -21,6 +22,7 @@ import ctypes
 from . import tab_interp, config
 
 import matplotlib.pyplot as plt
+
 
 this_dir, this_filename = os.path.split(__file__)
 
@@ -347,6 +349,22 @@ column_conversions = {
     "InternalEnergy"  : "u",
     "SmoothingLength" : "h",
     }
+
+def extract_pvfile(infile,outfile):
+    f = h5py.File(infile, "r")  # eqm-ish
+    r = np.array(f["/PartType0/Coordinates"])
+    v = np.array(f["/PartType0/Velocities"])
+    u = np.array(f["/PartType0/InternalEnergy"])
+
+    f = FortranFile(outfile, 'w')  # eqm-ish
+    f.write_record(r[:, 0])
+    f.write_record(r[:, 1])
+    f.write_record(r[:, 2])
+    f.write_record(v[:, 0])
+    f.write_record(v[:, 1])
+    f.write_record(v[:, 2])
+    f.write_record(u)
+    f.close()
 
 
 def dump_ascii(filename, gizmo_dataframe) :
@@ -752,6 +770,7 @@ def run_parameters_table(run_parameters) :
             run_prams["outflowThetaWidth"]
             )
     return outp, sorted_keys
+
 
 
 class cloudy_table :
