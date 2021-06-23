@@ -420,7 +420,8 @@ def makesph_plot(data, plane_keys,
                     elif plane_axis == 'r':
                         bin_coords[coord_id] = np.sqrt(
                             data.binary_positions_rot[ibinary][1] ** 2 + data.binary_positions_rot[ibinary][0] ** 2)
-                sp.scatter(bin_coords[0], bin_coords[1], marker=marker)
+                if visibleAxes:
+                    sp.scatter(bin_coords[0], bin_coords[1], marker=marker)
         else:
             sp.plot([0], [0], '+g', markersize=10., markeredgewidth=1.)
     return outmap
@@ -1254,7 +1255,11 @@ def makesph_trhoz_frame_wrapped(infile, outfile,
     else:
         fig.subplots_adjust(left=0.0, hspace=.0, top=1., bottom=.0, right=1., wspace=0.)
 
-    pos = ax[0, 1].get_position()
+    if visibleAxes:
+        sel_ax = ax[0,1]
+    else:
+        sel_ax = ax[0,0]
+    pos = sel_ax.get_position()
     lpixx = (L / (pos.x1 - pos.x0))
     my_dpi = int(np.floor(lpixx / fw_inches)) * pixsize
 

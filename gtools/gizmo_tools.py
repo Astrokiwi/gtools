@@ -854,18 +854,48 @@ class cloudy_table :
 
         n = len(particles)
         for attr in self.struct_attributes :
-            particles[attr] = self.double_pointer_to_array(tabStructs.__getattr__(attr), n)
+            particles[attr] = self.double_pointer_to_array(tabStructs.__getattribute__(attr), n)
 
 
 if __name__ == '__main__' :
-    #     header,snap = load_gizmo_nbody("binary_ecc0_HPM_MM_radoff","binary_ecc0","120",gizmoDir="/export/2/lb1g19/data/",load_binary_headers=True)
-    run_table = load_run_parameters("3032")
-    run_parameters_angles(run_table)
-    #     run_parameters_names(run_table)
+    table_date = "130720"
+    table_res = "0.0001"
 
-    ordered_keys = run_parameters_names(run_table)
-    for x in ordered_keys :
-        print("{0:64s}{1:32s}".format(x, run_table[x]['name']))
+    coolheat_dir = getTableDir() + "/"
+    print("Loading cloudy table")
+
+    ct = cloudy_table(table_date, table_res, coolheat_dir)
+
+    table_particles = pd.DataFrame()
+    lum = 1. # units of 1e44 erg/s
+    r = np.logspace(-5,2,100) # units of pc
+    conv = (3.086e-4)**2 # (1 pc in cm)**2/(1e44)
+    n=len(r)
+    table_particles["nH"] = np.ones(n)
+    table_particles["temp"] = np.full(n,300.)
+    table_particles["AGNDepth"] = np.zeros(n)
+    table_particles["AGNIntensity"] = lum/(4.*np.pi*r**2)/conv
+
+    print("Calculating dust/cooling/heating properties from table")
+    ct.interp(table_particles)
+
+    table_particles.to_csv("subl.txt",sep=' ',index=None)
+
+    dg_max = table_particles["dg"].iloc[-1]
+    print(dg_max,dg_max/2.)
+    isub = table_particles["dg"].searchsorted(dg_max/2.)
+    sub_intense = table_particles["AGNIntensity"].iloc[isub]
+    rsub = np.sqrt(sub_intense/(4.*np.pi*lum)*conv)
+    print(f"Isub={sub_intense}, log10Isub={np.log10(sub_intense)} rsub={rsub}")
+
+    #     header,snap = load_gizmo_nbody("binary_ecc0_HPM_MM_radoff","binary_ecc0","120",gizmoDir="/export/2/lb1g19/data/",load_binary_headers=True)
+    # run_table = load_run_parameters("3032")
+    # run_parameters_angles(run_table)
+    # #     run_parameters_names(run_table)
+    #
+    # ordered_keys = run_parameters_names(run_table)
+    # for x in ordered_keys :
+    #     print("{0:64s}{1:32s}".format(x, run_table[x]['name']))
 
 #     print([(x,run_table[x]['name']) for x in ordered_keys])
 #     print(run_parameters_table(load_run_parameters("3032"))[0])
